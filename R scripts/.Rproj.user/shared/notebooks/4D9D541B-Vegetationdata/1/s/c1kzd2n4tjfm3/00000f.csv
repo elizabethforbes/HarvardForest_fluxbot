@@ -1,0 +1,6 @@
+"0","dead <- read_xls(""Vegetation and soil.xlsx"", sheet = 4, col_names = T)
+"
+"2","Error: 
+  filepath: /Users/elizabethforbes/Documents/postdoc project documents/fieldwork_postdoc/summer 2023/data/Vegetation and soil.xlsx
+  libxls error: Unable to open file
+"

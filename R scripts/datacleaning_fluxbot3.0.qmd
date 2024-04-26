@@ -1,0 +1,185 @@
+---
+title: "fluxbot3.0_datacleaning"
+format: html
+editor: visual
+---
+
+Libraries:
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(readxl)
+library(here)
+library(xts) # for "make.index.unique" function when cleaning raw data
+library(purrr)
+library(lubridate) # timestamp shenanigans
+```
+
+## Upload and clean data from Google Sheets:
+
+```{r}
+
+read_excel_allsheets <- function(filename) {
+  sheets <- readxl::excel_sheets(filename)
+  x <-    lapply(sheets, function(X) readxl::read_excel(filename, sheet = X))
+  names(x) <- sheets
+  x
+}
+
+rawco2_alldat <- read_excel_allsheets(here("fluxbot data 2023", "fluxbot_co2.xlsx"))
+rawRH_alldat <- read_excel_allsheets(here("fluxbot data 2023","fluxbot_humidity.xlsx")) 
+rawP_alldat <- read_excel_allsheets(here("fluxbot data 2023","fluxbot_pressure.xlsx"))
+rawT_alldat <- read_excel_allsheets(here("fluxbot data 2023","fluxbot_temperature.xlsx"))
+
+# Prefix to be added
+prefix_co2 <- "co2_"
+prefix_RH <- "RH_"
+prefix_P <- "P_"
+prefix_T <- "T_"
+
+# Append prefix to the names of all elements in the list
+# Rename the elements in the list with the new names
+new_names <- paste0(prefix_co2, names(rawco2_alldat))
+names(rawco2_alldat) <- new_names
+list2env(rawco2_alldat, .GlobalEnv)
+
+new_names <- paste0(prefix_RH, names(rawRH_alldat))
+names(rawRH_alldat) <- new_names
+list2env(rawRH_alldat, .GlobalEnv)
+
+new_names <- paste0(prefix_P, names(rawP_alldat))
+names(rawP_alldat) <- new_names
+list2env(rawP_alldat, .GlobalEnv)
+
+new_names <- paste0(prefix_T, names(rawT_alldat))
+names(rawT_alldat) <- new_names
+list2env(rawT_alldat, .GlobalEnv)
+
+```
+
+## January 10th, 2024: processing fluxbot 20 data for Connor's engineering paper (comparison of LGR versus fluxbot flux estimates, data collected in October 2023)
+
+```{r fluxbot20}
+
+process_data <- function(df, col1, col2) {
+  df %>%
+    separate_rows(c(!!rlang::sym(col1), !!rlang::sym(col2))) %>%
+    # filter({{col2}} != "" & !is.na(parse_number({{col2}}))) %>%
+    select({{col1}}, {{col2}}) %>%
+    rename(UNIX = {{col1}}) %>%
+    mutate(
+      UNIX = as.numeric(UNIX),
+      timestamp = as.POSIXct(UNIX, origin = "1970-01-01")
+      # {{col2}} = as.numeric{{col2}})
+  )
+    # filter(timestamp != NA)
+}
+
+co2_f20_long <- co2_fluxbot_20 %>% 
+  process_data("device timestamps", "co2") %>% 
+  filter(UNIX != "") %>% 
+  mutate(co2 = as.numeric(co2))
+P_f20_long <- P_fluxbot_20 %>% 
+  process_data("device timestamps", "pressure") %>% 
+  filter(UNIX != "") %>% 
+  mutate(pressure = as.numeric(pressure))
+T_f20_long <- T_fluxbot_20 %>% 
+  process_data("device timestamps", "temprerature") %>% 
+  filter(UNIX != "") %>% 
+  rename(tempC = temprerature) %>% 
+  mutate(tempC = as.numeric(tempC)) # NOTE: there's a typo in the google sheets, hence the typo here...
+RH_f20_long <- RH_fluxbot_20 %>% 
+  process_data("device timestamps", "humidity") %>% 
+  filter(UNIX != "") %>% 
+  mutate(humidity = as.numeric(humidity))
+
+# leftjoin by UNIX time
+fluxbot20_all <- co2_f20_long %>% 
+  left_join(RH_f20_long, by = "UNIX") %>% 
+  left_join(P_f20_long, by = "UNIX") %>% 
+  left_join(T_f20_long, by = "UNIX") %>% 
+  select(UNIX, timestamp.x, co2, humidity, pressure, tempC) %>% 
+  rename(timestamp = timestamp.x)
+# Warning: Detected an unexpected many-to-many relationship between `x` and `y`
+
+```
+
+## visualize:
+
+```{r}
+fluxbot20_all %>% 
+  filter(co2 < 15000) %>% 
+  filter(timestamp > "2023-10-11 11:59:59" &
+           timestamp < "2023-10-13 12:59:59") %>% 
+  ggplot(aes(x=timestamp, y=co2))+
+  geom_point(alpha = 0.5, color = "salmon")+
+  theme_classic()
+```
+
+## select the data for LGR comparison: October 10th-13th (outside) until the end of the month.
+
+```{r}
+fluxbot_Oct <- fluxbot20_all %>% 
+  filter(timestamp > "2023-10-11 12:00:00" &
+           timestamp < "2023-11-01 00:00:00")
+
+fluxbot_Oct %>% 
+  filter(co2 < 15000) %>%
+  # filter(timestamp > "2023-10-11 11:59:59" &
+  #          timestamp < "2023-10-13 12:59:59") %>% 
+  ggplot(aes(x=timestamp, y=co2))+
+  geom_point(alpha = 0.5, color = "salmon")+
+  theme_classic()+
+  geom_vline(xintercept = as.POSIXct("2023-10-13 13:00:00"),
+             linetype = "dashed", color = "darkblue", size = 1)
+```
+
+Import LGR data from same time period:
+
+```{r}
+lgrdat <- read.csv("lgr_coupled_chamber_stiched.csv", header = TRUE)
+
+lgr <- lgrdat %>% 
+  select(Time, X.CH4._ppm, X.H2O._ppm, X.CO2._ppm, GasP_torr, GasT_C, AmbT_C) %>% 
+  rename(CH4ppm = X.CH4._ppm,
+         H2Oppm = X.H2O._ppm,
+         CO2ppm = X.CO2._ppm) %>% 
+  mutate(Time = as.POSIXct(Time, format = "%m/%d/%Y %H:%M:%S"))
+
+lgr %>% 
+  filter(CO2ppm < 1000) %>%
+  filter(Time > "2023-10-11 11:59:59" &
+           Time < "2023-10-13 11:59:59") %>% 
+  ggplot(aes(x=Time, y=CO2ppm))+
+  geom_point(alpha = 0.5, color = "lightblue")+
+  theme_classic()
+```
+
+## Merge the LGR and the fluxbot20 data from October:
+
+```{r}
+lgr_bot20 <- lgr %>% left_join(fluxbot_Oct, by = c("Time" = "timestamp"))
+# Warning: Detected an unexpected many-to-many relationship between `x` and `y`.
+
+# visualize:
+lgr_bot20 %>% 
+  filter(CO2ppm < 1500) %>% 
+  filter(co2 < 1500) %>% 
+  # filter(Time > "2023-10-11 11:59:59" &
+  #          Time < "2023-10-13 11:59:59") %>% 
+  filter(Time > "2023-10-12 12:50:00" &
+           Time < "2023-10-12 13:00:00") %>% # scroll through a few hours of data to get a sense of when the two streams align with each other for flux estimates
+  ggplot(aes(x=Time, y=CO2ppm))+
+  geom_point(alpha = 0.5, color = "darkgray")+
+  geom_point(aes(y=co2), alpha = 0.5, color = "lightblue")+
+  xlab("")+
+  ylab(bquote(~CO[2]*" concentration, ppm"))+
+  theme_classic()
+```
+
+## separate out Newfoundland data from Harvard Forest data:
+
+```{r}
+
+```

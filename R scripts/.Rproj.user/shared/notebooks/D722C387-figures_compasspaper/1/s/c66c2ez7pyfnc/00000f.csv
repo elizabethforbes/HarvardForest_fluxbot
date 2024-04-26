@@ -1,0 +1,37 @@
+"0","#| echo: false"
+"0",""
+"0","library(tidyverse)"
+"0","library(ggpubr)"
+"0","library(ggthemes)"
+"0","library(cowplot)"
+"2","
+Attaching package: ‘cowplot’
+
+"
+"2","The following object is masked from ‘package:ggthemes’:
+
+    theme_map
+
+"
+"2","The following object is masked from ‘package:ggpubr’:
+
+    get_legend
+
+"
+"2","The following object is masked from ‘package:lubridate’:
+
+    stamp
+
+"
+"0","library(patchwork)"
+"2","
+Attaching package: ‘patchwork’
+
+"
+"2","The following object is masked from ‘package:cowplot’:
+
+    align_plots
+
+"
+"0","library(ggmagnify)"
+"2","Warning: package ‘ggmagnify’ was built under R version 4.3.2"

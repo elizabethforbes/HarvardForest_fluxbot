@@ -1,0 +1,1 @@
+{"frames":[{"func":"assign(names(rawdata_bots)[i], fluxbots_metdata_list[[i]])","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0}],"message":"Error in assign(names(rawdata_bots)[i], fluxbots_metdata_list[[i]]) : \n  invalid first argument\n"}

@@ -1,0 +1,8 @@
+"0","start_end <- generate_interval_df(start_datetime, end_datetime,
+                                  interval_length,
+                                  start_minute = 56, start_second = 00,
+                                  end_minute = 59, end_second = 59)
+"
+"2","Error in base::as.difftime(tim = tim, format = format, units = units,  : 
+  invalid units specified
+"

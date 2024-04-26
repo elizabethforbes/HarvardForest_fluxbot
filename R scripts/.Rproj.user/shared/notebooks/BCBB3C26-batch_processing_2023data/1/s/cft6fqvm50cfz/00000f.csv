@@ -1,0 +1,7 @@
+"0","    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+"
+"2","Error: object 'filename' not found
+"

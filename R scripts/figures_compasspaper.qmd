@@ -1,0 +1,219 @@
+---
+title: "COMPASS_figures"
+format: html
+editor: visual
+---
+
+## Making figures for the COMPASS fluxbot design paper: comparing LGR and fluxbot flux estimates
+
+This document creates some of the figures used in the COMPASS design paper, first-authored by Connor Pan, submitted March 1st 2024. The intent of the paper is to present the generational update of the fluxbot design, with the addition of the OpenChamber software integration that allows for remote data transmission and observation via the cell network (using Particle brand microprocessors). The following code produces a multi-panel figure that a) visually compares the raw CO2ppm data from the LGR and the fluxbot (#20) during its October 2023 deployment outside Greeley and inside an environmentally-controlled lab space on a mesocosm of soil; b) compares flux estimates produced by the LGR versus those produced by the fluxbot (using environmental data collected by the fluxbot); and c) compares the mean/median/range of flux estimates produced by both methods, in different subcategories (e.g. "night" vs "day", "outside" vs "inside").
+
+## Figure Generation Code
+
+First up: load necessary and/or useful libraries
+
+```{r libraries}
+#| echo: false
+
+library(tidyverse)
+library(ggpubr)
+library(ggthemes)
+library(cowplot)
+library(patchwork)
+library(ggmagnify)
+
+```
+
+Read in data if not already loaded in environment:
+
+```{r}
+#| echo: false
+
+# lgr_bot20 <- read.csv("rawdata_lgr_bot20.csv", header = TRUE)
+
+# lgr_bot_estimates <- read.csv("lgr_bot20_fluxestimates.csv", header = TRUE)
+
+# lgr_bot_estimates_wide <- read.csv("lgr_bot20_fluxestimates_wide.csv", header = TRUE)
+
+```
+
+Figure portion a): raw data comparison between LGR, bot 20:
+
+```{r}
+# make outside data its own plot:
+a <- lgr_bot20 %>%
+  filter(CO2ppm < 1500) %>%
+  filter(co2 < 1500) %>% 
+  filter(Time < "2023-10-13 13:00:00") %>% # keep plot to just outside data
+    gather(CO2ppm,co2,key = "method",value = "CO2ppm") %>% #transform into wide-form
+    ggplot() +
+    geom_point(aes(x = Time, y=CO2ppm, color=method),
+               alpha = 0.25) +
+  ylab(bquote(~CO[2]*" concentration, ppm"))+
+  xlab("")+
+  ylim(400, 850)+
+  scale_color_manual(values = c("CO2ppm" = "deeppink4","co2"= "coral1"),
+                     labels = c("fluxbot", "LGR"))+
+  guides(colour = guide_legend(override.aes = list(alpha=1)))+ # no transparency for legend
+  theme_classic()+
+  theme(legend.position = c(0.09,0.8), legend.title = element_blank())
+a
+
+# take one hour of data:
+a_inset <- lgr_bot20 %>%
+  filter(CO2ppm < 1500) %>%
+  filter(co2 < 1500) %>% 
+  # select one hour of data as representative for inset:
+  filter(Time > "2023-10-12 12:50:00" &
+           Time < "2023-10-12 13:00:00") %>%
+    gather(CO2ppm,co2,key = "method",value = "CO2ppm") %>% #transform into wide-form
+    ggplot() +
+    geom_point(aes(x = Time, y=CO2ppm, color=method),
+               alpha = 0.5) +
+  ylab(bquote(~CO[2]*" concentration, ppm"))+
+  xlab("")+
+  labs(title="Oct. 12, 1pm observation interval")+
+  scale_color_manual(values = c("CO2ppm" = "deeppink4","co2"= "coral1"),
+                     name = "method",
+                     labels = c("fluxbot", "LGR"))+
+      theme_classic()+
+  # theme(axis.text.x = element_text(angle = 25, vjust = -0.025))+
+geom_vline(xintercept = as.integer(as.POSIXct("2023-10-12 12:55:00")),
+           linetype = "dashed",
+           color = "springgreen4",
+           size = 1)+
+  geom_vline(xintercept = as.integer(as.POSIXct("2023-10-12 12:56:00")),
+             linetype = "dashed",
+             color = "steelblue4",
+             size = 1)+
+    theme(legend.position = c(0.09,0.8), legend.title = element_blank())
+
+a_inset
+
+
+# a <- a+inset_element(a_inset, left = .55, right = 0.95, top = 1, bottom = 0.6,
+                # align_to = "full")
+# a
+```
+
+Figure portion b): flux estimate comparisons between LGR, bot 20:
+
+```{r}
+# results_mass_lgr_bot$method <- relevel(factor(results_mass_lgr_bot$method), ref= "LGR")
+mylm <- lm(results_mass_lgr_bot_wide$fluxL_umolm2sec_fluxbot~ 
+             #treating fluxbot estimates as "y" axis as that's their location in the plot, and in the correlation
+             results_mass_lgr_bot_wide$fluxL_umolm2sec_LGR, 
+           # treating lgr estimates as "x" axis for same reason
+           data=results_mass_lgr_bot_wide)
+summary(mylm)
+my_eq <- scales::comma(mylm$coefficients,accuracy = 0.001)
+my_eq_text <- paste0("y = ", my_eq[[1]], " + ",my_eq[[2]],"x")
+
+
+
+b <- results_mass_lgr_bot_wide %>% 
+  na.omit() %>% # remove those LGR observations that do not have a paired fluxbot observation
+  ggplot(aes(x=fluxL_umolm2sec_LGR, y=fluxL_umolm2sec_fluxbot))+
+  geom_point(alpha = 0.25, color = "navyblue", size = 2)+  
+  theme_classic()+
+  xlab(expression(paste("flux estimate LGR, ",mu, "mol m"^-2, "s"^-1)))+
+  ylab(expression(paste("flux estimate fluxbot, ",mu, "mol m"^-2, "s"^-1)))+
+  stat_smooth(method = "lm", color = "red", size = 1)+
+  # stat_regline_equation(label.x = 0.25, label.y = 6.5)+
+  annotate(geom="text", x=1, y=7.5, label = my_eq_text)+ # wanted to add more sig figs to the lm equation
+  # stat_cor(aes(label=..rr.label..), label.x = 0.25, label.y = 6, digits = 3)
+  stat_cor(method = "spearman", p.accuracy = 0.001, r.accuracy = 0.0001)
+
+b
+```
+
+Figure portion c): boxplots of flux estimates for each method by category:
+
+```{r}
+c <- results_mass_lgr_bot_wide %>% 
+  na.omit() %>% # remove those LGR observations that do not have a paired fluxbot observation
+  # filter(hour_of_obs > "2023-10-13 13:00:00") %>% # keep plot to just outside data
+  select(hour_of_obs, fluxL_umolm2sec_LGR, fluxL_umolm2sec_fluxbot) %>% 
+  pivot_longer(!hour_of_obs, names_to = "method", values_to = "flux") %>% 
+  mutate(hour = hour(hour_of_obs)) %>% 
+  mutate(timeofday = case_when(hour %in% 8:16 ~ "day",
+                         hour %in% 20:23 ~ "night",
+                         hour %in% 0:4 ~ "night",
+                         hour %in% 5:7 ~ "dawn",
+                         hour %in% 17:19 ~ "dusk")) %>% 
+  mutate(location = case_when(hour_of_obs < "2023-10-13 13:00:00" ~ "outside",
+                              hour_of_obs > "2023-10-13 13:00:00" ~ "mesocosm")) %>% 
+  mutate(location = factor(location, levels = c("outside", "mesocosm"))) %>% # reorder the factor for "location" so outside comes first
+  filter(location == "outside" | location == "mesocosm") %>% 
+  # ggplot(aes(x=as.factor(hour), y=flux, fill = location))+
+  # ggplot(aes(x=factor(hour), y=flux, fill = method))+
+  ggplot(aes(x=timeofday, y=flux, fill = method))+
+  geom_boxplot()+
+  # xlab("hour of day")+
+  xlab("")+
+  ylab(expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
+  # scale_fill_manual(values = c("outside" = "lightyellow", "mesocosm" = "navy"), name = "location", labels = c("mesocosm", "outside"))+
+  facet_wrap(~location)+
+  scale_fill_manual(values = c("fluxL_umolm2sec_LGR" = "deeppink4",
+                                "fluxL_umolm2sec_fluxbot" = "coral1"),
+                     labels = c("fluxbot", "LGR"))+
+  theme_classic()+
+  theme(legend.position = c(0.09,.82), legend.title = element_blank())
+c
+```
+
+All together now:
+
+```{r}
+# fig <- ggarrange(a, b, c,
+                 # labels = c("a)", "b)", "c)"),
+                 # ncol = , nrow = 3)
+fig <- ggarrange(a_inset, a, b,
+                 labels = c("a)", "b)", "c)"),
+                 ncol = , nrow = 3)
+fig
+
+```
+
+##################################### 
+
+I also want to add a whole-timeline plot (outside and inside time) for the supplement:
+
+```{r}
+# full dataset for supplement:
+a_supplement <- lgr_bot20 %>%
+  filter(CO2ppm < 1500) %>%
+  filter(co2 < 1500) %>% 
+  # filter(Time < "2023-10-13 13:00:00") %>% # keep plot to just outside data
+    gather(CO2ppm,co2,key = "method",value = "CO2ppm") %>% #transform into wide-form
+    ggplot() +
+    geom_point(aes(x = Time, y=CO2ppm, color=method),
+               alpha = 0.25) +
+  ylab(bquote(~CO[2]*" concentration, ppm"))+
+  xlab("")+
+  # ylim(375,1500)+
+  scale_color_manual(values = c("CO2ppm" = "slategray","co2"= "lightblue"),
+                     name = "",
+                     labels = c("fluxbot", "LGR"),
+                     guide = guide_axis(angle = 45))+
+  guides(colour = guide_legend(override.aes = list(alpha=1)))+ # no transparency for legend
+  theme_classic()+
+  theme(legend.position = c(0.08,0.88))
+a_supplement
+a_supplement <- a_supplement+geom_vline(xintercept = as.POSIXct("2023-10-13 13:00:00"),
+             linetype = "dashed", color = "red", size = 0.75)
+a_supplement
+
+```
+
+Alt method:
+
+```{r}
+
+```
+
+Final portion a):
+
+```{r}
+
+```

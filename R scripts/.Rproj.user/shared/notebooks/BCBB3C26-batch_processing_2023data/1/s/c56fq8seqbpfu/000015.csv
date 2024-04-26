@@ -1,0 +1,8 @@
+"0","# Write each data frame in the resulting list to the global environment with its original name
+for (i in seq_along(fluxbots_metdata_list)) {
+  assign(names(rawdata_bots)[i], fluxbots_metdata_list[[i]])
+}
+"
+"2","Error in assign(names(rawdata_bots)[i], fluxbots_metdata_list[[i]]) : 
+  invalid first argument
+"

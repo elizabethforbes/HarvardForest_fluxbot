@@ -1,0 +1,6 @@
+"0","# Apply the function to the list of lists
+modified_list_of_lists <- lapply(merged_result, change_colnames)
+"
+"2","Error in `colnames<-`(`*tmp*`, value = c(""UNIX_time"", ""co2_ppm"", ""rh_percent"",  : 
+  attempt to set 'colnames' on an object with less than two dimensions
+"

@@ -1,0 +1,164 @@
+---
+title: "Harvard Forest flux estimates"
+output: html_document
+date: "2024-02-28"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(ggthemes)
+library(cowplot)
+library(patchwork)
+library(calecopal)
+library(here)
+```
+
+## COMPASS paper: visualization of Harvard Forest deployment data
+
+Read in csv if not already loaded in global environment ("HarvardForest_fluxestimates_fall2023.csv")
+
+```{r}
+
+# read in data:
+# HF_fluxestimates <- read.csv("HarvardForest_fluxestimates_fall2023.csv", header = T)
+
+pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
+
+HF_fluxestimates %>% 
+  mutate(hour = hour(hour_of_obs)) %>%
+  filter(fluxL_umolm2sec > -0.01) %>% 
+  filter(id != "fluxes_bot114" & id != "fluxes_bot112") %>%
+  ggplot(aes(x = hour, y = fluxL_umolm2sec, color = as.factor(hour)))+
+  # ggplot(aes(x = hour_of_obs, y = fluxL_umolm2sec))+
+  # geom_point(size = 1, alpha = 0.5)+
+  labs(x="hour of the day", 
+       y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
+  geom_boxplot()+
+  # geom_point()+
+  facet_wrap(~stand)+
+  theme_bw()+
+  scale_color_manual(values = pal)+
+  theme(legend.position = "none")
+  
+```
+
+```{r}
+HF_fluxestimates %>% 
+  # mutate(hour = hour(hour_of_obs)) %>%
+  # ggplot(aes(x = as.factor(hour), y = fluxL_umolm2sec, fill = stand))+
+  # ggplot(aes(x = as.factor(hour), y = fluxL_umolm2sec, fill = stand))+
+  ggplot(aes(x = fluxQ_umolm2sec, y = fluxL_umolm2sec))+
+  geom_point(size = 1, alpha = 0.5)+
+  labs(x="quadratic estimate", y="linear estimate")+
+  # geom_boxplot()+
+  # facet_wrap(~hour)+
+  # geom_smooth(method = "lm")+
+  theme_bw()
+```
+
+Plot to examine diurnal variability: 24, 48, and 72 hours of sampling during example of most consistent sampling period(s):
+
+```{r}
+#colors:
+pal <- cal_palette(name = "superbloom3", n = 14, type = "continuous")
+
+# 24 hours, Oct. 4th
+HF_fluxestimates %>% 
+  filter(hour_of_obs > "2023-10-09 00:00:59" & hour_of_obs < "2023-10-10 23:59:59") %>%
+  filter(id != "fluxes_bot114" & id != "fluxes_bot112") %>%
+  filter(fluxL_umolm2sec > -0.01) %>% 
+  ggplot(aes(x = hour_of_obs, y = fluxL_umolm2sec, color = id))+
+  geom_point(size = 2, alpha = 0.5)+
+  geom_line()+
+  facet_grid(~stand)+
+  theme_bw()+
+  ggtitle("October 9-10th, 2023: 48hrs total")+
+  labs(x="", y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
+  theme(legend.position = "none")+
+  scale_x_datetime(date_labels = "%H:%M")+
+  theme(panel.spacing = unit(2, "lines"))+
+  scale_color_manual(values = pal)
+```
+
+Explore raw data from chosen fluxbots:
+
+```{r}
+
+rawdata_fluxbot_106 %>%
+  filter(Time > "2023-10-26 12:54:00" &
+           Time < "2023-10-26 13:00:00") %>%
+  filter(co2 < 6000) %>%
+  # filter(id == "fluxes_bot114" | id == "fluxes_bot112") %>% 
+  ggplot(aes(x = Time, y = co2))+
+  geom_point(size = 1, alpha = 0.5)+
+  # geom_line()+
+  labs(x="", y=expression(paste(CO[2], " concentration (ppm)")))+
+  # ggtitle("Fluxbot 13 raw CO2 detection")+
+  theme_classic()
+  
+```
+
+Double check some of the sketchy intervals
+
+```{r}
+
+# Example usage of visualize_interval_regressions function
+# Specify the start and end timestamps of the interval you want to visualize
+interval_start <- as.POSIXct("2023-10-26 12:56:00", tz = "America/New_York")
+interval_end <- as.POSIXct("2023-10-26 12:59:59", tz = "America/New_York")
+
+test <- convert_co2_to_mass(rawdata_fluxbot_106, interval_start, interval_end)
+
+
+rawdata_fluxbot_106 %>% 
+  filter(Time > "2023-10-26 12:55:59" & Time < "2023-10-26 13:00:00") %>% 
+  ggplot(aes(x=Time, y=test))+
+  # ggplot(aes(x=Time, y=co2))+
+  # ggplot(aes(x=Time, y=pressure))+
+  geom_point()+
+  # ylab("CO2 concentration (PPM)")+
+  # ylab("CO2 mass (kg)")+
+  theme_classic()
+```
+
+## Harvard Forest autochamber flux estimates: from Ashley and Corey, April 2024
+
+upload HF autochamber data:
+```{r}
+# site 1 (aka "unhealthy" hemlock plot)
+HFauto_unhealthy <- read.csv("HFauto_site1_2023October.csv", header = T)
+# site 2 (aka "healthy" hemlock plot)
+HFauto_healthy <- read.csv("HFauto_site2_2023October.csv", header = T)
+# add stand info:
+HFauto_unhealthy <- HFauto_unhealthy %>% 
+  mutate(stand = "unhealthy")
+# add stand info:
+HFauto_healthy <- HFauto_healthy %>% 
+  mutate(stand = "healthy")
+
+# combine:
+HFauto_fluxestimates <- rbind(HFauto_unhealthy, HFauto_healthy)
+
+# visualize:
+pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
+
+HFauto_fluxestimates %>% 
+  filter(rs > -0.01 & rs < 5) %>%
+  ggplot(aes(x = hour, y = rs, color = as.factor(hour)))+
+  # ggplot(aes(x = datetime, y = rs))+
+  labs(x="hour of the day", 
+       y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
+  geom_boxplot()+
+  # geom_point()+
+  facet_wrap(~stand)+
+  theme_bw()+
+  scale_color_manual(values = pal)+
+  theme(legend.position = "none")
+```
+
+Combine the two datasets by stand and time:
+```{r}
+
+```
+

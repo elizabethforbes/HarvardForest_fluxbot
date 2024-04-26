@@ -1,0 +1,15 @@
+"0","# lgr estimates:
+results_mass_lgr <- calculate_regressions_custom_intervals(lgr_intervals, startend, ""LGR"")
+"
+"1","Skipping interval due to extremely small delta:"
+"1"," "
+"1","1"
+"1"," "
+"1","
+"
+"1","Skipping interval due to extremely small delta:"
+"1"," "
+"1","2"
+"1"," "
+"1","
+"

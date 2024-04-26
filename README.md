@@ -8,3 +8,9 @@ This repository contains the following datasets:
 - Harvard Forest weather data (meta-data with which to interpret flux estimates)
 
 The aim of this repository is to contain the data and code associated with a manuscript written by Forbes, Gewirtzman, Kaiser, Palmer et al. and which will demonstrate the utility of a low-cost DIY fluxbot array in detecting small-scale variability in soil carbon fluxes across heterogeneous forest contexts.
+<p align="center">
+<img src="https://github.com/elizabethforbes/HarvardForest_fluxbot/blob/main/images/autoarray_Oct2023.png" width="550" align="center">
+</p>
+<p align="center">
+<img src="https://github.com/elizabethforbes/HarvardForest_fluxbot/blob/main/images/fluxbotarray_Oct2023.png" width="565" align="center">
+</p>

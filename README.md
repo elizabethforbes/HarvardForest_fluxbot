@@ -1,5 +1,5 @@
-## Harvard Forest: fluxbot project 2023
-# Repository for fluxbot data collected in fall 2023 at Harvard Forest and associated datasets (LGR, auto-chambers, etc.)
+# Harvard Forest: fluxbot project 2023
+## Repository for fluxbot data collected in fall 2023 at Harvard Forest and associated datasets (LGR, auto-chambers, etc.)
 
 This repository contains the following datasets:
 - Harvard Forest fluxbot array, fall 2023 (16 total fluxbots deployed from late September 2023 to early November 2023)

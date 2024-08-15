@@ -20,12 +20,22 @@ process_data <- function(df_list, col1, col2) {
       next
     }
     
-    # Extract values from lists in col1 and col2
+    # Extract values from lists in col1 and col2, save as numeric values
     df <- df %>%
-      mutate(UNIX = gsub("\\[|\\]", "", df[[col1]]),
-             co2 = gsub("\\[|\\]", "", df[[col2]])) %>%
-      separate_rows(UNIX, co2, sep = ",") %>%
-      select(UNIX, co2)
+      mutate(
+        UNIX = gsub("\\[|\\]", "", df[[col1]]),
+        data = gsub("\\[|\\]", "", df[[col2]])
+      ) %>%
+      separate_rows(UNIX, data, sep = ",") %>%
+      mutate(
+        UNIX = as.numeric(UNIX),  # Convert UNIX timestamps to numeric
+        data = as.numeric(data)   # Convert data column to numeric
+      ) %>%
+      select(UNIX, data) %>%
+      rename(!!sym(col2) := data)  # Rename the "data" column to the name of col2
+    # sym(col2) converts the string col2 into a symbol.
+    # !! unquotes the symbol so that it can be used as a column name in the rename() function.
+    # rename(!!sym(col2) := data): This renames the "data" column to the value of col2 provided when calling the function.
     
     # Store the processed dataframe in the list with the name of the input df
     longdat_list[[paste0("rawdata_", names(df_list)[i])]] <- df
@@ -37,6 +47,7 @@ process_data <- function(df_list, col1, col2) {
 
 # Example usage:
 # processed_data <- process_data(df_list, col1 = "device timestamps", col2 = "co2")
+# processed_data_pressure <- process_data(df_list, col1 = "device timestamps", col2 = "pressure")
 
 
 

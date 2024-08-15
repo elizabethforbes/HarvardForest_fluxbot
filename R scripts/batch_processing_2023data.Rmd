@@ -83,6 +83,14 @@ allfluxbotdata_list <- change_colnames_and_convert(merged_result)
 Alt: produce start/end df for the period of deployment in question
 
 ```{r}
+# identify "longest" df in the list of dataframes:
+longest_df <- 
+  allfluxbotdata_list %>% 
+  map_int(nrow) %>% # count number of rows across all elements in the list
+  which.max() %>% # identify the element with the max number of rows
+  {names(allfluxbotdata_list)[.]} # extract the name of that element
+longest_df
+# [1] "rawdata_Fluxbot_205"
 
 # extracting start/end dates of the longest df in the list:
 min(rawdata_fluxbot_22$Time)
@@ -155,6 +163,7 @@ test_fluxes <- calculate_regressions_custom_intervals(test, start_end, "fluxbot"
 
 head(test_fluxes)
 ```
+
 Assign HF meterological data to each of the dfs in the HF deployment array:
 ```{r}
 # Define a function to apply the process to a single data frame

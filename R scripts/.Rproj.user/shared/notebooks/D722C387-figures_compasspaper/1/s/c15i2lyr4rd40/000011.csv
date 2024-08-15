@@ -1,8 +1,0 @@
-"0","# fig <- ggarrange(a, b, c,
-                 # labels = c(""a)"", ""b)"", ""c)""),
-                 # ncol = , nrow = 3)
-fig <- ggarrange(a_inset, a, b,
-                 labels = c(""a)"", ""b)"", ""c)""),
-                 ncol = , nrow = 3)
-"
-"2","[38;5;232m`geom_smooth()` using formula = 'y ~ x'[39m"

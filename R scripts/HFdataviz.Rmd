@@ -27,7 +27,7 @@ pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
 
 HF_fluxestimates %>% 
   mutate(hour = hour(hour_of_obs)) %>%
-  filter(fluxL_umolm2sec > -0.01) %>% 
+  filter(fluxL_umolm2sec > -0.01) %>%
   filter(id != "fluxes_bot114" & id != "fluxes_bot112") %>%
   ggplot(aes(x = hour, y = fluxL_umolm2sec, color = as.factor(hour)))+
   # ggplot(aes(x = hour_of_obs, y = fluxL_umolm2sec))+
@@ -35,6 +35,7 @@ HF_fluxestimates %>%
   labs(x="hour of the day", 
        y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
   geom_boxplot()+
+  ggtitle("Fluxbot Autochambers")+
   # geom_point()+
   facet_wrap(~stand)+
   theme_bw()+
@@ -127,9 +128,9 @@ rawdata_fluxbot_106 %>%
 upload HF autochamber data:
 ```{r}
 # site 1 (aka "unhealthy" hemlock plot)
-HFauto_unhealthy <- read.csv("HFauto_site1_2023October.csv", header = T)
+HFauto_healthy <- read.csv("site1_October2023_man.csv", header = T)
 # site 2 (aka "healthy" hemlock plot)
-HFauto_healthy <- read.csv("HFauto_site2_2023October.csv", header = T)
+HFauto_unhealthy <- read.csv("site2_October2023_man.csv", header = T)
 # add stand info:
 HFauto_unhealthy <- HFauto_unhealthy %>% 
   mutate(stand = "unhealthy")
@@ -144,12 +145,14 @@ HFauto_fluxestimates <- rbind(HFauto_unhealthy, HFauto_healthy)
 pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
 
 HFauto_fluxestimates %>% 
-  filter(rs > -0.01 & rs < 5) %>%
+  # filter(rs > -0.01 & rs < 5) %>%
+  filter(rs > -0.01 & rs < 15) %>% 
   ggplot(aes(x = hour, y = rs, color = as.factor(hour)))+
   # ggplot(aes(x = datetime, y = rs))+
   labs(x="hour of the day", 
        y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
   geom_boxplot()+
+  ggtitle("Harvard Forest Autochambers")+
   # geom_point()+
   facet_wrap(~stand)+
   theme_bw()+

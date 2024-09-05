@@ -12,6 +12,7 @@ library(cowplot)
 library(patchwork)
 library(calecopal)
 library(here)
+library(ggpmisc)
 ```
 
 ## COMPASS paper: visualization of Harvard Forest deployment data
@@ -35,6 +36,7 @@ HF_fluxestimates %>%
   labs(x="hour of the day", 
        y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
   geom_boxplot()+
+  ylim(0,11)+
   ggtitle("Fluxbot Autochambers")+
   # geom_point()+
   facet_wrap(~stand)+
@@ -128,9 +130,9 @@ rawdata_fluxbot_106 %>%
 upload HF autochamber data:
 ```{r}
 # site 1 (aka "unhealthy" hemlock plot)
-HFauto_healthy <- read.csv("site1_October2023_man.csv", header = T)
+HFauto_unhealthy <- read.csv("site1_October2023_man.csv", header = T)
 # site 2 (aka "healthy" hemlock plot)
-HFauto_unhealthy <- read.csv("site2_October2023_man.csv", header = T)
+HFauto_healthy <- read.csv("site2_October2023_man.csv", header = T)
 # add stand info:
 HFauto_unhealthy <- HFauto_unhealthy %>% 
   mutate(stand = "unhealthy")
@@ -151,7 +153,7 @@ HFauto_fluxestimates %>%
   # ggplot(aes(x = datetime, y = rs))+
   labs(x="hour of the day", 
        y=expression(paste("flux estimate, ",mu, "mol m"^-2, "s"^-1)))+
-  geom_boxplot()+
+  geom_boxplot()+  ylim(0,11)+
   ggtitle("Harvard Forest Autochambers")+
   # geom_point()+
   facet_wrap(~stand)+
@@ -162,6 +164,149 @@ HFauto_fluxestimates %>%
 
 Combine the two datasets by stand and time:
 ```{r}
+# summary stats by stand, autochamber array:
+HFauto_fluxestimates %>%
+  group_by(stand) %>% 
+  summarise(mean_flux = mean(rs, na.rm = TRUE),
+            min_flux = min(rs, na.rm = TRUE),
+            max_flux = max(rs, na.rm = TRUE),
+            sd_flux = sd(rs, na.rm = TRUE),
+            tenth_quantile = quantile(rs, probs = .1, na.rm = TRUE),
+            ninetieth_quantile = quantile(rs, probs = .9, na.rm = TRUE))
+```
+
+```{r}
+# summary stands by stand, fluxbot array:
+HF_fluxestimates %>%
+  # filter(fluxL_umolm2sec > -1) %>% 
+  group_by(stand) %>% 
+  summarise(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE),
+            min_flux = min(fluxL_umolm2sec, na.rm = TRUE),
+            max_flux = max(fluxL_umolm2sec, na.rm = TRUE),
+            sd_flux = sd(fluxL_umolm2sec, na.rm = TRUE),
+            tenth_quantile = quantile(fluxL_umolm2sec, probs = .1, na.rm = TRUE),
+            ninetieth_quantile = quantile(fluxL_umolm2sec, probs = .9, na.rm = TRUE))
+```
+XY plot of hourly means from each array, and associated R2:
+```{r}
+# autochamber:
+HFauto_hrlymeans <- HFauto_fluxestimates %>% 
+  group_by(hour, stand) %>% 
+  summarize(mean_hrly_auto = mean(rs, na.rm = TRUE))
+# bots:
+HFbots_hrlymeans <- HF_fluxestimates %>% 
+  mutate(hour = lubridate::hour(hour_of_obs)) %>% 
+  group_by(hour, stand) %>% 
+  summarize(mean_hrly_bots = mean(fluxL_umolm2sec, na.rm = TRUE))
+
+# bind:
+hrlymeans <- merge(HFauto_hrlymeans, HFbots_hrlymeans, by = c("hour", "stand"))
+
+# plot:
+hrlymeans %>% 
+  ggplot(aes(x=mean_hrly_auto, y=mean_hrly_bots, color = "pink"))+
+  geom_point()+
+  geom_smooth(method = "lm", se = TRUE, color = "black")+
+  stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+               formula = y~x,
+               parse = TRUE,
+               label.x = "right",
+               label.y = "top")+
+  labs(x = "mean hourly flux, HF autochambers", y = "mean hourly flux, Fluxbots")+
+  facet_wrap(~stand)+
+  theme_bw()+
+  theme(
+    legend.position = "none",
+        axis.title.x = element_text(face = "bold", color = "darkred"),
+        axis.title.y = element_text(face = "bold", color = "blue"))
+```
+Same, but for every hour of the deployment (aka averaged across bots, not across the deployment period):
+```{r}
+# autochambers:
+HFauto_fluxestimates <- HFauto_fluxestimates %>% 
+  mutate(date_time = gsub("T", " ", datetime)) %>% 
+  mutate(date_time = as.POSIXct(date_time, format = "%Y-%m-%d %H:%M:%S")) %>% 
+  mutate(date = as_date(date_time))
+
+# bin observations into buckets: average by time of day, "dawn", "morning", "midday", "afternoon", "dusk", "night"
+HFauto_timeofday <- HFauto_fluxestimates %>% 
+  mutate(timeofday = case_when(hour > 4 & hour < 8 ~ "dawn",
+                                hour > 7 & hour < 11 ~ "morning",
+                                hour > 10 & hour < 15 ~ "midday", 
+                                hour > 14 & hour < 17 ~ "afternoon",
+                                hour > 16 & hour < 20 ~ "dusk",
+                                TRUE ~ "night")) %>% 
+  group_by(date, timeofday) %>% 
+  summarize(mean_timeofday_auto = mean(rs, na.rm = TRUE),
+            stand = stand) %>% 
+  unite("date_timeofday", date:timeofday, sep = ", ", remove = FALSE)
+
+# fluxbots:
+HFbots_timeofday <- HF_fluxestimates %>% 
+  mutate(date = as_date(hour_of_obs)) %>% 
+  # pull "hour" out:
+  mutate(hour = hour(hour_of_obs)) %>% 
+  mutate(timeofday = case_when(hour > 4 & hour < 8 ~ "dawn",
+                                hour > 7 & hour < 11 ~ "morning",
+                                hour > 10 & hour < 15 ~ "midday", 
+                                hour > 14 & hour < 17 ~ "afternoon",
+                                hour > 16 & hour < 20 ~ "dusk",
+                                TRUE ~ "night")) %>% 
+  group_by(date, timeofday) %>% 
+  summarize(mean_timeofday_bots = mean(fluxL_umolm2sec, na.rm = TRUE),
+            stand = stand) %>% 
+  unite("date_timeofday", date:timeofday, sep = ", ", remove = FALSE)
+
+# combine:
+means_timeofday <- merge(HFauto_timeofday, HFbots_timeofday, by = "date_timeofday")
+```
+
+Plot: by healthy, unhealthy plots
+```{r}
+legend_title <- "time of day"
+means_timeofday$timeofday.x <- factor(means_timeofday$timeofday.x,
+                                      levels = c("dawn", "morning", "midday", "afternoon", "dusk", "night"))
+
+means_timeofday %>% 
+  ggplot(aes(x=mean_timeofday_auto, y=mean_timeofday_bots, color = timeofday.x, fill = timeofday.x))+
+  geom_point(color = "black", pch = 21)+
+  geom_smooth(aes(color=timeofday.x), method = "lm", se = FALSE, linewidth = 0.5)+
+  scale_fill_manual(legend_title, values = c("white", "lemonchiffon2", "yellow2", "goldenrod3", "steelblue4", "grey26"))+
+  scale_color_manual(legend_title, values = c("white", "lemonchiffon2", "yellow2", "goldenrod3", "steelblue4", "grey26"))+
+  stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+               formula = y~x,
+               parse = TRUE,
+               label.x = "right",
+               label.y = "bottom",
+               )+
+  labs(x = "mean flux, HF autochambers", y = "mean flux, Fluxbots")+
+  facet_wrap(~stand.x)+
+  theme_dark()
 
 ```
 
+Plot: by time of day
+```{r}
+legend_title <- "plot condition"
+means_timeofday$stand.x <- factor(means_timeofday$stand.x,
+                                      levels = c("healthy", "unhealthy"))
+
+means_timeofday %>% 
+  ggplot(aes(x=mean_timeofday_auto, y=mean_timeofday_bots, color = stand.x, fill = stand.x))+
+  geom_point(color = "black", pch = 21)+
+  geom_smooth(aes(color=stand.x), method = "lm", se = FALSE, linewidth = 0.5)+
+  scale_fill_manual(legend_title, values = c("darkolivegreen3", "lightsalmon1"))+
+  scale_color_manual(legend_title, values = c("darkolivegreen3", "lightsalmon1"))+
+  stat_poly_eq(aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+               formula = y~x,
+               parse = TRUE,
+               label.x = "right",
+               label.y = "bottom",
+               vstep = .1,
+               size = 3
+               )+
+  labs(x = "mean flux, HF autochambers", y = "mean flux, Fluxbots")+
+  facet_wrap(~timeofday.x)+
+  theme_dark()
+
+```

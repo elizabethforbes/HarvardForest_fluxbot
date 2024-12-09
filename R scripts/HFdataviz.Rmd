@@ -10,10 +10,11 @@ library(ggpubr)
 library(ggthemes)
 library(cowplot)
 library(patchwork)
-library(calecopal)
+# library(calecopal)
 library(here)
 library(ggpmisc)
 library(rstatix)
+library(wesanderson)
 ```
 
 ## COMPASS paper: visualization of Harvard Forest deployment data
@@ -25,7 +26,9 @@ Read in csv if not already loaded in global environment ("HarvardForest_fluxesti
 # read in data:
 # HF_fluxestimates <- read.csv("HarvardForest_fluxestimates_fall2023.csv", header = T)
 
-pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
+# pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
+
+pal <- wes_palette(name = "Zissou1", n=24, type = "continuous")
 
 HF_fluxestimates %>% 
   mutate(hour = hour(hour_of_obs)) %>%

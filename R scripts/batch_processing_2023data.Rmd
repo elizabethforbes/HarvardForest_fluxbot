@@ -47,6 +47,7 @@ press <- read_excel_allsheets(here("fluxbot data 2023", "fluxbot_pressure.xlsx")
 ```{r}
 
 # file named "process_googledata_list.R" in folder "scripts_batch processing fluxbot data" in this directory
+source(here("scripts_batch processing fluxbot data", "process_googledata_list.R"))
 
 co2_rawdata <- process_data(co2, col1 = "device timestamps", col2 = "co2")
 rh_rawdata <- process_data(rh, col1 = "device timestamps", col2 = "humidity")
@@ -58,6 +59,8 @@ press_rawdata <- process_data(press, col1 = "device timestamps", col2 = "pressur
 ```{r}
 
 # file named "merge_metadata_list.R" in folder "scripts_batch processing fluxbot data" in this directory
+source(here("scripts_batch processing fluxbot data", "merge_metadata_list.R"))
+
 merged_result <- merge_lists_by_column(co2_rawdata, rh_rawdata, temp_rawdata, press_rawdata, "UNIX")
 
 # Function to change column names and convert specified columns to numeric
@@ -119,7 +122,7 @@ start_end <- generate_interval_df(start_datetime, end_datetime,
 ```{r}
 
 # Produce pressure data from HF met station:
-#load HF met data from 2016 - 2017 and convert to useful units
+# load HF met data from 2016 - 2017 and convert to useful units
 met_data <- read.csv("https://harvardforest.fas.harvard.edu/data/p00/hf001/hf001-10-15min-m.csv")
 met_data$ymd <- ymd(str_split_fixed(met_data$datetime, "T", 2)[,1])
 met_data$time <- hm(str_split_fixed(met_data$datetime, "T", 2)[,2])
@@ -204,6 +207,7 @@ for (i in seq_along(fluxbots_metdata_list)) {
 Flux estimates:
 ```{r}
 # function titled "estimatefluxes.R" in folder "scripts_batch processing fluxbot data" in this directory:
+source(here("scripts_batch processing fluxbot data", "estimatefluxes.R"))
 
 # fluxbots in the healthy plot:
 fluxes_bot100 <- calculate_regressions_custom_intervals(rawdata_fluxbot_100, start_end, "fluxbot", 768, 81)

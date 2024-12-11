@@ -68,7 +68,7 @@ Plot to examine diurnal variability: 24, 48, and 72 hours of sampling during exa
 
 ```{r}
 #colors:
-pal <- cal_palette(name = "superbloom3", n = 14, type = "continuous")
+pal <- wes_palette(name = "Zissou1", n = 14, type = "continuous")
 
 # 24 hours, Oct. 4th
 HF_fluxestimates %>% 
@@ -115,8 +115,8 @@ Double check some of the sketchy intervals
 interval_start <- as.POSIXct("2023-10-26 12:56:00", tz = "America/New_York")
 interval_end <- as.POSIXct("2023-10-26 12:59:59", tz = "America/New_York")
 
+source(here("scripts_batch processing fluxbot data", "ppm_to_mass.R"))
 test <- convert_co2_to_mass(rawdata_fluxbot_106, interval_start, interval_end)
-
 
 rawdata_fluxbot_106 %>% 
   filter(Time > "2023-10-26 12:55:59" & Time < "2023-10-26 13:00:00") %>% 
@@ -149,7 +149,7 @@ HFauto_healthy <- HFauto_healthy %>%
 HFauto_fluxestimates <- rbind(HFauto_unhealthy, HFauto_healthy)
 
 # visualize:
-pal <- cal_palette(name = "superbloom2", n = 24, type = "continuous")
+pal <- wes_palette(name = "Zissou1", n=24, type = "continuous")
 
 HFauto_fluxestimates %>% 
   # filter(rs > -0.01 & rs < 5) %>%

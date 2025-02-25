@@ -1,0 +1,401 @@
+---
+title: "HFarray_fluxbotanalyses"
+output: html_document
+date: "2025-02-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Load libraries:
+```{r}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggpubr)
+library(here)
+```
+
+Load raw CO2 data for the HF array:
+```{r}
+HF_rawdat <- read_csv("HFarray_RawCO2_October2023.csv")
+
+# collar height data:
+chamber_vols <- data.frame(
+  chamber = 1:12,
+  height_cm = c(4.85, 4.9, 5.85, 4.45, 5.75, 5.15, 
+             4.8, 4.3, 5.50, 4.3, 3.6, 4)
+)
+
+LidVolume_m3 = 0.0646328*0.099 # m3 
+SystemVolume_cm3 = 274.14 # cm3 # including tubing, internal IRGA volume
+chamb_area_cm2 <- 646.328
+
+HFchamber_vols <- chamber_vols %>% 
+  mutate(ChamberVolume_m3 = (height_cm/100)*0.0646328, # m3
+         TotalVolume_m3 = ChamberVolume_m3+LidVolume_m3+(SystemVolume_cm3/10^6), # m3
+         TotalVol_cm3 = TotalVolume_m3*1000000) %>%  # cm3
+  mutate(ChambArea_cm2 = chamb_area_cm2)
+```
+
+Split the long df of all the autochambers' raw data into individual dfs:
+```{r}
+rawdat_HF_1 <- HF_rawdat %>% 
+  filter(chamber == 1)
+rawdat_HF_2 <- HF_rawdat %>% 
+  filter(chamber == 2)
+rawdat_HF_3 <- HF_rawdat %>% 
+  filter(chamber == 3)
+rawdat_HF_4 <- HF_rawdat %>% 
+  filter(chamber == 4)
+rawdat_HF_5 <- HF_rawdat %>% 
+  filter(chamber == 5)
+rawdat_HF_6 <- HF_rawdat %>% 
+  filter(chamber == 6)
+
+rawdat_HF_7 <- HF_rawdat %>% 
+  filter(chamber == 7)
+rawdat_HF_8 <- HF_rawdat %>% 
+  filter(chamber == 8)
+rawdat_HF_9 <- HF_rawdat %>% 
+  filter(chamber == 9)
+rawdat_HF_10 <- HF_rawdat %>% 
+  filter(chamber == 10)
+rawdat_HF_11 <- HF_rawdat %>% 
+  filter(chamber == 11)
+rawdat_HF_12 <- HF_rawdat %>% 
+  filter(chamber == 12)
+
+# make a list:
+HF_rawdat_list <- list(rawdat_HF_1, rawdat_HF_2, rawdat_HF_3, rawdat_HF_4, rawdat_HF_5, rawdat_HF_6, rawdat_HF_7, rawdat_HF_8, rawdat_HF_9, rawdat_HF_10, rawdat_HF_11, rawdat_HF_12)
+```
+
+
+Add meteorological data to the HF raw data array dataframes in a list:
+```{r}
+# load HF met data from 2016 - 2017 and convert to useful units
+met_data <- read.csv("https://harvardforest.fas.harvard.edu/data/p00/hf001/hf001-10-15min-m.csv")
+met_data$ymd <- ymd(str_split_fixed(met_data$datetime, "T", 2)[,1])
+met_data$time <- hm(str_split_fixed(met_data$datetime, "T", 2)[,2])
+met_data <- met_data[which(met_data$ymd>=ymd("2023-06-01") & met_data$ymd<ymd("2023-11-30")),]
+#unit conversions: not necessary as mbar = hPa (just rename)
+met_data <- met_data %>% 
+  select(datetime, bar, airt, prec, s10t) %>% 
+  rename(pressure_hPa_HF = bar,
+         tempC_HF = airt,
+         precip_HF = prec,
+         soiltemp_10cm_HF = s10t)
+met_data <- met_data %>% 
+  mutate(Time = as.POSIXct(datetime,
+                           format = "%Y-%m-%dT%H:%M",
+                           tz = "America/New_York"))
+
+# Define a function to apply the process to a single data frame
+join_met_data <- function(df) {
+  df <- df %>%
+    left_join(met_data,
+              join_by(closest(datetime>=Time))) %>% 
+              # by = c("closest" = "Time")) %>%
+    select(datetime.x, chamber, CO2_ppm, # original df
+           pressure_hPa_HF, tempC_HF, precip_HF, soiltemp_10cm_HF) %>% # metdata df
+    rename(Time = datetime.x,
+           pressure = pressure_hPa_HF)
+  
+  return(df)
+}
+
+# apply function to list of dfs:
+# Apply the function to each data frame in the list
+HF_metadata_list <- lapply(HF_rawdat_list,
+                                join_met_data)
+
+# name each df in the list:
+names(HF_metadata_list) <- c("rawdat_met_HF1", "rawdat_met_HF2", "rawdat_met_HF3", "rawdat_met_HF4", "rawdat_met_HF5", "rawdat_met_HF6",
+                             "rawdat_met_HF7", "rawdat_met_HF8", "rawdat_met_HF9", "rawdat_met_HF10", "rawdat_met_HF11", "rawdat_met_HF12")
+
+# write each df to the global environment:
+list2env(HF_metadata_list, envir = .GlobalEnv)
+```
+
+Identify start/end intervals: remember that they open and close in a round, so there will need to be a unique start/end df for each autochamber and we'll have to apply the function to each one invididually (rather than in a list). This also means that we'll need to identify the start/end MINUTE for each observation interval, for each chamber.
+```{r}
+# previously, we determined that the start date/time of this experiment's deployment was October 1st, and the end was November 4th.
+
+# new function, "extract_startend_intervals_variable.R", allows you to generate a start-end df matching the whole length of your deployment period, and specifying half-hourly or hourly intervals of whatever length you need:
+startend_HF1_7 <- generate_variable_interval_df(start_datetime = as.POSIXct("2023-10-01 00:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                end_datetime = as.POSIXct("2023-11-04 01:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                interval_length = 3.5,
+                                                # each interval is 5mins, but we're cutting out the first 90s = 3.5 minutes
+                                                start_minute = 1, start_second = 30, 
+                                                end_minute = 0, end_second = 0, 
+                                                interval_type = "half-hourly")
+
+startend_HF2_8 <- generate_variable_interval_df(start_datetime = as.POSIXct("2023-10-01 00:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+                                                # nearest whole number from above
+                                                end_datetime = as.POSIXct("2023-11-04 01:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                interval_length = 3.5,  
+                                                # each interval is 5mins, but we're cutting out the first 90s = 3.5 minutes
+                                                start_minute = 6, start_second = 30,
+                                                end_minute = 0, end_second = 0,
+                                                interval_type = "half-hourly")
+
+startend_HF3_9 <- generate_variable_interval_df(start_datetime = as.POSIXct("2023-10-01 00:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+                                                # nearest whole number from above
+                                                end_datetime = as.POSIXct("2023-11-04 01:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                interval_length = 3.5,  # Each interval is 5 minutes long
+                                                start_minute = 11, start_second = 30,
+                                                end_minute = 0, end_second = 0,
+                                                interval_type = "half-hourly")
+
+startendHF4_10 <- generate_variable_interval_df(start_datetime = as.POSIXct("2023-10-01 00:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+                                                # nearest whole number from above
+                                                end_datetime = as.POSIXct("2023-11-04 01:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                interval_length = 3.5,  # Each interval is 5 minutes long
+                                                start_minute = 16, start_second = 30,
+                                                end_minute = 0, end_second = 0,
+                                                interval_type = "half-hourly")
+
+startendHF5_11 <- generate_variable_interval_df(start_datetime = as.POSIXct("2023-10-01 00:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+                                                # nearest whole number from above
+                                                end_datetime = as.POSIXct("2023-11-04 01:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                interval_length = 3.5,  # Each interval is 5 minutes long
+                                                start_minute = 21, start_second = 30,
+                                                end_minute = 0, end_second = 0,
+                                                interval_type = "half-hourly")
+
+startendHF6_12 <- generate_variable_interval_df(start_datetime = as.POSIXct("2023-10-01 00:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+                                                # nearest whole number from above
+                                                end_datetime = as.POSIXct("2023-11-04 01:00:00", format = "%Y-%m-%d %H:%M:%S", tz = "UTC"), 
+                                                # nearest whole number from above
+                                                interval_length = 3.5,  # Each interval is 5 minutes long
+                                                start_minute = 26, start_second = 30,
+                                                end_minute = 0, end_second = 0,
+                                                interval_type = "half-hourly")
+
+```
+
+
+Use the previously-defined function to estimates fluxes for each df of HF autochamber data: remember, we don't have humidity data for these chambers. As a result, we're going to have to take out the humidity correction in the function and just use pressure and temperature (and ideal gas laws) to estimate flux.
+
+Below, I've linked to the source script, but commented it out as we're making edits to it for this purpose. I will update the original script with the humidity check (if yes, use it; if no, continue without it) if this works without too much bugginess.
+```{r}
+# # function titled "estimatefluxes.R" in folder "scripts_batch processing fluxbot data" in this directory:
+# source(here("scripts_batch processing fluxbot data", "estimatefluxes.R"))
+
+calculate_regressions_custom_intervals <- function(time_series_df, custom_intervals_df, 
+                                                   method, volume, area) {
+  
+  # Remove rows with NAs
+  time_series_df <- time_series_df[complete.cases(time_series_df), ]
+  
+  # Extract timestamp and data columns from the time series dataframe
+  # timestamp_col <- as.POSIXct(time_series_df$Time, format = "%Y-%m-%d %H:%M:%S", tz = "America/New_York")
+  
+  ## NOTE changing tz to UTC for HF autoarray data, as that seems to be the format it's in
+  timestamp_col <- as.POSIXct(time_series_df$Time, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+  data_col <- time_series_df$co2     
+
+  # Initialize an empty dataframe to store the results
+  results_df <- data.frame(
+    start_timestamp = character(),
+    end_timestamp = character(),
+    linear_beta = numeric(),
+    quadratic_beta = numeric()
+  )
+  
+  # Constants for conversion of concentration to mass:
+  R_m = 8.314472  # Ideal gas constant for mass [(m3*Pa)/(K*mol)]
+  R_specific <- 287.058 # specific gas constant for dry air (J/kg*K)
+  mol_mass <- 28.9628 # molar mass dry air, g/mol
+  volume <- volume # cm3; volume of fluxbot chamber, typically 768cm3 without additional tubing/attachments
+  area <- area # cm2; area of soil that fluxbot collar encompasses, typically 81cm2
+  g_per_mol = 44.009 # molar mass of CO2, g/mol
+  
+  # Loop through each row in the custom intervals dataframe to ID the start and end point of each interval
+  for (i in seq_len(nrow(custom_intervals_df))) {
+    # Extract start and end points for the current row
+    start_point <- as.POSIXct(custom_intervals_df$Start[i], format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+    end_point <- as.POSIXct(custom_intervals_df$End[i], format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+    # start_point <- custom_intervals_df$Start[i]
+    # end_point <- custom_intervals_df$End[i]
+    
+    # Find the closest timestamp to start_point and end_point in the time series data itself:
+    start_index <- which.min(abs(timestamp_col - start_point))
+    end_index <- which.min(abs(timestamp_col - end_point))
+    
+    # # Check if the closest start and end points are within 30 minutes
+    if (abs(start_point - timestamp_col[start_index]) > 1800 || abs(end_point - timestamp_col[end_index]) > 1800) {
+      cat("Skipping interval due to no close timepoints:", i, "\n")
+      next  # Skip to the next iteration
+    }
+
+    # Extract the CO2 concentration data for each interval iteratively using the above timestamps:
+    interval_data <- time_series_df$co2[start_index:end_index]
+    interval_timestamp <- time_series_df$Time[start_index:end_index]
+    
+    # Determine total length of interval; reports in mins, so convert to sec:
+    length_interval <- (as.numeric(time_series_df$Time[end_index] - time_series_df$Time[start_index])) * 60
+    
+    # Check if humidity data exists:
+    if ("humidity" %in% colnames(time_series_df)) {
+      # Calculate rho_a (humidity-corrected air density)
+      e_star <- 10*(0.61978 * exp((17.27 * time_series_df$tempC[start_index:end_index]) /
+                                  (time_series_df$tempC[start_index:end_index] + 273.3))) # saturation vapor pressure, hPa
+      x_s <- 0.62198 * e_star / (time_series_df$pressure[start_index:end_index] - e_star) 
+      x <- x_s * time_series_df$humidity[start_index:end_index] / 100 # Divide by 100 to convert to fraction
+      
+      # Calculate the density of moist air in the chamber:
+      rho_d <- (time_series_df$pressure[start_index:end_index] * 100) / 
+        (R_specific * (time_series_df$tempC[start_index:end_index] + 273.15)) 
+      rho_a <- rho_d * (1 + x) / (1 + 1.609 * x)
+      
+    } else {
+      # If no humidity data, skip humidity correction
+      rho_d <- (time_series_df$pressure[start_index:end_index] * 100) / 
+        (R_specific * (time_series_df$tempC[start_index:end_index] + 273.15))
+      rho_a <- rho_d  # No correction for humidity
+    }
+    
+    # Convert CO2 in ppm to mol/m3 (molar concentration of CO2 in chamber)
+    mol_kg = 1 / (mol_mass / 1000) # mass of air in mol/kg
+    mol_m3 = mol_kg * rho_a # mol/m3
+    
+    # Convert observed CO2 in ppm to molar density using chamber volume:
+    mol_gas_m3 <- mol_m3 * (interval_data / 1000000)  # conversion from cm3 to m3
+    
+    # Convert molar concentration of CO2 into concentration in kg/m3
+    kg_gas_m3 <- mol_gas_m3 * (g_per_mol / 1000)  # conversion from g to kg
+    
+    # Convert to total mass of CO2 in the chamber (kg)
+    kg_gas <- kg_gas_m3 * (volume * 0.000001)  # chamber volume in m3
+    
+    # Linear regression
+    linear_model <- lm(kg_gas ~ as.numeric(difftime(interval_timestamp, min(interval_timestamp), units = "secs")))
+    linear_results <- summary(linear_model)
+    linear_beta <- coef(linear_results)[2]  # Extract the beta coefficient; kg/s
+    delta_kg_L = linear_beta * (length_interval) # units in kg
+    delta_g_L = delta_kg_L*1000 # units in g
+    delta_mol_L = delta_g_L / g_per_mol # units in mols
+    fluxL = delta_kg_L / length_interval / (area*0.0001) # flux estimate in kg/m2/sec
+    fluxL_umol = (delta_mol_L*1000000) / length_interval / (area * 0.0001) # flux estimate in umol/m2/sec
+
+    # Quadratic regression
+    quadratic_model <- lm(kg_gas ~ 
+                            as.numeric(difftime(interval_timestamp, min(interval_timestamp), 
+                                                units = "secs")) +
+                            I(as.numeric(difftime(interval_timestamp, 
+                                                  min(interval_timestamp), 
+                                                  units = "secs"))^2))
+    quadratic_results <- summary(quadratic_model)
+    quadratic_beta <- coef(quadratic_results)[2]  # Extract the beta coefficient; kg/s
+    delta_kg_Q  = quadratic_beta * (length_interval) # units in kg
+    delta_g_Q = delta_kg_Q*1000 # units in g
+    delta_mol_Q = delta_g_Q / g_per_mol # units in mols
+    fluxQ = delta_kg_Q / length_interval / (area*0.0001) # flux estimate in kg/m2/sec
+    fluxQ_umol = (delta_mol_Q*1000000) / length_interval / (area * 0.0001) # flux estimate in umol/m2/sec
+    
+    # Append the results to the dataframe
+    results_df <- rbind(results_df, data.frame(
+      start_timestamp = start_point,
+      end_timestamp = end_point,
+      method = method,
+      linear_beta = linear_beta, # kg/s
+      quadratic_beta = quadratic_beta, # kg/s
+      length_interval = length_interval, # total interval length in seconds
+      delta_kg_L = linear_beta/length_interval, # units in kg
+      delta_kg_Q  = quadratic_beta/length_interval, # units in kg
+      fluxL_kgm2sec = fluxL, # flux estimate in kg/m2/sec
+      fluxQ_kgm2sec = fluxQ, # flux estimate in kg/m2/sec
+      fluxL_umolm2sec = fluxL_umol, # flux estimate in umol/m2/sec
+      fluxQ_umolm2sec = fluxQ_umol  # flux estimate in umol/m2/sec
+      # fluxL_kgm2sec = fluxL, # flux estimate in kg/m2/sec
+      # fluxQ_kgm2sec = fluxQ  # flux estimate in kg/m2/sec
+    ))
+  }
+  
+  # Return the results
+  return(results_df)
+}
+
+```
+
+Use the above defined function to produce flux estimates for each dataframe of HF data (one per auto-chamber):
+```{r}
+# view individual chamber volume data:
+HFchamber_vols
+# vol (cm3), area (cm2)
+# 1: 9807.478,	646.328
+# 2: 9839.794,	646.328
+# 3: 10453.806, 646.328
+# 4: 9548.947,  646.328
+# 5: 10389.173, 646.328
+# 6: 10001.376, 646.328
+# 7: 9775.162,  646.328
+# 8: 9451.998,  646.328
+# 9: 10227.591, 646.328
+#10: 9451.998,  646.328
+#11: 8999.568,  646.328
+#12: 9258.099,  646.328
+
+rawdat_met_HF1 <- rawdat_met_HF1 %>% rename(co2 = CO2_ppm, tempC = tempC_HF)
+fluxes_HF1 <- calculate_regressions_custom_intervals(time_series_df = rawdat_met_HF1, 
+                                                     custom_intervals_df = startend_HF1_7,
+                                                     method = "fluxbot",
+                                                     volume = 9807.478, # cm3
+                                                     area = 646.328) # cm2
+
+rawdat_met_HF2 <- rawdat_met_HF2 %>% rename(co2 = CO2_ppm, tempC = tempC_HF)
+fluxes_HF2 <- calculate_regressions_custom_intervals(time_series_df = rawdat_met_HF2, 
+                                                     custom_intervals_df = startend_HF2_8,
+                                                     method = "fluxbot",
+                                                     volume = 9839.794, # cm3
+                                                     area = 646.328) # cm2
+
+rawdat_met_HF3 <- rawdat_met_HF3 %>% rename(co2 = CO2_ppm, tempC = tempC_HF)
+fluxes_HF3 <- calculate_regressions_custom_intervals(time_series_df = rawdat_met_HF3, 
+                                                     custom_intervals_df = startend_HF3_9,
+                                                     method = "fluxbot",
+                                                     volume = 10453.806, # cm3
+                                                     area = 646.328) # cm2
+
+rawdat_met_HF4 <- rawdat_met_HF4 %>% rename(co2 = CO2_ppm, tempC = tempC_HF)
+fluxes_HF4 <- calculate_regressions_custom_intervals(time_series_df = rawdat_met_HF4, 
+                                                     custom_intervals_df = startendHF4_10,
+                                                     method = "fluxbot",
+                                                     volume = 9548.947, # cm3
+                                                     area = 646.328) # cm2
+
+```
+
+Notes to self: process
+```{r}
+# end of day, Friday Feb. 14th:
+# it seems to have run, but I need to check the date/times on the flux estimates against those in the raw data file because they're not 100% matching up (e.g. there are some flux estimates for a time before I have data, e.g. 7am on the 2nd of Oct. when the raw data starts at 11am).  So need to check this when my brain is fresh next week.
+
+# Friday Feb. 21st: weirdly it seems like there are flux estimates for datetimes that don't exist in the raw data.  this is strange.
+# note to self: need to adjust the start-end time df to exclude the first minute for each of the intervals; that is similar to ours, where it takes about a minute to equilibrate, probably from air forcing as the chamber closes?  Hmm!
+
+# also could be an asposixct thing? check!! I think what's happening is that the updated function is not specifying asposixct and tz = UTC
+
+# so: need to adjust the start part of the startend df to be 90s later (just a visual scan shows me that's when the intervals start to increase)
+# - did that but I think there's still an issue with the datetime of it all
+# I think it's somethign to do with the timezones; UTC timezones when plotting the raw data seem to be giving me the right intervals, and changing it to "America/New_York" (the tz designation in the fluxbot function above) gives me a blank plot.  So try specifying the time zone as UTC?
+
+# update EOD: so it ran, but the timestamps on the flux estimates still dont match up with those on the raw data very well.
+
+# Tues. Feb. 25th: trying AGAIN for ONE HOUR (til 2:30) before abandoning this in disgust again. Is it possible that the startend function (which doesn't currently call for TZ) is messing up the matching between datasets?  seems rather likely given that it keeps happening several hours off?
+
+# update: I think I got it figured out (2:40pm)!  needed to specify the time zone within the function itself, no matter whether it's the time series or the startend df. In the case of the HF array data, it's in UTC, so we'll use the custom function here rather than call the original function we wrote for the fluxbots.
+
+# fluxes_HF3: weirdly there seems to be a flux estimate during a window for which there is no raw data: 2023-10-04, 05:41:30 to 05:45:00; DOUBLE CHECK THIS! every other one seems to match up with the patterns of gaps in the data. Looking at the raw data, there are the two fluxes on the 4th that would have passed QAQC; so worth looking through all the resulting data and pulling out those randoms that were made up from whole cloth?? Chat with Jon about this.
+  # same thing for HF4 fluxes: not ure what's up. check in with Jon but otherwise data seem ok?  but are they ok if they are legit making up a flux...
+
+```
+

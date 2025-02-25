@@ -259,4 +259,11 @@ HF_fluxestimates <- HF_fluxestimates %>%
 write.csv(HF_fluxestimates, "HarvardForest_fluxestimates_fall2023.csv")
 ```
 
+#####################
+Translate HF autochamber array data into flux estimates using pressure data from meteorological tower (as we did for the fluxbots, above).
+
+Download data:
+```{r}
+
+```
 

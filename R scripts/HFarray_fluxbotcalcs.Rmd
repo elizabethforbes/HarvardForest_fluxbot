@@ -395,7 +395,7 @@ Notes to self: process
 # update: I think I got it figured out (2:40pm)!  needed to specify the time zone within the function itself, no matter whether it's the time series or the startend df. In the case of the HF array data, it's in UTC, so we'll use the custom function here rather than call the original function we wrote for the fluxbots.
 
 # fluxes_HF3: weirdly there seems to be a flux estimate during a window for which there is no raw data: 2023-10-04, 05:41:30 to 05:45:00; DOUBLE CHECK THIS! every other one seems to match up with the patterns of gaps in the data. Looking at the raw data, there are the two fluxes on the 4th that would have passed QAQC; so worth looking through all the resulting data and pulling out those randoms that were made up from whole cloth?? Chat with Jon about this.
-  # same thing for HF4 fluxes: not ure what's up. check in with Jon but otherwise data seem ok?  but are they ok if they are legit making up a flux...
+  # same thing for HF4 fluxes: not sure what's up. check in with Jon but otherwise data seem ok?  but are they ok if they are legit making up a flux...
 
 ```
 

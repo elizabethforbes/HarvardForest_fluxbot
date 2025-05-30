@@ -5,3 +5,9 @@
 calculated_data/
 *.RData
 *.RData
+*.Rproj
+.Rproj.user/
+calculated_data/
+*.RData
+*.Rdata
+.RHistory

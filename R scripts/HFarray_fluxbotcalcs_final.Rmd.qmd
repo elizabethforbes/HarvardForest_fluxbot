@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 Load libraries:
+
 ```{r}
 library(tidyverse)
 library(readr)
@@ -18,6 +19,7 @@ library(here)
 ```
 
 Load raw CO2 data for the HF array:
+
 ```{r}
 HF_rawdat <- read_csv("HFarray_RawCO2_October2023.csv")
 
@@ -40,6 +42,7 @@ HFchamber_vols <- chamber_vols %>%
 ```
 
 Split the long df of all the autochambers' raw data into individual dfs:
+
 ```{r}
 rawdat_HF_1 <- HF_rawdat %>% 
   filter(chamber == 1)
@@ -71,8 +74,8 @@ rawdat_HF_12 <- HF_rawdat %>%
 HF_rawdat_list <- list(rawdat_HF_1, rawdat_HF_2, rawdat_HF_3, rawdat_HF_4, rawdat_HF_5, rawdat_HF_6, rawdat_HF_7, rawdat_HF_8, rawdat_HF_9, rawdat_HF_10, rawdat_HF_11, rawdat_HF_12)
 ```
 
-
 Add meteorological data to the HF raw data array dataframes in a list:
+
 ```{r}
 # load HF met data from 2016 - 2017 and convert to useful units
 met_data <- read.csv("https://harvardforest.fas.harvard.edu/data/p00/hf001/hf001-10-15min-m.csv")
@@ -121,6 +124,7 @@ list2env(HF_metadata_list, envir = .GlobalEnv)
 ```
 
 Identify start/end intervals: remember that they open and close in a round, so there will need to be a unique start/end df for each autochamber and we'll have to apply the function to each one invididually (rather than in a list). This also means that we'll need to identify the start/end MINUTE for each observation interval, for each chamber.
+
 ```{r}
 # previously, we determined that the start date/time of this experiment's deployment was October 1st, and the end was November 4th.
 
@@ -185,6 +189,7 @@ startendHF6_12 <- generate_variable_interval_df(start_datetime = as.POSIXct("202
 ```
 
 View the volumes, areas for each chamber:
+
 ```{r}
 # view individual chamber volume data:
 HFchamber_vols
@@ -204,6 +209,7 @@ HFchamber_vols
 ```
 
 Function to calculate fluxes for each autochamber in the HF array:
+
 ```{r}
 calculate_regressions_custom_intervals <- function(time_series_df, custom_intervals_df, 
                                                    method, volume, area, diff_threshold = 5) {
@@ -394,6 +400,7 @@ calculate_regressions_custom_intervals <- function(time_series_df, custom_interv
 ```
 
 Run function on each auto-chamber's raw data:
+
 ```{r, results='hide'}
 fluxes_HF1 <- calculate_regressions_custom_intervals(time_series_df = rawdat_met_HF1,
                                                      custom_intervals_df = startend_HF1_7,
@@ -496,5 +503,3 @@ fluxes_HFarray <- rbind(fluxes_HF1, fluxes_HF2, fluxes_HF3, fluxes_HF4, fluxes_H
 
 write.csv(fluxes_HFarray, "HFarray_fluxes_calculatedusingfluxbotcode.csv", col.names = TRUE)
 ```
-
-

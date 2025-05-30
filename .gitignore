@@ -11,3 +11,8 @@ calculated_data/
 *.RData
 *.Rdata
 .RHistory
+*.RData
+*.Rdata
+calculated_data/
+.Rproj.user/
+*.Rproj

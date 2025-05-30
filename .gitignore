@@ -3,3 +3,4 @@
 .RData
 .Ruserdata
 calculated_data/
+*.RData

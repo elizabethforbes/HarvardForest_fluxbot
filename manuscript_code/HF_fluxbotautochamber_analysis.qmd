@@ -1,0 +1,828 @@
+---
+title: "HF Fluxbot and Autoarray analysis"
+format: html
+editor: visual
+---
+
+## Project intro
+
+libraries:
+
+```{r}
+library(lubridate) # load first to avoid package conflicts
+library(lme4) # then this
+library(dplyr) # lastly, dplyr
+library(nlme)
+# library(lmerTest)
+library(mgcv)
+library(fuzzyjoin)
+library(zoo)
+library(epiR)
+library(tidyverse)
+library(broom)
+library(ineq)
+library(mgcViz) # allows for visualizing GAM models in DHARMa
+library(DHARMa)
+library(car)
+library(patchwork) # for multiple panels in figures
+```
+
+## Data: upload, clean
+
+Data needs for analyses: fluxbot estimates, autochamber estimates, and meteorological tower data.
+
+Meterological data, pulled from public dataset at Harvard Forest.
+
+```{r}
+#| echo: false
+
+# met-data source:
+met_data <- read.csv("https://harvardforest.fas.harvard.edu/data/p00/hf001/hf001-10-15min-m.csv")
+
+# Extract the DOY (Day of Year) from the Time column
+met_data$doy <- yday(met_data$datetime)
+met_data$year <- year(met_data$datetime)
+
+# Subset the data for DOY between 270 and 310, in the year 2023 (deployment year)
+met_data_subset <- met_data %>%
+  filter(year == 2023) %>% # pull just 2023 data
+  filter(doy >= 273 & doy <= 308) # isolate time period of deployment
+
+# Create a new column for the date (without time) from the Time column
+met_data_subset$date <- as.Date(met_data_subset$datetime)
+
+# Calculate the daily mean of soiltemp_10cm_HF
+daily_mean_soiltemp <- met_data_subset %>%
+  group_by(date) %>%
+  summarize(daily_mean_soiltemp = mean(s10t, na.rm = TRUE))
+
+ggplot(aes(y=daily_mean_soiltemp, x=date), data=daily_mean_soiltemp)+
+  geom_point()+
+  ylab("Daily mean soil temp (C) at 10cm")+
+  xlab(element_blank())+
+  geom_smooth(method = "loess", span = 0.28, se=F)+
+  theme_classic()
+
+```
+
+Fluxbot data, calculated previously and the CSV of which is stored in this project folder:
+
+```{r}
+# fluxbot estimates:
+HF_fluxestimates <- read.csv("HarvardForest_fluxestimates_fall2023.csv", header = TRUE)
+
+# update hour_of_obs with both date and time info (when rounding up from midnight hours in initial processing, time got removed for those that were being rounded up from anything above 23:00:00)
+HF_fluxestimates <- HF_fluxestimates %>% 
+  # custom approach to round to the nearest hour while maintaining dates and times:
+  mutate(hour_of_obs = {
+    dt <- as.POSIXct(start_timestamp, format="%Y-%m-%d %H:%M:%S", tz="America/New_York")
+    minutes <- minute(dt)
+    if_else(minutes >= 30, 
+            ceiling_date(dt, unit="hour"),
+            floor_date(dt, unit="hour"))
+  })
+
+# add date and hour columns:
+HF_fluxestimates <- HF_fluxestimates %>% 
+  mutate(date = as.Date(as.POSIXct(hour_of_obs))) %>% 
+  mutate(hour = hour((as.POSIXct(hour_of_obs))))
+
+# select a subset of columns for ease:
+HF_fluxestimates_subset <- HF_fluxestimates %>%
+  select(id, hour_of_obs, date, hour, fluxL_umolm2sec, stand) %>% 
+  # add column describing the method of data collection (fluxbot):
+  mutate(method = "fluxbot")
+```
+
+HF autochamber data, calculated previously and the CSV of which is stored in this project folder:
+
+```{r}
+#| echo: false
+HFauto_fluxestimates <- read.csv("HFarray_fluxes_calculatedusingfluxbotcode.csv", 
+                                   header = T)
+
+# add stand column/info: site 1 = unhealthy (chambers 1-6), site 2 = healthy (chambers 7-12)
+HFauto_fluxestimates <- HFauto_fluxestimates %>% 
+  mutate(stand = case_when(
+    autochamber == 1 | autochamber == 2 | autochamber == 3 | 
+      autochamber == 4 | autochamber == 5 | autochamber == 6 ~ "unhealthy",
+    autochamber == 7 | autochamber == 8 | autochamber == 9 | 
+      autochamber == 10 | autochamber == 11 | autochamber == 12 ~ "healthy"
+  )) %>% 
+  rename(id = autochamber) %>% 
+  # rename method, which was auto-output from the fluxbot code:
+  mutate(method = NULL,
+         method = "autochamber")
+
+# add hour_of_obs with both date and time info (when rounding up from midnight hours in initial processing, time got removed for those that were being rounded up from anything above 23:00:00)
+HFauto_fluxestimates <- HFauto_fluxestimates %>% 
+  # custom approach to round to the nearest hour while maintaining dates and times:
+  mutate(hour_of_obs = {
+    dt <- as.POSIXct(start_timestamp, format="%Y-%m-%d %H:%M:%S", tz="America/New_York")
+    minutes <- minute(dt)
+    if_else(minutes >= 30, 
+            ceiling_date(dt, unit="hour"),
+            floor_date(dt, unit="hour"))
+  })
+
+# add date and hour columns:
+HFauto_fluxestimates <- HFauto_fluxestimates %>% 
+  mutate(date = as.Date(as.POSIXct(hour_of_obs))) %>% 
+  mutate(hour = hour((as.POSIXct(hour_of_obs))))
+
+# Select subset of columns in HFauto_fluxestimates
+HFauto_fluxestimates_subset <- HFauto_fluxestimates %>%
+  select(id, hour_of_obs, date, hour, fluxL_umolm2sec, stand, method)
+
+
+
+```
+
+First, use custom filter function to isolate those flux estimates in both datasets that fall within the interquartile range of the respective datasets, then bind the two datasets' rows to create a single merged dataset of autochamber fluxes and fluxbot fluxes:
+
+```{r}
+#| echo = false
+
+# use the filter function (stored in this project folder) to clean the data before merging: only include those data that fall within the interquartile range to remove outliers and focus on the fluxes that are most descriptive of the site.
+source("filter_iqr.R")
+
+#### FLUXBOTS:
+# HF_fluxestimates_subset <- HF_fluxestimates_subset %>%
+#   # filter out negative fluxes since those are not biologically possible:
+#   filter(fluxL_umolm2sec >= 0)
+HF_fluxestimates_subset <- 
+  HF_fluxestimates_subset[HF_fluxestimates_subset$fluxL_umolm2sec >= 0, ]
+
+# use custom filter_iqr function to filter out those fluxes that fall outside the IQR:
+HF_fluxestimates_filtered <- HF_fluxestimates_subset %>% 
+  filter_iqr("fluxL_umolm2sec")
+
+#### AUTOCHAMBERS:
+HFauto_fluxestimates_subset <-
+  HFauto_fluxestimates_subset[HFauto_fluxestimates_subset$fluxL_umolm2sec >= 0, ]
+
+# use custom filter_iqr function to filter out those fluxes that fall outside the IQR:
+HFauto_fluxestimates_filtered <- HFauto_fluxestimates_subset %>% 
+  filter_iqr("fluxL_umolm2sec")
+
+# ultimately this gives us a dataset where there are two flux estimates for each hour, given that we're rounding to the nearest hour. Take the average of the two for each hour to produce a reduced dataset (e.g., each hour is the mean of the half hour, and the hour measurement), with only one row per hour for each autochamber.
+HFauto_fluxestimates_filtered_avg <- HFauto_fluxestimates_filtered %>% 
+  group_by(id, hour_of_obs) %>% 
+  mutate(fluxL_umolm2sec = mean(fluxL_umolm2sec)) %>% 
+  # remove duplicate rows produced by the above mutate:
+  distinct()
+
+# Bind the rows from both datasets
+merged_data <- rbind(HF_fluxestimates_filtered, HFauto_fluxestimates_filtered_avg)
+# create day, hour variables:
+merged_data <- merged_data %>%
+  mutate(
+    day_of_year = yday(hour_of_obs),
+  )
+```
+
+Add meterological data to the dataset for future models including soil temp:
+
+```{r}
+#| echo = false
+
+met_data_subset$Time <- as.POSIXct(met_data_subset$datetime, format = "%Y-%m-%dT%H:%M")
+
+# Perform fuzzy join based on closest datetime with a larger time difference limit (60 mins)
+merged_data_with_met <- difference_left_join(merged_data, met_data_subset, 
+                                             by = c("hour_of_obs" = "Time"),
+                                             max_dist = as.difftime(60, units = "mins")) %>%
+  # Add a time difference column to verify the matching process
+  mutate(time_diff = abs(difftime(hour_of_obs, Time, units = "mins"))) %>%
+  # Keep only the closest match for each row in `merged_data`: dataframe should be same length as original 'merged_data'
+  reframe(s10t = mean(s10t),
+         windspeed = mean(wspd),
+         precip = mean(prec),
+         rh = mean(rh),
+         air_t = mean(airt), 
+         .by = c(id, hour_of_obs, stand, method, day_of_year, hour, fluxL_umolm2sec)
+  ) 
+
+# Function to rename the id column
+merged_data_with_met <- merged_data_with_met %>%
+  mutate(id = case_when(
+    grepl("^\\d+$", id) ~ paste0("autochamber", id),  # If the id is a number only, prepend "chamber"
+    grepl("^fluxes_bot", id) ~ gsub("fluxes_bot", "fluxbot", id),  # Replace "fluxes_bot" with "chamber"
+    TRUE ~ id  # Leave others unchanged
+  ))
+
+# Calculate mean flux for each id, stand, and method
+mean_flux_order <- merged_data_with_met %>%
+  group_by(id, stand, method) %>%
+  summarize(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE)) %>%
+  arrange(desc(method), desc(mean_flux)) %>%
+  ungroup()
+
+# Reorder the id factor based on the calculated mean flux within each stand and method
+merged_data_with_met <- merged_data_with_met %>%
+  mutate(id = factor(id, levels = mean_flux_order$id))
+```
+
+## Figures for Harvard Forest fluxes paper
+
+### Figure 1: time-series of mean flux estimates across arrays
+
+```{r}
+#| echo = false
+
+# calculate 3hr rolling average:
+merged_data_with_met <- merged_data_with_met %>%
+  arrange(hour_of_obs) %>%
+  group_by(stand, method) %>%
+  mutate(rolling_avg = rollapply(fluxL_umolm2sec, width = 24*6, FUN = mean, fill = NA, align = "center")) %>%
+  ungroup()
+
+# Create the plot with a smoothed line for the rolling average
+p1 <- ggplot(data = merged_data_with_met, aes(x = ymd_hms(hour_of_obs), y = fluxL_umolm2sec)) +
+  geom_point(alpha = 0.2, aes(color = method)) +  # Raw data points
+  #geom_smooth(method = "loess", span = 0.3, color = "black", se = F) +  
+  # Loess smooth line for raw data
+  #geom_smooth(aes(y = rolling_avg), method = "loess", span = 0.3, color = "black", se = F, size = 1) +  
+  # Smoothed line for rolling average
+  geom_line(aes(y = rolling_avg), color = "black", size = 1) +  # Rolling average as a line
+  theme_classic() +
+  theme(legend.position = "none") +
+  facet_wrap(~stand * method, ncol = 2) +
+  scale_color_manual(values = c("#4C9F70", "#B0B0B0"))+
+  xlab("")+ylab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))
+
+# Print the plot
+p1
+
+p2<-ggplot(data=merged_data_with_met, aes(x=ymd_hms(hour_of_obs), y=s10t))+
+  geom_line(color="#A14A3F", size=1)+
+  #geom_smooth(method = "loess", span = 0.3, se=F, color="black")+
+  theme_classic()+
+  xlim(min(merged_data_with_met$hour_of_obs[which(merged_data_with_met$method=="fluxbot")], na.rm=T), 
+       max(merged_data_with_met$hour_of_obs[which(merged_data_with_met$method=="fluxbot")], na.rm=T))+
+  xlab("")+ylab(expression(paste("Soil Temp (", degree, "C)")))
+
+# print the plot
+# p2 <- p2 + annotate("text", x=ymd_hms("2023-10-31 10:00:00 EDT"), y=18.5, label = c("b."),
+              # size = 4)
+p2
+
+p3 <- (p1 / (p2 | plot_spacer())  + plot_layout(widths = c(1, 0.5),
+                                          heights=c(1.5, 0.5)))
+# print the plot
+p3
+
+```
+
+### Figure 2: chamber-level flux estimate distributions
+
+```{r}
+#| echo = false
+
+# Plot the data with reordered id:
+ggplot(merged_data_with_met, aes(y = as.factor(id), x = fluxL_umolm2sec)) +
+  geom_jitter(alpha = 0.3, aes(color = method), height = 0.2) +
+  geom_boxplot(outliers = FALSE, fill = NA) +
+  facet_wrap(~stand, scales = "free_y") +
+  labs(y = "", 
+       x=expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1))) +
+  scale_color_manual(values = c("#4C9F70", "#B0B0B0")) +
+  theme_classic() +
+  theme(legend.position="none")
+```
+
+### Figure 3: modeled vs. predicted soil flux
+
+```{r}
+#| echo = FALSE
+
+# Fit the GAM model with a smooth term for hour of day and random effect for id
+model_gam <- gam(fluxL_umolm2sec ~ stand + s(hour(hour_of_obs)) + method + 
+                   s(id, bs = "fs") + s(s10t), 
+                 data = merged_data_with_met, method = "REML")
+
+# Summarize and plot the model
+summary(model_gam)
+plot(model_gam)
+concurvity(model_gam)
+
+
+# Get predicted values from the model
+merged_data_with_met$predicted_flux <- predict(model_gam, newdata = merged_data_with_met)
+
+# Calculate R-squared for model fit
+rsq <- summary(model_gam)$r.sq
+rsq # 0.5412671
+
+# Assuming 'model' has already been fitted and 'rsq' is calculated
+# Extract slope and intercept from the model for the equation
+model <- lm(fluxL_umolm2sec ~ predicted_flux, data = merged_data_with_met)
+slope <- coef(model)[2]
+intercept <- coef(model)[1]
+rsq <- summary(model)$r.squared # 0.5426361, fit between linear comparison of actual vs. predicted flux
+
+# Create the equation and R² label
+equation_label <- paste0("y = ", round(intercept, 2), " + ", round(slope, 2), "x,  R² = ", round(rsq, 2))
+
+# Create the scatter plot and display the equation and R² on the plot
+ggplot(merged_data_with_met, aes(x = predicted_flux, y = fluxL_umolm2sec)) +
+  geom_point(alpha = 0.2) + 
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#5A82C9", size=1) +
+  labs(
+    x = expression(paste("Predicted Flux, ", mu, "mol ", CO[2], " ", m^-2, s^-1)),
+    y = expression(paste("Actual Flux, ", mu, "mol ", CO[2], " ", m^-2, s^-1))
+  ) +
+  theme_classic() +
+  annotate("text", x = Inf, y = Inf, label = equation_label, hjust = 2, vjust = 1.5, size = 5, color = "#5A82C9")
+```
+
+### Figure 4: distribution of flux estimates across arrays
+
+```{r}
+#| echo = FALSE
+
+# First, count chambers for each combination of hour, method, and stand
+chamber_counts <- merged_data %>%
+  group_by(hour_of_obs, method, stand) %>%
+  summarise(n_chambers = n_distinct(id), .groups = 'drop') %>%  # Count distinct chambers per group
+  ungroup()
+
+# Then, filter for hours where both methods have at least 6 chambers in each stand
+valid_hours <- chamber_counts %>%
+  group_by(hour_of_obs) %>%
+  # Ensure there are at least 6 chambers for each combination of method and stand
+  filter(all(c("fluxbot", "autochamber") %in% method) &         
+           # Both methods must be present
+           all(c("healthy", "unhealthy") %in% stand) &            
+           # Both stands must be present
+           all(n_chambers[method == "fluxbot" & stand == "healthy"] >= 5) &
+           all(n_chambers[method == "fluxbot" & stand == "unhealthy"] >= 5) &
+           all(n_chambers[method == "autochamber" & stand == "healthy"] >= 5) &
+           all(n_chambers[method == "autochamber" & stand == "unhealthy"] >= 5)) %>%
+  ungroup() %>%
+  distinct(hour_of_obs)  # Keep only distinct valid hours
+
+# Filter the original dataset to only include the valid hours
+ filtered_data <- merged_data %>%
+   filter(hour_of_obs %in% valid_hours$hour_of_obs)
+
+filtered_data <- filtered_data %>%
+  filter(!is.na(hour_of_obs)) 
+
+# Calculate the means of fluxL_umolm2sec for each method
+means_data <- filtered_data %>%
+  group_by(method) %>%
+  summarize(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE))
+
+means_data
+# autochamber	2.689543			
+# fluxbot	2.389046	
+
+# Plot with vertical lines for means
+ggplot(filtered_data, aes(x = fluxL_umolm2sec, fill = method)) +
+  geom_density(alpha = 0.7) +
+  geom_jitter(aes(y = method, color = method), alpha = 0.1, height = 0.2) +
+  geom_vline(data = means_data, aes(xintercept = mean_flux, color = method), linetype = "dashed", size = 0.8) +  # Add vertical dashed lines for means
+  theme_minimal() + ylab("")+
+  theme(strip.text.y = element_text(angle = 0), legend.position = "bottom")  +
+  scale_fill_manual(values = c("#4C9F70", "#B0B0B0"))+
+  scale_color_manual(values = c("#4C9F70", "#B0B0B0"))+
+  xlab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))
+```
+
+### Figure 5: array-wide mean flux agreement
+
+```{r}
+#| echo = FALSE
+
+# Calculate the mean flux for each hour, stand, and method
+mean_data <- filtered_data %>%
+  group_by(hour_of_obs, stand, method) %>%
+  summarize(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE)) %>%
+  ungroup()
+
+# Pivot data so that we have autochamber and fluxbot as columns
+pivoted_data <- mean_data %>%
+  pivot_wider(names_from = method, values_from = mean_flux)
+
+pivoted_data <- pivoted_data %>%
+  filter(autochamber > 1 & (!is.na(fluxbot) | !is.na(autochamber)))
+
+# Bin autochamber and fluxbot data into hourly intervals for comparison
+pivoted_data <- pivoted_data %>%
+  mutate(hour_bin = floor_date(hour_of_obs, "hour")) %>%
+  group_by(hour_bin) %>%
+  summarize(
+    autochamber_mean = mean(autochamber, na.rm = TRUE),
+    fluxbot_mean = mean(fluxbot, na.rm = TRUE)
+  ) %>%
+  filter(!is.na(autochamber_mean) & !is.na(fluxbot_mean))  # Ensure both are non-NA
+
+# Calculate 3-hour rolling means for both autochamber and fluxbot
+pivoted_data <- pivoted_data %>%
+  arrange(hour_bin) %>%  # Ensure data is sorted by time
+  mutate(
+    autochamber_rolling_mean = rollapply(autochamber_mean, width = 3, FUN = mean, fill = NA, align = "right"),
+    fluxbot_rolling_mean = rollapply(fluxbot_mean, width = 3, FUN = mean, fill = NA, align = "right")
+  ) %>%
+  filter(!is.na(autochamber_rolling_mean) & !is.na(fluxbot_rolling_mean))
+
+# Fit the linear model to the full data
+model <- lm(fluxbot_rolling_mean ~ autochamber_rolling_mean, data = pivoted_data)
+# Extract the slope, intercept, and R-squared
+slope <- coef(model)[2]
+intercept <- coef(model)[1]
+r_squared <- summary(model)$r.squared
+
+# Calculate Lin's Concordance Correlation Coefficient (CCC)
+ccc_result <- epi.ccc(pivoted_data$autochamber_rolling_mean, pivoted_data$fluxbot_rolling_mean)
+ccc_value <- ccc_result$rho.c$est  # Extract the CCC estimate
+
+# Create the equation text including R² and CCC
+equation_label <- paste0("y = ", round(intercept, 2), " + ", round(slope, 2), "x,  R² = ", round(r_squared, 2), 
+                         ", CCC = ", round(ccc_value, 2))
+
+# Plot the comparison of the two systems with rolling means
+ggplot(pivoted_data, aes(x = autochamber_rolling_mean, y = fluxbot_rolling_mean)) +
+  geom_point(alpha=0.3) +
+  labs(x = "Autochamber Mean Flux (3-Hour Rolling)", y = "Fluxbot Mean Flux (3-Hour Rolling)") +
+  theme_classic() +
+  geom_smooth(method = "lm", color = "#5A82C9") +  # Linear regression line
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") + # Add a 1:1 line
+  annotate("text", x = 4.5, y = Inf, label = equation_label, 
+           hjust = 1, vjust = 1.5, size = 5, color = "#4C72B0") + # Add the equation, R-squared, and CCC
+  xlim(1, 5) + ylim(1, 5)
+
+# Step 8: Print the linear model and CCC results
+cat("Slope:", slope, "\nR²:", r_squared, "\nLin's CCC:", round(ccc_value, 2), "\n")
+```
+
+### Figure 6: diurnal variation in flux
+
+```{r}
+#| echo = FALSE
+
+# Fit a smooth spline and extract fitted values using predict
+smooth_data <- merged_data_with_met %>% 
+# merged_data_with_met_filter %>%
+  group_by(method, hour) %>%
+  summarise(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE), .groups = 'drop') %>%
+  group_by(method) %>%
+  do({
+    # Fit the smooth spline for each method
+    fit <- smooth.spline(.$hour, .$mean_flux, spar = 0.7)
+    
+    # Predict the smoothed values
+    predictions <- predict(fit, .$hour)$y
+    
+    # Return a dataframe with the hour and smoothed values
+    data.frame(hour = .$hour, smoothed_flux = predictions)
+  }) %>%
+  ungroup()
+
+# Now you can calculate the amplitude or further use the smoothed values as needed
+# Example: Calculate amplitude for each method
+amplitude_data <- smooth_data %>%
+  group_by(method) %>%
+  summarise(
+    max_smooth = max(smoothed_flux, na.rm = TRUE),
+    min_smooth = min(smoothed_flux, na.rm = TRUE),
+    amplitude = max_smooth - min_smooth  # Amplitude per method
+  )
+
+# Step 3: Plot the original figure with the smooth line
+merged_data_with_met %>%
+  ggplot(aes(x = hour, y = fluxL_umolm2sec)) +
+  stat_summary(fun = mean, geom = "point") + # Line for mean
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.2) +  # Error bars for SE
+  geom_line(data = smooth_data, aes(x = hour, y = smoothed_flux, color = method), size = 1) +
+  labs(x = "Hour of the day", 
+       y = expression(paste("Flux estimate, ", mu, "mol m"^-2, "s"^-1))) +
+  facet_wrap(~method, nrow=2) +
+  theme_classic()
+
+
+
+
+
+# Step 1: Calculate the mean flux for each method separately
+mean_flux_per_method <- merged_data_with_met %>%
+  group_by(method) %>%
+  summarise(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE))
+
+# Step 2: Plot the smooth line, method-specific mean line, and amplitude
+merged_data_with_met %>%
+  ggplot(aes(x = hour, y = fluxL_umolm2sec, color=method)) +
+  # Add a horizontal mean line specific to each method using geom_hline and data from `mean_flux_per_method`
+  geom_hline(data = mean_flux_per_method, aes(yintercept = mean_flux), 
+             linetype = "dashed", color = "black", size = 1) +
+  
+  # Smooth line with confidence interval (amplitude) per method
+  geom_smooth(method = "loess", se = TRUE) +
+  
+  # Points and error bars for mean flux at each hour
+  stat_summary(fun = mean, geom = "point") +          # Points for mean
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.2, color = "black") +  # Error bars for SE
+
+  
+  # Labels and facets
+  labs(x = "Hour of Day", 
+       y = expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))+
+       facet_wrap(~method, nrow = 2) +
+  theme_classic() +
+  scale_fill_manual(values = c("#4C9F70", "#B0B0B0"))+
+  scale_color_manual(values = c("#4C9F70", "#B0B0B0"))+
+  theme(legend.position = "none")
+
+
+# # Optional: Print the mean flux per method for reference
+# print(mean_flux_per_method)
+# # autochamber	2.600513			
+# # fluxbot	2.376525	
+```
+
+### Figure 7: 10cm soil temperature sensitivity of flux rates
+
+```{r}
+#| echo = FALSE
+
+# Function to fit the model, create predictions, and calculate SE manually
+fit_nls_and_predict_with_se <- function(data) {
+  tryCatch({
+    # Fit the non-linear model
+    nls_model <- nls(fluxL_umolm2sec ~ a * exp(b * s10t), 
+                     data = data, 
+                     start = list(a = 1, b = 0.1))
+    
+    # Create predictions for the given sequence of soil temperatures
+    predictions <- predict(nls_model, newdata = data.frame(s10t = soiltemp_seq))
+    
+    # Get the covariance matrix of the parameter estimates
+    cov_matrix <- vcov(nls_model)
+    
+    # Get the parameter estimates
+    params <- coef(nls_model)
+    
+    # Calculate the Jacobian matrix of the predictions
+    jacobian <- cbind(exp(params["b"] * soiltemp_seq), 
+                      params["a"] * soiltemp_seq * exp(params["b"] * soiltemp_seq))
+    
+    # Calculate standard errors of the predictions using the covariance matrix
+    se <- sqrt(rowSums((jacobian %*% cov_matrix) * jacobian))
+    
+    # Return the predictions and SE
+    prediction_df <- data.frame(
+      s10t = soiltemp_seq,
+      fluxL_umolm2sec = predictions,
+      se = se
+    )
+    
+    return(prediction_df)
+  }, error = function(e) {
+    # Return NA if the model fails
+    return(data.frame(s10t = soiltemp_seq, 
+                      fluxL_umolm2sec = NA, 
+                      se = NA))  
+  })
+}
+
+# Function to calculate Q10 from the nls model
+fit_nls_and_calculate_Q10 <- function(data) {
+  tryCatch({
+    # Fit the non-linear model
+    nls_model <- nls(fluxL_umolm2sec ~ a * exp(b * s10t), 
+                     data = data, 
+                     start = list(a = 1, b = 0.1))
+    
+    # Calculate Q10 as exp(10 * b)
+    Q10 <- exp(10 * coef(nls_model)["b"])
+    
+    return(Q10)
+  }, error = function(e) {
+    # Return NA if the model fails
+    return(NA)
+  })
+}
+
+# Filter the data to remove NAs in soiltemp and fluxL_umolm2sec,
+# ensure fluxL_umolm2sec > 0.5, and keep only the middle 95% of flux values per method
+merged_data_with_met_filter <- merged_data_with_met %>%
+  filter(
+    !is.na(s10t) &
+      !is.na(fluxL_umolm2sec) &
+      fluxL_umolm2sec > 0.5
+  ) %>%
+  group_by(method) %>%
+  # Calculate the 2.5th and 97.5th percentiles for fluxL_umolm2sec
+  mutate(
+    lower_bound = quantile(fluxL_umolm2sec, 0, na.rm = TRUE),
+    upper_bound = quantile(fluxL_umolm2sec, 1, na.rm = TRUE)
+  ) %>%
+  # Filter to keep only the flux values within the 2.5th and 97.5th percentiles
+  filter(
+    fluxL_umolm2sec >= lower_bound &
+      fluxL_umolm2sec <= upper_bound
+  ) %>%
+  # Remove the temporary percentile columns
+  select(-lower_bound, -upper_bound) %>%
+  ungroup()
+
+# Generate a sequence of soil temperatures for predictions
+soiltemp_seq <- seq(
+  min(merged_data_with_met_filter$s10t, na.rm = TRUE),
+  # min(merged_data_with_met$s10t, na.rm = TRUE), 
+  max(merged_data_with_met_filter$s10t, na.rm = TRUE),
+  # max(merged_data_with_met$s10t, na.rm = TRUE), 
+  length.out = 100
+)
+
+# Apply the function across each method to get predictions with SE
+predictions <- 
+  # merged_data_with_met %>% 
+  merged_data_with_met_filter %>%
+  group_by(method) %>%
+  do(fit_nls_and_predict_with_se(.)) %>%
+  ungroup()
+
+# Remove any rows with NA values in the predictions
+predictions <- predictions %>% filter(!is.na(fluxL_umolm2sec))
+
+# Calculate Q10 values for each method and create label expressions
+Q10_results <- 
+  # merged_data_with_met %>% 
+  merged_data_with_met_filter %>%
+  group_by(method) %>%
+  summarize(
+    Q10 = fit_nls_and_calculate_Q10(cur_data()),
+    min_temp = min(s10t, na.rm = TRUE),
+    max_temp = max(s10t, na.rm = TRUE),
+    min_flux = min(s10t, na.rm = TRUE),
+    max_flux = max(s10t, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    label_x = 12.5,  
+    label_y = 5,  
+    label_expr = paste0("Q[10] == ", round(Q10, 2))
+  )
+
+# Print Q10 values
+print(Q10_results)
+
+# Plot the fitted curves and annotate Q10 values with facet_wrap
+ggplot() +
+  # Add the original flux data points
+  geom_point(data = 
+               merged_data_with_met_filter,
+               # merged_data_with_met,
+             aes(x = s10t, y = fluxL_umolm2sec, color=method, fill=method), 
+             alpha = 0.1) +
+  
+  # Add the fitted lines (model predictions)
+  geom_line(data = predictions, 
+            aes(x = s10t, y = fluxL_umolm2sec), 
+            size = 1) +
+  
+  # Add SE shading
+  geom_ribbon(data = predictions, 
+              aes(x = s10t, ymin = fluxL_umolm2sec - se, ymax = fluxL_umolm2sec + se), 
+              alpha = 0.2) +
+  
+  # Add text for Q10 values with subscript
+  geom_text(data = Q10_results, 
+            aes(x = label_x, y = label_y, label = label_expr), 
+            size = 4, color = "black", fontface = "bold", parse = TRUE) +
+  
+  # Facet the plot by method
+  facet_wrap(~ method) +
+  
+  theme_classic() +
+  labs(
+    x = "Soil Temperature (10cm depth)", 
+    y = "Flux (umol/m²/sec)"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    strip.text = element_text(face = "bold")  # Bold facet labels
+  ) +
+  scale_color_manual(values = c("#4C9F70", "#B0B0B0")) +
+  scale_fill_manual(values = c("#4C9F70", "#B0B0B0"))+
+  theme(legend.position = "none")+
+  xlab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))+
+  ylab(expression(paste("Soil Temperature(", degree, "C)")))
+
+
+```
+
+### Figure 8: spatial heterogeneity
+
+```{r}
+#| echo = FALSE
+
+# Filter the data to only include hours where there are at least 12 autochambers and 12 fluxbots
+filtered_data <- merged_data_with_met %>%
+  group_by(hour_of_obs) %>%
+  filter(
+    sum(method == "autochamber") >= 12 &
+      sum(method == "fluxbot") >= 12
+  ) %>%
+  ungroup()
+# 2745 total observations (out of original 13591)
+
+# Summarize flux data by location (e.g., chamber or sensor ID) to capture spatial heterogeneity
+flux_summary_by_location <- filtered_data %>%
+  group_by(method, id, stand) %>%
+  summarize(mean_flux = mean(fluxL_umolm2sec, na.rm = TRUE)) %>%
+  ungroup()
+
+# Function to calculate Lorenz curve data for ggplot and Gini coefficient
+lorenz_data_with_gini <- function(flux) {
+  lc <- Lc(flux)
+  data.frame(p = lc$p, L = lc$L)
+}
+
+# Calculate Lorenz curve data and Gini coefficients for each method based on spatial locations
+lorenz_per_method <- flux_summary_by_location %>%
+  group_by(method) %>%
+  summarize(
+    data = list(lorenz_data_with_gini(mean_flux)),
+    Gini_flux = Gini(mean_flux, na.rm = TRUE)
+  ) %>%
+  unnest(cols = c(data))
+
+# Plot Lorenz curves to visualize spatial heterogeneity and overlay Gini coefficients
+ggplot(lorenz_per_method, aes(x = p, y = L, color = method)) +
+  geom_line(size = 1) +
+  geom_point(size = 2, alpha = 0.6) +  # Add individual points
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black") + # 45-degree equality line
+  facet_wrap(~ method) +
+  scale_color_manual(values = c("#4C9F70", "#B0B0B0")) +
+  labs(
+    x = "Cumulative Share of Chambers",
+    y = "Cumulative Share of Flux"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    panel.grid.major = element_line(color = "gray90", size = 0.25), # Add major gridlines
+    #panel.grid.minor = element_line(color = "gray90", size = 0.25)  # Add minor gridlines
+  ) +
+  geom_text(aes(x = 0.8, y = 0.2, label = paste("Gini:", sprintf("%.2f", Gini_flux))),
+            color = "black", size = 4, inherit.aes = FALSE)
+
+
+```
+
+### Exploratory models:
+
+Linear mixed effects model with random effect of chamber ID:
+
+```{r}
+#| echo = false
+
+model <- lmer(fluxL_umolm2sec ~ stand + 
+                (1 | id) + 
+                method + 
+                day_of_year + 
+                hour, 
+              data = merged_data)
+
+summary(model)
+plot(model)
+testDispersion(model)
+simulateResiduals(model, plot = TRUE)
+```
+
+```{r}
+#| echo = false
+
+# Convert hour to a factor, then fit the mixed model with hour as a factor instead of an integer
+model_factor <- lmer(fluxL_umolm2sec ~ stand + 
+                       (1 | id) + 
+                       method + 
+                       day_of_year + 
+                       as.factor(hour), 
+                     data = merged_data)
+summary(model_factor)
+plot(model_factor)
+testDispersion(model_factor)
+simulateResiduals(model_factor, plot = T)
+```
+
+Generalized Additive Model (GAM; allows for non-linear relationships between response and predictors):
+
+```{r}
+# Ensure id is a factor and hour_of_obs is in the correct format
+merged_data$id <- as.factor(merged_data$id)
+
+# Fit the GAM model with a smooth term for hour of day and random effect for id
+model_gam <- gam(fluxL_umolm2sec ~ stand + s(hour) + method + s(day_of_year) + s(id, bs = "re"), 
+                 data = merged_data, 
+                 method = "REML")
+
+# Summarize and plot the model
+summary(model_gam)
+plot(model_gam)
+testDispersion(model_gam)
+simulateResiduals(model_gam, plot = TRUE)
+```

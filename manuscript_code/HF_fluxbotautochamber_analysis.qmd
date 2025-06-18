@@ -69,7 +69,7 @@ Fluxbot data, calculated previously and the CSV of which is stored in this proje
 
 ```{r}
 # fluxbot estimates:
-HF_fluxestimates <- read.csv("HarvardForest_fluxestimates_fall2023.csv", header = TRUE)
+HF_fluxestimates <- read.csv("HarvardForest_fluxestimates_fall2023_withstartendconcens.csv", header = TRUE)
 
 # update hour_of_obs with both date and time info (when rounding up from midnight hours in initial processing, time got removed for those that were being rounded up from anything above 23:00:00)
 HF_fluxestimates <- HF_fluxestimates %>% 
@@ -773,12 +773,55 @@ ggplot(lorenz_per_method, aes(x = p, y = L, color = method)) +
 
 ```
 
+### Comparison of high-baseline flux estimates from fluxbots to autochamber equivalents
+
+```{r}
+#| echo: FALSE
+# Filter for flux estimates calculated from high (>900ish) concentrations
+# Determine if flux estimate is comparable to HF array estimates
+# Performance under high RH?
+
+# identify those fluxes captured by the fluxbots with starting concentrations of CO2 >= 850ppm
+HF_fluxestimates_highstart <- HF_fluxestimates %>% 
+  filter(starting_concen >= 850)
+# 516 total estimates with a high start of over 849ppm
+
+# select those of these high concentration fluxes that fall within the filtered fluxbot dataset:
+HF_fluxestimates_highstart2 <- HF_fluxestimates_highstart %>% 
+  inner_join(HF_fluxestimates_filtered)
+# 489 total flux estimates with a high start over 849ppm
+
+# select those HFautochamber (filtered) data from the timestamps in HF high start:
+matching_auto <- filter(HFauto_fluxestimates_filtered_avg, 
+                        hour_of_obs %in% HF_fluxestimates_highstart2$hour_of_obs)
+# 3146 observations (out of 6726) that match the hour_of_obs for our high-start fluxes (across the whole of both arrays).
+
+# merge data, plot:
+HF_fluxestimates_highstart3 <- HF_fluxestimates_highstart2 %>% 
+  select(id, hour_of_obs, date, hour, fluxL_umolm2sec, stand, method, starting_concen, ending_concen)
+
+matching_auto2 <- matching_auto %>% 
+  # add cols for starting and ending concentration, fill with NA
+  mutate(starting_concen = NA,
+         ending_concen = NA)
+
+highinitial_fluxes_merged <- rbind(HF_fluxestimates_highstart3, matching_auto2)
+
+highinitial_fluxes_merged %>% 
+  ggplot(aes(x = method, y = fluxL_umolm2sec))+
+  geom_boxplot()+
+  geom_jitter(color = "red", alpha = 0.15)+
+  theme_minimal()
+
+
+```
+
 ### Exploratory models:
 
 Linear mixed effects model with random effect of chamber ID:
 
 ```{r}
-#| echo = false
+#| echo: false
 
 model <- lmer(fluxL_umolm2sec ~ stand + 
                 (1 | id) + 
@@ -794,7 +837,7 @@ simulateResiduals(model, plot = TRUE)
 ```
 
 ```{r}
-#| echo = false
+#| echo: false
 
 # Convert hour to a factor, then fit the mixed model with hour as a factor instead of an integer
 model_factor <- lmer(fluxL_umolm2sec ~ stand + 

@@ -160,6 +160,9 @@ calculate_regressions_custom_intervals <- function(time_series_df, custom_interv
       end_timestamp = end_point,
       hour_of_obs = round(end_point, "hour"),
       method = method,
+      # adding starting and ending concentration to output, June 18 2025:
+      starting_concen = interval_data[1],
+      ending_concen = interval_data[length(interval_data)],
       linear_beta = linear_beta, # kg/s
       quadratic_beta = quadratic_beta, # kg/s
       length_interval = length_interval, # total interval length in seconds

@@ -25,6 +25,8 @@ library(mgcViz) # allows for visualizing GAM models in DHARMa
 library(DHARMa)
 library(car)
 library(patchwork) # for multiple panels in figures
+library(fuzzyjoin) # for merging datasets by timestamp
+library(smplot2) # stats on plots
 ```
 
 ## Data: upload, clean
@@ -807,15 +809,193 @@ matching_auto2 <- matching_auto %>%
 
 highinitial_fluxes_merged <- rbind(HF_fluxestimates_highstart3, matching_auto2)
 
-highinitial_fluxes_merged %>% 
-  ggplot(aes(x = method, y = fluxL_umolm2sec))+
-  geom_boxplot()+
-  geom_jitter(color = "red", alpha = 0.15)+
-  theme_minimal()
+###################
+# alt version where we take the average for each hour for the autochambers since there are multiple, then merge by timestamp with the high start dataset from the bots:
+highinitial_auto_avg <- matching_auto2 %>% 
+  group_by(hour_of_obs) %>% 
+  summarise(fluxL_umolm2sec_auto = mean(fluxL_umolm2sec))
+highinitial_fluxes_avg <- HF_fluxestimates_highstart3 %>% 
+  group_by(hour_of_obs) %>% 
+  summarise(fluxL_umolm2sec_fluxbot = mean(fluxL_umolm2sec))
+            
+highinitial_fluxes_merged_avg <- highinitial_fluxes_avg %>% 
+  left_join(highinitial_auto_avg, by = "hour_of_obs")
 
+###################
+# alt alt version where we try to retain the hour, stand meta-data:
+highinitial_auto_avg2 <- matching_auto2 %>% 
+  select(!c(date, hour, method, id)) %>% 
+  group_by(hour_of_obs, stand) %>% 
+  summarise(fluxL_umolm2sec_auto = mean(fluxL_umolm2sec)) %>% 
+  mutate(method = "autochamber")
+
+highinitial_merged_multiple <- HF_fluxestimates_highstart3 %>% 
+  left_join(highinitial_auto_avg2, by = c("hour_of_obs", "stand")) %>% 
+  rename(fluxL_umolm2sec_fluxbot = fluxL_umolm2sec,
+         starting_conc_fluxbot = starting_concen,
+         ending_conc_fluxbot = ending_concen) %>% 
+  select(!c(method.x, method.y))
 
 ```
 
+Plot the high-starting-concentration fluxbot flux data, paired with the nearest-in-time autochamber data, summarized in various iterations:
+```{r}
+p = palette(hcl.colors(2, "Batlow"))
+
+highinitial_fluxes_merged %>% 
+  ggplot(aes(x = method, y = fluxL_umolm2sec))+
+  geom_violin(aes(fill = method, alpha = .75))+
+  geom_jitter(color = "red", alpha = 0.1)+
+  theme_minimal()+
+  scale_fill_manual(values = p)+
+  xlab(element_blank())+
+  ylab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))+
+  theme(legend.position = "none")+
+  facet_wrap(~stand)
+```
+
+Linear comparison of the averaged-by-hour data:
+```{r}
+# Fit the linear model to the full data
+# model <- lm(fluxL_umolm2sec_auto ~ fluxL_umolm2sec_fluxbot, 
+#             data = highinitial_merged_multiple)
+# # Extract the slope, intercept, and R-squared
+# slope <- coef(model)[2]
+# intercept <- coef(model)[1]
+# r_squared <- summary(model)$r.squared
+# 
+# # # Calculate Lin's Concordance Correlation Coefficient (CCC)
+# # ccc_result <- epi.ccc(pivoted_data$autochamber_rolling_mean, pivoted_data$fluxbot_rolling_mean)
+# # ccc_value <- ccc_result$rho.c$est  # Extract the CCC estimate
+# 
+# # Create the equation text including R² and CCC
+# equation_label <- paste0("y = ", round(intercept, 2), " + ", round(slope, 2), "x,  R² = ", round(r_squared, 2))
+
+# Plot the comparison of the two systems (autochamber mean'd):
+highinitial_merged_multiple %>% 
+  ggplot(aes(x = fluxL_umolm2sec_auto, y = fluxL_umolm2sec_fluxbot))+
+  geom_point(alpha=0.3)+
+  labs(x = "Autochamber estimates (mean by hour of observation)",
+       y = "Fluxbot estimates, high initial starting concentration")+
+  theme_classic()+
+  geom_smooth(method = "lm", color = "#5A82C9") +  # Linear regression line
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") + # Add a 1:1 line
+  # annotate("text", x = 4.5, y = Inf, label = equation_label, 
+           # hjust = 1, vjust = 1.5, size = 5, color = "#4C72B0") + # Add equation, r2
+  xlim(0, 6) + ylim(0, 6)+
+  facet_wrap(~stand)
+  
+```
+```{r}
+# by date:
+highinitial_merged_multiple %>% 
+  ggplot(aes(x = fluxL_umolm2sec_auto, y = fluxL_umolm2sec_fluxbot))+
+  geom_point(alpha=0.3, color = "darkred")+
+  labs(x = "Autochamber estimates (mean by hour of observation)",
+       y = "Fluxbot estimates, high initial starting concentration")+
+  theme_classic()+
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") + # Add a 1:1 line
+  facet_wrap(~date)
+
+# likely a rainfall event before/on the 21st of October 2023, as there is a high number of high-initial-concentration flux estimates on that day compared to the others. They cluster on both sides of the 1:1 line that day.
+
+# by bot:
+highinitial_merged_multiple %>% 
+  ggplot(aes(x = fluxL_umolm2sec_auto, y = fluxL_umolm2sec_fluxbot))+
+  geom_point(alpha=0.3, color = "darkred")+
+  labs(x = "Autochamber estimates (mean by hour of observation)",
+       y = "Fluxbot estimates, high initial starting concentration")+
+  theme_classic()+
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") + # Add a 1:1 line
+  facet_wrap(~id)
+# bot 100, 22, 24, 110 underestimated fluxes regularly compared to the (averaged) autochamber estimates; these differences could be due to differences in individual bots, or differences in their microsites compared to the averaged hour-and-stand data from the autochamber arrays, or... 
+# bot 114 and 102 had a greater number of fluxes with high initial concentrations than all the others, though these scatter around the 1:1 line in relation to the average hour-of-obs-and-by-stand fluxes from the autochambers.
+
+# by hour:
+highinitial_merged_multiple %>% 
+  ggplot(aes(x = fluxL_umolm2sec_auto, y = fluxL_umolm2sec_fluxbot))+
+  geom_point(alpha=0.3, color = "darkred")+
+  labs(x = "Autochamber estimates (mean by hour of observation)",
+       y = "Fluxbot estimates, high initial starting concentration")+
+  theme_classic()+
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") + # Add a 1:1 line
+  facet_wrap(~hour)
+# generally fluxbots underestimate compared to the (averaged by stand, hour of obs) fluxbot arrays for those observations where the initial concentration of CO2 was elevated. however, these are pretty evenly scattered around the 1:1 no matter the time of day (hour).
+
+# by observation of the visuals alone, it does not seem likely that there is a systemic overestimation of flux when bots start at an elevated concentration of CO2 for an observation interval.
+```
+
+
+```{r}
+# by starting concentration:
+highinitial_merged_multiple %>% 
+  ggplot(aes(x = starting_conc_fluxbot, y = fluxL_umolm2sec_fluxbot))+
+  geom_point(alpha=0.3, color = "darkblue")+
+  labs(x = "starting concentration of carbon dioxide (ppm)",
+       y = "Fluxbot estimates, high initial starting concentration")+
+  theme_classic()
+  # geom_abline(intercept = 0, slope = 1, linetype = "dashed")
+
+# there does not seem to be a relationship between starting concentration and resultant flux estimate
+```
+Correlation between starting concentration and flux estimate:
+```{r}
+# Shapiro-Wilk normality test for flux estimates (high initial concentration)
+shapiro.test(highinitial_merged_multiple$fluxL_umolm2sec_fluxbot) 
+# W = 0.89744, p-value < 2.2e-16
+ggqqplot(highinitial_merged_multiple$fluxL_umolm2sec_fluxbot,
+         ylab = "fluxbot estimate")
+
+# Shapiro-Wilk normality test for autochamber estimates (averaged by hour, stand)
+shapiro.test(highinitial_merged_multiple$fluxL_umolm2sec_auto)
+# W = 0.9227, p-value = 8.359e-14
+ggqqplot(highinitial_merged_multiple$fluxL_umolm2sec_auto,
+         ylab = "average autochamber estimate")
+
+# Shapiro-Wilk normality test for initial concentration
+shapiro.test(highinitial_merged_multiple$starting_conc_fluxbot)
+# W = 0.86825, p-value < 2.2e-16
+ggqqplot(highinitial_merged_multiple$starting_conc_fluxbot,
+         ylab = "fluxbot starting concentration")
+
+# Spearman's correlation: between the two flux estimates
+cor_1 <-cor.test(highinitial_merged_multiple$fluxL_umolm2sec_fluxbot,
+                 highinitial_merged_multiple$fluxL_umolm2sec_auto,  
+                 method = "spearman")
+cor_1
+# S = 9200746, p-value = 1.525e-06
+# alternative hypothesis: true rho is not equal to 0
+# sample estimates:
+#       rho 
+# 0.2331741
+```
+
+Plot the correlation between average autochamber estimate, and fluxbot estimate:
+```{r}
+highinitial_merged_multiple %>% 
+  ggplot(mapping = aes(x = fluxL_umolm2sec_fluxbot, y = fluxL_umolm2sec_auto)) +
+  geom_point(shape = 21, fill = "#0f993d", color = "white", size = 2, alpha = 0.5) +
+  sm_statCorr(
+    color = "darkgreen", corr_method = "spearman",
+    linetype = "dashed"
+  )+
+  labs(x = expression(paste("Fluxbot estimate, ", mu, "mol ", CO[2], " ", m^-2, s^-1)),
+       y = expression(paste("Average autochamber estimate, ", mu, "mol ", CO[2], " ", m^-2, s^-1)))
+```
+
+Plot the correlation between fluxbot estimate and initial starting concentration:
+```{r}
+highinitial_merged_multiple %>% 
+  ggplot(mapping = aes(x = fluxL_umolm2sec_fluxbot, y = starting_conc_fluxbot)) +
+  geom_point(shape = 21, fill = "#0f993d", color = "white", size = 2, alpha = 0.5) +
+  sm_statCorr(
+    color = "darkgreen", corr_method = "spearman",
+    linetype = "dashed"
+  )+
+  labs(x = expression(paste("Fluxbot estimate, ", mu, "mol ", CO[2], " ", m^-2, s^-1)),
+       y = expression(paste("Initial concentration of ", CO[2], " (ppm)")))
+```
+ 
 ### Exploratory models:
 
 Linear mixed effects model with random effect of chamber ID:

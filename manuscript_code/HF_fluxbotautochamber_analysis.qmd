@@ -27,6 +27,7 @@ library(car)
 library(patchwork) # for multiple panels in figures
 library(fuzzyjoin) # for merging datasets by timestamp
 library(smplot2) # stats on plots
+library(gtsummary) # pub-ready tables
 ```
 
 ## Data: upload, clean
@@ -238,6 +239,13 @@ merged_data_with_met <- merged_data_with_met %>%
   group_by(stand, method) %>%
   mutate(rolling_avg = rollapply(fluxL_umolm2sec, width = 24*6, FUN = mean, fill = NA, align = "center")) %>%
   ungroup()
+
+# change 'healthy' to 'stand 1', and 'unhealthy' to 'stand 2':
+merged_data_with_met <- merged_data_with_met %>% 
+  mutate(stand = case_when(
+    stand == "healthy" ~ "stand 1",
+    stand == "unhealthy" ~ "stand 2"
+  ))
 
 # Create the plot with a smoothed line for the rolling average
 p1 <- ggplot(data = merged_data_with_met, aes(x = ymd_hms(hour_of_obs), y = fluxL_umolm2sec)) +
@@ -608,6 +616,8 @@ fit_nls_and_calculate_Q10 <- function(data) {
 
 # Filter the data to remove NAs in soiltemp and fluxL_umolm2sec,
 # ensure fluxL_umolm2sec > 0.5, and keep only the middle 95% of flux values per method
+
+## note: add line to remove HF array data on low-temp days
 merged_data_with_met_filter <- merged_data_with_met %>%
   filter(
     !is.na(s10t) &
@@ -682,17 +692,17 @@ ggplot() +
   
   # Add the fitted lines (model predictions)
   geom_line(data = predictions, 
-            aes(x = s10t, y = fluxL_umolm2sec), 
+            aes(x = s10t, y = fluxL_umolm2sec),
             size = 1) +
   
   # Add SE shading
-  geom_ribbon(data = predictions, 
-              aes(x = s10t, ymin = fluxL_umolm2sec - se, ymax = fluxL_umolm2sec + se), 
+  geom_ribbon(data = predictions,
+              aes(x = s10t, ymin = fluxL_umolm2sec - se, ymax = fluxL_umolm2sec + se),
               alpha = 0.2) +
   
   # Add text for Q10 values with subscript
   geom_text(data = Q10_results, 
-            aes(x = label_x, y = label_y, label = label_expr), 
+            aes(x = label_x, y = label_y, label = label_expr),
             size = 4, color = "black", fontface = "bold", parse = TRUE) +
   
   # Facet the plot by method
@@ -700,8 +710,10 @@ ggplot() +
   
   theme_classic() +
   labs(
-    x = "Soil Temperature (10cm depth)", 
-    y = "Flux (umol/m²/sec)"
+    # x = "Soil Temperature (10cm depth)", 
+    # y = "Flux (umol/m²/sec)"
+    y = "Soil Temperature (10cm depth)", 
+    x = "Flux (umol/m²/sec)"
   ) +
   theme(
     plot.title = element_text(hjust = 0.5),
@@ -710,8 +722,8 @@ ggplot() +
   scale_color_manual(values = c("#4C9F70", "#B0B0B0")) +
   scale_fill_manual(values = c("#4C9F70", "#B0B0B0"))+
   theme(legend.position = "none")+
-  xlab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))+
-  ylab(expression(paste("Soil Temperature(", degree, "C)")))
+  ylab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))+
+  xlab(expression(paste("Soil Temperature(", degree, "C)")))
 
 
 ```
@@ -772,6 +784,100 @@ ggplot(lorenz_per_method, aes(x = p, y = L, color = method)) +
   geom_text(aes(x = 0.8, y = 0.2, label = paste("Gini:", sprintf("%.2f", Gini_flux))),
             color = "black", size = 4, inherit.aes = FALSE)
 
+
+```
+
+### Table 1: summary statistics across arrays for subset of data where we have matching fluxes
+
+```{r}
+#| echo: FALSE
+
+# overall mean, median, 95th percentiles, SE for arrays
+# daytime mean, median, 95th percentiles, nighttime mean, SEs
+
+# night: hours 15-20 (highest fluxes according to figure 6)
+# day: hours 5-10 (lowest fluxes according to figure 6)
+
+merged_data_with_met_filter <- merged_data_with_met_filter %>% 
+  mutate(timeofday = case_when(
+    hour >= 15 & hour <= 20 ~ "evening",
+    hour >= 5 & hour <= 10 ~ "morning",
+    TRUE ~ "mid"
+  ))
+  
+table_data <- merged_data_with_met_filter %>% 
+  mutate(stand = case_when(
+    stand == "healthy" ~ "stand 1",
+    stand == "unhealthy" ~ "stand 2"
+  ))
+
+# Function to calculate summary statistics
+calc_summary_stats <- function(x) {
+  data.frame(
+    Mean = round(mean(x, na.rm = TRUE), 2),
+    Median = round(median(x, na.rm = TRUE), 2),
+    P95 = round(quantile(x, 0.95, na.rm = TRUE), 2),
+    SE = round(sd(x, na.rm = TRUE) / sqrt(length(x[!is.na(x)])), 2),
+    N = length(x[!is.na(x)])
+  )
+}
+
+
+# Calculate summary statistics by location and time period
+summary_table <- table_data %>%
+  filter(timeofday == c("morning", "evening")) %>% 
+  group_by(method, stand, timeofday) %>%
+  summarise(
+    stats = list(calc_summary_stats(fluxL_umolm2sec)),
+    .groups = "drop"
+  ) %>%
+  unnest(stats)
+
+# Reshape the data for better presentation
+formatted_table <- summary_table %>%
+  arrange(method, stand, timeofday)
+
+# Create publication-ready table
+pub_table <- formatted_table %>%
+  kable(
+    col.names = c("Array", "Stand", "Time of day", 
+                  "Mean", "Median", "95th Percentile", "SE", "N"),
+    caption = "Summary Statistics: Flux by Array type, Location, and Approx. Min/Max Time of Day",
+    align = c("l", "l", "l", "c", "c", "c", "c", "c"),
+    format = "html"
+  ) %>%
+  kable_styling(
+    latex_options = c('striped', 'hold_position', 'scale_down'),
+    stripe_color = 'gray!10'
+  ) %>%
+  pack_rows('Autochamber array:', 1, 4) %>%
+  pack_rows('Fluxbot array:', 5, 8) %>%
+  add_header_above(c(' ' = 3, 'Summary Statistics' = 4, ' ' = 1)) %>%
+  footnote(
+    general = c('SE = Standard Error', 'P95 = 95th Percentile', 'N = number of flux obs.',
+                "morning = 5am - 10am", "evening = 3pm - 8pm"),
+    general_title = 'Note:'
+  )
+
+
+# Display the table
+pub_table
+
+# save table
+
+# Save tables in journal-appropriate formats
+library(webshot2)
+
+# Save as high-resolution image (PNG) - good for most journals
+save_kable(pub_table, 
+           file = "summary_statistics_table.png", 
+           zoom = 2)  # High resolution
+
+# Save as PDF (vector format) - best quality for print journals
+save_kable(pub_table, 
+           file = "summary_statistics_table.pdf",
+           zoom = 1.5)
+  arrange(location, time_period)
 
 ```
 
@@ -839,6 +945,7 @@ highinitial_merged_multiple <- HF_fluxestimates_highstart3 %>%
 ```
 
 Plot the high-starting-concentration fluxbot flux data, paired with the nearest-in-time autochamber data, summarized in various iterations:
+
 ```{r}
 p = palette(hcl.colors(2, "Batlow"))
 
@@ -855,6 +962,7 @@ highinitial_fluxes_merged %>%
 ```
 
 Linear comparison of the averaged-by-hour data:
+
 ```{r}
 # Fit the linear model to the full data
 # model <- lm(fluxL_umolm2sec_auto ~ fluxL_umolm2sec_fluxbot, 
@@ -886,6 +994,7 @@ highinitial_merged_multiple %>%
   facet_wrap(~stand)
   
 ```
+
 ```{r}
 # by date:
 highinitial_merged_multiple %>% 
@@ -925,7 +1034,6 @@ highinitial_merged_multiple %>%
 # by observation of the visuals alone, it does not seem likely that there is a systemic overestimation of flux when bots start at an elevated concentration of CO2 for an observation interval.
 ```
 
-
 ```{r}
 # by starting concentration:
 highinitial_merged_multiple %>% 
@@ -938,7 +1046,9 @@ highinitial_merged_multiple %>%
 
 # there does not seem to be a relationship between starting concentration and resultant flux estimate
 ```
+
 Correlation between starting concentration and flux estimate:
+
 ```{r}
 # Shapiro-Wilk normality test for flux estimates (high initial concentration)
 shapiro.test(highinitial_merged_multiple$fluxL_umolm2sec_fluxbot) 
@@ -971,6 +1081,7 @@ cor_1
 ```
 
 Plot the correlation between average autochamber estimate, and fluxbot estimate:
+
 ```{r}
 highinitial_merged_multiple %>% 
   ggplot(mapping = aes(x = fluxL_umolm2sec_fluxbot, y = fluxL_umolm2sec_auto)) +
@@ -984,6 +1095,7 @@ highinitial_merged_multiple %>%
 ```
 
 Plot the correlation between fluxbot estimate and initial starting concentration:
+
 ```{r}
 highinitial_merged_multiple %>% 
   ggplot(mapping = aes(x = fluxL_umolm2sec_fluxbot, y = starting_conc_fluxbot)) +
@@ -995,7 +1107,7 @@ highinitial_merged_multiple %>%
   labs(x = expression(paste("Fluxbot estimate, ", mu, "mol ", CO[2], " ", m^-2, s^-1)),
        y = expression(paste("Initial concentration of ", CO[2], " (ppm)")))
 ```
- 
+
 ### Exploratory models:
 
 Linear mixed effects model with random effect of chamber ID:

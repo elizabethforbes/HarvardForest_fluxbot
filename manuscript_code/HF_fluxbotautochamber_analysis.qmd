@@ -949,6 +949,10 @@ Plot the high-starting-concentration fluxbot flux data, paired with the nearest-
 ```{r}
 p = palette(hcl.colors(2, "Batlow"))
 
+labels <- as_labeller(
+  c("healthy" = "stand 1", 
+    "unhealthy" = "stand 2"))
+
 highinitial_fluxes_merged %>% 
   ggplot(aes(x = method, y = fluxL_umolm2sec))+
   geom_violin(aes(fill = method, alpha = .75))+
@@ -958,7 +962,7 @@ highinitial_fluxes_merged %>%
   xlab(element_blank())+
   ylab(expression(paste(CO[2], " Flux, ", mu, "mol ", m^-2, s^-1)))+
   theme(legend.position = "none")+
-  facet_wrap(~stand)
+  facet_wrap(~stand, labeller = labels)
 ```
 
 Linear comparison of the averaged-by-hour data:
@@ -991,7 +995,7 @@ highinitial_merged_multiple %>%
   # annotate("text", x = 4.5, y = Inf, label = equation_label, 
            # hjust = 1, vjust = 1.5, size = 5, color = "#4C72B0") + # Add equation, r2
   xlim(0, 6) + ylim(0, 6)+
-  facet_wrap(~stand)
+  facet_wrap(~stand, labeller = labels)
   
 ```
 

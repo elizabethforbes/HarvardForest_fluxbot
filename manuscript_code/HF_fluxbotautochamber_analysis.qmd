@@ -668,8 +668,8 @@ Q10_results <-
     Q10 = fit_nls_and_calculate_Q10(cur_data()),
     min_temp = min(s10t, na.rm = TRUE),
     max_temp = max(s10t, na.rm = TRUE),
-    min_flux = min(s10t, na.rm = TRUE),
-    max_flux = max(s10t, na.rm = TRUE),
+    min_flux = min(fluxL_umolm2sec, na.rm = TRUE),
+    max_flux = max(fluxL_umolm2sec, na.rm = TRUE),
     .groups = 'drop'
   ) %>%
   mutate(
@@ -878,6 +878,18 @@ save_kable(pub_table,
            file = "summary_statistics_table.pdf",
            zoom = 1.5)
   arrange(location, time_period)
+
+```
+
+### General summary statistics: chamber-level analyses, means and medians, IQRs
+
+```{r}
+tbl <- merged_data_with_met %>% 
+  group_by(id) %>% 
+  summarise_at(vars(fluxL_umolm2sec),
+               list(min=min, Q1=~quantile(., probs = 0.25),
+                    median=median, Q3=~quantile(., probs = 0.75),
+                    max=max))
 
 ```
 

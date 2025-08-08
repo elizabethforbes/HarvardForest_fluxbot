@@ -84,8 +84,8 @@ merged_data_with_met_filter <- merged_data_with_met %>%
 
 # Generate a sequence of soil temperatures for predictions
 soiltemp_seq <- seq(
-  min(merged_data_with_met_filter$soiltemp_10cm_HF, na.rm = TRUE), 
-  max(merged_data_with_met_filter$soiltemp_10cm_HF, na.rm = TRUE), 
+  min(merged_data_with_met_filter$s10t, na.rm = TRUE), 
+  max(merged_data_with_met_filter$s10t, na.rm = TRUE), 
   length.out = 100
 )
 
@@ -122,17 +122,17 @@ print(Q10_results)
 ggplot() +
   # Add the original flux data points
   geom_point(data = merged_data_with_met_filter, 
-             aes(x = soiltemp_10cm_HF, y = fluxL_umolm2sec, color=method, fill=method), 
+             aes(x = s10t, y = fluxL_umolm2sec, color=method, fill=method), 
              alpha = 0.1) +
   
   # Add the fitted lines (model predictions)
   geom_line(data = predictions, 
-            aes(x = soiltemp_10cm_HF, y = fluxL_umolm2sec), 
+            aes(x = s10t, y = fluxL_umolm2sec), 
             size = 1) +
   
   # Add SE shading
   geom_ribbon(data = predictions, 
-              aes(x = soiltemp_10cm_HF, ymin = fluxL_umolm2sec - se, ymax = fluxL_umolm2sec + se), 
+              aes(x = s10t, ymin = fluxL_umolm2sec - se, ymax = fluxL_umolm2sec + se), 
               alpha = 0.2) +
   
   # Add text for Q10 values with subscript

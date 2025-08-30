@@ -11,7 +11,6 @@ library(scales)
 # PREPARE DATA FOR FLUX COUNT ANALYSIS
 # =============================================================================
 
-# Create daily flux count data
 create_daily_flux_counts <- function(data) {
   
   # Get the measurements that are actually retained in the final analysis
@@ -24,29 +23,16 @@ create_daily_flux_counts <- function(data) {
       .groups = 'drop'
     )
   
-  # For measurements attempted, we need to estimate from the original data
-  # Since you mentioned this should reflect the QMD analysis datasets,
-  # we'll use the filtered data as the base and estimate what was originally attempted
+  # For now, use retained measurements as attempted (until you have raw data)
+  # Replace this section when you have access to the original raw data before QC
   daily_flux_counts <- measurements_retained %>%
     mutate(
-      # Estimate original attempts (replace with actual raw data when available)
-      # For now, assume some measurements were filtered out before the current dataset
-      measurements_attempted = case_when(
-        method == "fluxbot" ~ pmax(measurements_retained, 
-                                   ceiling(measurements_retained * runif(n(), 1.0, 1.3))),
-        method == "autochamber" ~ pmax(measurements_retained, 
-                                       ceiling(measurements_retained * runif(n(), 1.0, 1.2))),
-        TRUE ~ measurements_retained
-      )
+      # Use actual retained measurements as attempted for now
+      # TODO: Replace with actual raw data when available
+      measurements_attempted = measurements_retained
     )
   
   return(daily_flux_counts)
-}
-
-# Helper function for reorder_within
-reorder_within <- function(x, by, within, fun = mean, sep = "___", ...) {
-  new_x <- paste(x, within, sep = sep)
-  stats::reorder(new_x, by, FUN = fun)
 }
 
 # =============================================================================
@@ -60,27 +46,17 @@ create_flux_attempted_plot <- function(flux_count_data) {
   cat("Debug: Unique methods:", unique(flux_count_data$method), "\n")
   cat("Debug: Data dimensions:", dim(flux_count_data), "\n")
   
-  # Create device mapping based on actual data
-  fluxbot_ids <- unique(flux_count_data$id[flux_count_data$method == "fluxbot"])
-  autochamber_ids <- unique(flux_count_data$id[flux_count_data$method == "autochamber"])
-  
-  cat("Debug: Fluxbot IDs:", fluxbot_ids, "\n")
-  cat("Debug: Autochamber IDs:", autochamber_ids, "\n")
-  
-  # Create simple sequential names
-  fluxbot_mapping <- setNames(paste("fluxbot", seq_along(fluxbot_ids), sep = "_"), fluxbot_ids)
-  autochamber_mapping <- setNames(paste("autochamber", seq_along(autochamber_ids), sep = "_"), autochamber_ids)
-  
-  # Combine mappings
-  all_mapping <- c(autochamber_mapping, fluxbot_mapping)
-  
-  # Apply mapping
+  # Apply original IDs as device names (no arbitrary numbering)
   plot_data <- flux_count_data %>%
-    mutate(Device.Name = all_mapping[as.character(id)])
+    mutate(Device.Name = id)  # This keeps original names: autochamber1, autochamber2, etc.
   
-  # Create factor levels (autochamber at top, fluxbot at bottom)
-  autochamber_levels <- paste("autochamber", length(autochamber_ids):1, sep = "_")
-  fluxbot_levels <- paste("fluxbot", length(fluxbot_ids):1, sep = "_")
+  # Create factor levels sorted numerically
+  autochamber_ids <- unique(flux_count_data$id[flux_count_data$method == "autochamber"])
+  fluxbot_ids <- unique(flux_count_data$id[flux_count_data$method == "fluxbot"])
+  
+  # Sort numerically by extracting the number from each ID
+  autochamber_levels <- autochamber_ids[order(as.numeric(gsub("\\D", "", autochamber_ids)), decreasing = TRUE)]
+  fluxbot_levels <- fluxbot_ids[order(as.numeric(gsub("\\D", "", fluxbot_ids)), decreasing = TRUE)]
   all_levels <- c(autochamber_levels, fluxbot_levels)
   
   plot_data$Device.Name <- factor(plot_data$Device.Name, levels = all_levels)
@@ -115,24 +91,17 @@ create_flux_attempted_plot <- function(flux_count_data) {
 
 create_flux_retained_plot <- function(flux_count_data) {
   
-  # Create device mapping based on actual data
-  fluxbot_ids <- unique(flux_count_data$id[flux_count_data$method == "fluxbot"])
-  autochamber_ids <- unique(flux_count_data$id[flux_count_data$method == "autochamber"])
-  
-  # Create simple sequential names
-  fluxbot_mapping <- setNames(paste("fluxbot", seq_along(fluxbot_ids), sep = "_"), fluxbot_ids)
-  autochamber_mapping <- setNames(paste("autochamber", seq_along(autochamber_ids), sep = "_"), autochamber_ids)
-  
-  # Combine mappings
-  all_mapping <- c(autochamber_mapping, fluxbot_mapping)
-  
-  # Apply mapping
+  # Apply original IDs as device names (consistent with attempted plot)
   plot_data <- flux_count_data %>%
-    mutate(Device.Name = all_mapping[as.character(id)])
+    mutate(Device.Name = id)  # This keeps original names: autochamber1, autochamber2, etc.
   
-  # Create factor levels (autochamber at top, fluxbot at bottom)
-  autochamber_levels <- paste("autochamber", length(autochamber_ids):1, sep = "_")
-  fluxbot_levels <- paste("fluxbot", length(fluxbot_ids):1, sep = "_")
+  # Create factor levels sorted numerically  
+  autochamber_ids <- unique(flux_count_data$id[flux_count_data$method == "autochamber"])
+  fluxbot_ids <- unique(flux_count_data$id[flux_count_data$method == "fluxbot"])
+  
+  # Sort numerically by extracting the number from each ID
+  autochamber_levels <- autochamber_ids[order(as.numeric(gsub("\\D", "", autochamber_ids)), decreasing = TRUE)]
+  fluxbot_levels <- fluxbot_ids[order(as.numeric(gsub("\\D", "", fluxbot_ids)), decreasing = TRUE)]
   all_levels <- c(autochamber_levels, fluxbot_levels)
   
   plot_data$Device.Name <- factor(plot_data$Device.Name, levels = all_levels)

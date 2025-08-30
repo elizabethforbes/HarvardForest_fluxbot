@@ -95,24 +95,17 @@ calculate_system_uptime <- function(data) {
 
 create_uptime_heatmap <- function(uptime_data) {
   
-  # Create device mapping (similar to flux count plots)
-  fluxbot_ids <- unique(uptime_data$id[uptime_data$method == "fluxbot"])
-  autochamber_ids <- unique(uptime_data$id[uptime_data$method == "autochamber"])
-  
-  # Create simple sequential names
-  fluxbot_mapping <- setNames(paste("fluxbot", seq_along(fluxbot_ids), sep = "_"), fluxbot_ids)
-  autochamber_mapping <- setNames(paste("autochamber", seq_along(autochamber_ids), sep = "_"), autochamber_ids)
-  
-  # Combine mappings
-  all_mapping <- c(autochamber_mapping, fluxbot_mapping)
-  
-  # Apply mapping
+  # Apply original IDs as device names (consistent with attempted plot)
   plot_data <- uptime_data %>%
-    mutate(Device.Name = all_mapping[as.character(id)])
+    mutate(Device.Name = id)  # This keeps original names: autochamber1, autochamber2, etc.
   
-  # Create factor levels (autochamber at top, fluxbot at bottom)
-  autochamber_levels <- paste("autochamber", length(autochamber_ids):1, sep = "_")
-  fluxbot_levels <- paste("fluxbot", length(fluxbot_ids):1, sep = "_")
+  # Create factor levels sorted numerically
+  autochamber_ids <- unique(uptime_data$id[uptime_data$method == "autochamber"])
+  fluxbot_ids <- unique(uptime_data$id[uptime_data$method == "fluxbot"])
+  
+  # Sort numerically by extracting the number from each ID
+  autochamber_levels <- autochamber_ids[order(as.numeric(gsub("\\D", "", autochamber_ids)), decreasing = TRUE)]
+  fluxbot_levels <- fluxbot_ids[order(as.numeric(gsub("\\D", "", fluxbot_ids)), decreasing = TRUE)]
   all_levels <- c(autochamber_levels, fluxbot_levels)
   
   plot_data$Device.Name <- factor(plot_data$Device.Name, levels = all_levels)
@@ -181,26 +174,24 @@ create_uptime_summary <- function(uptime_data) {
       axis.text.x = element_text(angle = 45, hjust = 1)
     )
   
-  # Create barplot (like original code)
-  # Create device mapping for consistent naming
-  fluxbot_ids <- unique(unit_uptime_stats$id[unit_uptime_stats$method == "fluxbot"])
+  # Apply original IDs as device names (consistent with attempted plot)
+  plot_data <- unit_uptime_stats %>%
+    mutate(Device.Name = id)  # This keeps original names: autochamber1, autochamber2, etc.
+  
+  # Create factor levels sorted numerically
   autochamber_ids <- unique(unit_uptime_stats$id[unit_uptime_stats$method == "autochamber"])
+  fluxbot_ids <- unique(unit_uptime_stats$id[unit_uptime_stats$method == "fluxbot"])
   
-  fluxbot_mapping <- setNames(paste("fluxbot", seq_along(fluxbot_ids), sep = "_"), fluxbot_ids)
-  autochamber_mapping <- setNames(paste("autochamber", seq_along(autochamber_ids), sep = "_"), autochamber_ids)
-  all_mapping <- c(autochamber_mapping, fluxbot_mapping)
-  
-  # Prepare data for barplot
-  barplot_data <- unit_uptime_stats %>%
-    mutate(Device.Name = all_mapping[as.character(id)]) %>%
-    arrange(method, desc(mean_uptime))
-  
-  # Create factor levels for proper ordering
-  autochamber_levels <- paste("autochamber", length(autochamber_ids):1, sep = "_")
-  fluxbot_levels <- paste("fluxbot", length(fluxbot_ids):1, sep = "_")
+  # Sort numerically by extracting the number from each ID
+  autochamber_levels <- autochamber_ids[order(as.numeric(gsub("\\D", "", autochamber_ids)), decreasing = TRUE)]
+  fluxbot_levels <- fluxbot_ids[order(as.numeric(gsub("\\D", "", fluxbot_ids)), decreasing = TRUE)]
   all_levels <- c(autochamber_levels, fluxbot_levels)
   
-  barplot_data$Device.Name <- factor(barplot_data$Device.Name, levels = all_levels)
+  plot_data$Device.Name <- factor(plot_data$Device.Name, levels = all_levels)
+  
+  # Prepare data for barplot
+  barplot_data <- plot_data %>%
+    arrange(method, desc(mean_uptime))
   
   uptime_barplot <- ggplot(barplot_data, aes(x = reorder(Device.Name, mean_uptime), y = mean_uptime, fill = method)) +
     geom_col(alpha = 0.8) +
@@ -372,7 +363,7 @@ overall_uptime <- uptime_summary_results$data %>%
     mean_uptime = mean(mean_uptime, na.rm = TRUE),
     median_uptime = median(mean_uptime, na.rm = TRUE),
     min_uptime = min(mean_uptime, na.rm = TRUE),
-    max_uptime = max(mean_uptime, na.rm = TRUE),
+    max_uptime = max(max_uptime, na.rm = TRUE),
     units_above_90pct = sum(mean_uptime >= 90, na.rm = TRUE),
     units_above_95pct = sum(mean_uptime >= 95, na.rm = TRUE),
     .groups = 'drop'

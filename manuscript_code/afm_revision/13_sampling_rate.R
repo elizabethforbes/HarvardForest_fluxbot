@@ -1,8 +1,7 @@
-# How much do the Fluxbot's lower sampling rate (~6 s vs 1 Hz) and noisier sensor (K30)
-# matter? Emulation on the autochamber records: each 1 Hz closure is (a) used as is,
-# (b) thinned to one record every 6 s, and (c) thinned and given extra Gaussian noise so
-# that its residual SD matches the Fluxbot's empirical precision. Fluxes are recomputed
-# with the same goFlux call as 10_fluxes.R and compared with (a).
+# How much does the Fluxbot's lower sampling rate (one record every ~6 s vs 1 Hz) matter?
+# Emulation on the autochamber records: each 1 Hz closure is (a) used as is and (b) thinned
+# to one record every 6 s (random phase). Fluxes are recomputed with the same goFlux call as
+# 10_fluxes.R and compared with (a).
 
 source("afm_revision/00_prep.R")
 suppressPackageStartupMessages({ library(readr); library(goFlux) })
@@ -39,8 +38,7 @@ run <- function(d, prec, wl) {
 }
 phase <- ac %>% distinct(UniqueID) %>% mutate(ph = sample(0:5, n(), replace = TRUE))
 thin <- ac %>% left_join(phase, by = "UniqueID") %>% filter((Etime - ph) %% 6 == 0) %>% select(-ph)
-noisy <- thin %>% mutate(CO2dry_ppm = CO2dry_ppm + rnorm(n(), 0, sqrt(max(prec_fb^2 - prec_ac^2, 0))))
-sc <- list(`1 Hz (original)` = run(ac, prec_ac, 120), `6 s` = run(thin, prec_ac, 20), `6 s + K30 noise` = run(noisy, prec_fb, 20))
+sc <- list(`1 Hz (original)` = run(ac, prec_ac, 120), `6 s` = run(thin, prec_ac, 20))
 cmp <- bind_rows(lapply(names(sc)[-1], function(k) {
   j <- inner_join(sc[[1]], sc[[k]], by = "UniqueID", suffix = c("_ref", "_x")) %>% filter(LM.flux_ref > 0.3)
   tibble(scenario = k, n = nrow(j),
@@ -52,16 +50,16 @@ cmp <- bind_rows(lapply(names(sc)[-1], function(k) {
 }))
 print(cmp, width = 200)
 write.csv(cmp, file.path(out_dir, "sampling_rate_emulation.csv"), row.names = FALSE)
-for (i in seq_len(nrow(cmp))) { tag <- c("thin", "thin_noise")[i]
+for (i in seq_len(nrow(cmp))) { tag <- c("thin")[i]
   for (k in setdiff(names(cmp), "scenario")) record(paste0("srate_", tag, "_", k), cmp[[k]][i], "sampling_rate", cmp$scenario[i]) }
 
-# effect on array-level agreement: emulated-Fluxbot autochambers vs original autochambers
+# effect on array-level means: 6-s-thinned autochambers vs original autochambers
 flx_t <- flx %>% select(UniqueID, id, stand_code, start_local)
 arr <- function(s) s %>% inner_join(flx_t, by = "UniqueID") %>%
   mutate(hour_of_obs = round_hour(start_local)) %>% group_by(id, stand_code, hour_of_obs) %>% summarise(f = mean(LM.flux), .groups = "drop") %>%
   group_by(stand_code, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(f), .groups = "drop") %>%
   group_by(hour_of_obs) %>% filter(n() == 2) %>% summarise(f = mean(f))
-a0 <- arr(sc[[1]]); a2 <- arr(sc[[3]]); j <- inner_join(a0, a2, by = "hour_of_obs")
-record("srate_array_hourly_r_thin_noise_vs_1hz", cor(j$f.x, j$f.y), "sampling_rate", "autochamber array, LM")
-record("srate_array_hourly_nrmse_thin_noise_vs_1hz", 100 * sqrt(mean((j$f.y - j$f.x)^2)) / mean(j$f.x), "sampling_rate")
+a0 <- arr(sc[[1]]); a2 <- arr(sc[[2]]); j <- inner_join(a0, a2, by = "hour_of_obs")
+record("srate_array_hourly_r_thin_vs_1hz", cor(j$f.x, j$f.y), "sampling_rate", "autochamber array, LM")
+record("srate_array_hourly_nrmse_thin_vs_1hz", 100 * sqrt(mean((j$f.y - j$f.x)^2)) / mean(j$f.x), "sampling_rate")
 write_numbers("numbers_sampling_rate.csv")

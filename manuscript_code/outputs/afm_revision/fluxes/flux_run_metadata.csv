@@ -1,5 +1,5 @@
 key,value
-precision_fluxbot_ppm,5.14362835125353
-precision_autochamber_ppm,2.30837168252762
+precision_fluxbot_ppm,2.58656948861488
+precision_autochamber_ppm,2.30109577432137
 fluxbot_bad_pressure_units,100
 pressure_ratio_local_hf001,0.959669625246548

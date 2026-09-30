@@ -14,8 +14,11 @@
 #  - Temperature: Fluxbot in-chamber SHT-30 mean over the window (read-failure values and
 #    readings outside -10..45 C removed); autochambers HF001 air temperature (no chamber sensor).
 #  - No water-vapour correction for either system (autochamber raw records carry no H2O).
-#  - Windows: Fluxbot lid closes at 55:00 (firmware); the headspace is mixed by diffusion only,
-#    so 56:00-60:00 is used (60 s dead band). Autochamber lid closes 45 s into each 5-min slot
+#  - Windows: Fluxbot lid closes at 55:00 (firmware). The K30 senses the headspace by diffusion
+#    through its PTFE envelope; the CO2 rise reaches the sensor a median ~48 s after closure
+#    (35% of closures > 60 s; 14_q10_moisture.R) and Pan et al. (2024) report ~1 min to a
+#    steady accumulation curve in a shared-headspace LGR test. 57:00-60:00 is therefore used
+#    (120 s dead band, 180 s fit); 56:00-60:00 (as submitted) is a sensitivity analysis. Autochamber lid closes 45 s into each 5-min slot
 #    and the CO2 rise reaches the analyzer at ~63 s; 75-295 s into the slot is used.
 #  - Instrument precision (for MDF and the HM curvature limit) is estimated empirically for
 #    each system as the median robust residual SD of the linear fits.
@@ -27,8 +30,8 @@ pkg <- file.path("..", "data_package")
 out_dir <- file.path("outputs", "afm_revision", "fluxes"); dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 cores <- max(1, parallel::detectCores() - 2)
 test_n <- as.integer(Sys.getenv("FLUX_TEST_N", "0"))   # >0: process only the first n closures per system
-fb_wstart <- as.integer(Sys.getenv("FB_WINDOW_START", "56"))   # Fluxbot fit-window start minute (sensitivity: 57)
-fluxbot_only <- fb_wstart != 56
+fb_wstart <- as.integer(Sys.getenv("FB_WINDOW_START", "57"))   # Fluxbot fit-window start minute (sensitivity: 56)
+fluxbot_only <- fb_wstart != 57
 
 met <- read_csv(file.path(pkg, "ancillary", "hf001-10-15min-m_2023.csv"), show_col_types = FALSE) %>%
   transmute(time = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M", tz = "Etc/GMT+5"), airt = as.numeric(airt), bar = as.numeric(bar)) %>%
@@ -69,6 +72,12 @@ fb <- fbr %>% mutate(wstart = floor_date(time, "hour") + fb_wstart * 60) %>%
   ungroup() %>%
   mutate(Pcham = p_at(stand_code, wstart) / 10, Vtot = 0.768, Area = 81, flag = 1,
          CO2dry_ppm = co2_ppm, POSIX.time = time)
+# in-chamber RH in the open-lid minute before closure (54:00-55:00); RH >= 99% flags a
+# condensation risk on the K30 optics (Pan et al. 2024, section 4.1)
+rh_open <- fbr %>% filter(minute(time) == 54, rh_pct >= 0, rh_pct <= 100.5) %>%
+  mutate(wstart = floor_date(time, "hour") + fb_wstart * 60,
+         UniqueID = paste0("FB_", unit, "_", format(wstart, "%Y%m%d%H%M", tz = "UTC"))) %>%
+  group_by(UniqueID) %>% summarise(rh_open = mean(rh_pct), .groups = "drop")
 record_meta <- list(fluxbot_bad_pressure_units = paste(bad_p, collapse = ";"), pressure_ratio_local_hf001 = p_ratio)
 
 # ---- Autochamber raw ---------------------------------------------------------------------------
@@ -131,9 +140,10 @@ tidy_out <- function(gf, d, system) {
            curvature = HM.flux / LM.flux) %>%
     relocate(system, id, UniqueID, start_local)
 }
-fb_out <- tidy_out(gf_fb, fb, "fluxbot") %>% left_join(units %>% select(id = unit, stand_code), by = "id")
+fb_out <- tidy_out(gf_fb, fb, "fluxbot") %>% left_join(units %>% select(id = unit, stand_code), by = "id") %>%
+  left_join(rh_open, by = "UniqueID") %>% mutate(wet = !is.na(rh_open) & rh_open >= 99)
 ac_out <- if (fluxbot_only) NULL else tidy_out(gf_ac, ac, "autochamber") %>%
-  left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id")
+  left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id") %>% mutate(rh_open = NA_real_, wet = FALSE)
 sfx <- paste0(if (test_n > 0) "_test" else "", if (fluxbot_only) paste0("_w", fb_wstart) else "")
 write_csv(fb_out, file.path(out_dir, paste0("fluxbot_fluxes", sfx, ".csv")))
 if (!fluxbot_only) write_csv(ac_out, file.path(out_dir, paste0("autochamber_fluxes", sfx, ".csv")))

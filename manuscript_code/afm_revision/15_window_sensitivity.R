@@ -1,6 +1,5 @@
-# Sensitivity of the comparison to the Fluxbot fit window. The K30 senses CO2 by diffusion
-# (median delay from lid closure to rise ~48 s; 14_q10_moisture.R), so the first minute of the
-# 56:00-60:00 window can contain pre-rise records. Compare the main window with 57:00-60:00.
+# Sensitivity of the comparison to the Fluxbot fit window: main 57:00-60:00 vs the submitted
+# 56:00-60:00, whose first minute can contain pre-rise records (K30 diffusion delay).
 source("afm_revision/00_prep.R")
 suppressPackageStartupMessages(library(lme4))
 summ <- function(tag) {
@@ -20,8 +19,8 @@ summ <- function(tag) {
          diel_amp_ac = diel$amp[diel$method == "autochamber"], diel_amp_fb = diel$amp[diel$method == "fluxbot"],
          fb_mean = mean(s$fluxbot))
 }
-options(afm.fluxbot_file = "fluxbot_fluxes.csv"); a <- summ("56:00-60:00 (main)")
-options(afm.fluxbot_file = "fluxbot_fluxes_w57.csv"); b <- summ("57:00-60:00")
+options(afm.fluxbot_file = "fluxbot_fluxes_w56.csv"); a <- summ("56:00-60:00 (submitted)")
+options(afm.fluxbot_file = "fluxbot_fluxes.csv"); b <- summ("57:00-60:00 (main)")
 res <- bind_rows(a, b); print(res, width = 200)
 write.csv(res, file.path(out_dir, "window_sensitivity.csv"), row.names = FALSE)
 for (i in 1:2) for (k in setdiff(names(res), "window")) record(paste0("win", c(56, 57)[i], "_", k), res[[k]][i], "window", res$window[i])

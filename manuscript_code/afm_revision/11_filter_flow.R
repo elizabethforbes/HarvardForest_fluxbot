@@ -5,10 +5,12 @@
 #   scheduled  : closures the system was programmed to make (Fluxbot: 1 per unit-hour;
 #                autochamber: 2 per chamber-hour)
 #   recorded   : scheduled closures with any raw CO2 data in the closure window
-#   computable : recorded closures with enough data to fit a flux (Fluxbot >= 20 records
-#                spanning >= 180 s of the 240-s window; autochamber >= 120 s of the 220-s window)
-#   valid      : computable closures that are not chamber failures (no significant CO2 decline)
-#   retained   : valid closures that pass the per-chamber spike screen (median +/- 5 MAD);
+#   valid      : recorded closures with enough data to fit a flux (Fluxbot >= 75% of the 180-s
+#                window; autochamber >= 120 s of the 220-s window) that are not chamber
+#                failures (no statistically significant CO2 decline)
+#   dry sensor : valid closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
+#                open-lid minute; condensation on the K30 optics, Pan et al. 2024)
+#   retained   : dry-sensor closures that pass the per-chamber spike screen (median +/- 5 MAD);
 #                these are analysed
 # Derived rates: uptime = recorded / scheduled; downtime = 1 - uptime;
 #   measurement success = retained / scheduled; QC retention = retained / computable;
@@ -40,15 +42,17 @@ acr <- read_csv(file.path(pkg, "raw", "autochamber_co2_1hz_oct2023.csv.gz"),
 acct <- function(system) {
   flx <- read.csv(file.path(flux_dir, paste0(system, "_fluxes.csv")), colClasses = c(id = "character")) %>%
     mutate(t = round_hour(start_local)) %>% filter(t >= p0, t < p1) %>%
-    mutate(decline = LM.flux < 0 & !grepl("p-value", quality.check))
+    mutate(decline = LM.flux < 0 & !grepl("p-value", quality.check), wet = coalesce(as.logical(wet), FALSE))
+  # "recorded" windows that yielded no flux are counted as lost at the "valid" step
   n_units <- if (system == "fluxbot") nrow(units) else nrow(chambers)
   sched <- n_units * n_days * ifelse(system == "fluxbot", 24, 48)
   rec <- if (system == "fluxbot") nrow(fbr) else nrow(acr)
   comp <- nrow(flx)
   valid <- flx %>% filter(!decline)
-  ret <- valid %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
-  tibble(system, stage = c("scheduled", "recorded", "computable", "valid", "retained"),
-         n = c(sched, rec, comp, nrow(valid), nrow(ret))) %>%
+  dry <- valid %>% filter(!wet)
+  ret <- dry %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
+  tibble(system, stage = c("scheduled", "recorded", "valid", "dry sensor", "retained"),
+         n = c(sched, rec, nrow(valid), nrow(dry), nrow(ret))) %>%
     mutate(pct_of_scheduled = 100 * n / sched, lost = lag(n) - n, pct_lost_step = 100 * lost / lag(n))
 }
 acc <- bind_rows(acct("fluxbot"), acct("autochamber"))
@@ -60,7 +64,7 @@ for (s in c("fluxbot", "autochamber")) {
   a <- acc %>% filter(system == s); g <- function(st) a$n[a$stage == st]
   record(paste0("uptime_pct_", s), 100 * g("recorded") / g("scheduled"), "accounting")
   record(paste0("success_pct_", s), 100 * g("retained") / g("scheduled"), "accounting")
-  record(paste0("qc_retention_pct_", s), 100 * g("retained") / g("computable"), "accounting")
+  record(paste0("qc_retention_pct_", s), 100 * g("retained") / g("recorded"), "accounting")
   record(paste0("density_per_unit_day_", s), g("retained") / (ifelse(s == "fluxbot", nrow(units), nrow(chambers)) * n_days), "accounting")
 }
 
@@ -77,8 +81,8 @@ stage_agree <- function(qc) {
          offset_pct = 100 * (mean(s$fluxbot) / mean(s$autochamber) - 1),
          r_hourly = cor(s$autochamber, s$fluxbot), r_daily = cor(dd$a, dd$f), n_days = nrow(dd))
 }
-ag <- bind_rows(lapply(c("computed", "valid", "fit"), stage_agree)) %>%
-  mutate(stage = c("computable", "valid", "retained"))
+ag <- bind_rows(lapply(c("valid", "dry", "fit"), stage_agree)) %>%
+  mutate(stage = c("valid", "dry sensor", "retained"))
 write.csv(ag, file.path(out_dir, "agreement_by_stage.csv"), row.names = FALSE)
 print(ag)
 for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
@@ -86,10 +90,10 @@ for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
 
 # ---- flow diagram ---------------------------------------------------------------------------------
 lab_step <- c(recorded = "no data transmitted / logger or power down",
-              computable = "too few records in window",
-              valid = "chamber failure (significant CO2 decline)",
+              valid = "too few records, or chamber failure (significant CO2 decline)",
+              `dry sensor` = "wet sensor (in-chamber RH >= 99% before closure)",
               retained = "spike (> 5 MAD from chamber median)")
-fd <- acc %>% mutate(stage = factor(stage, levels = c("scheduled", "recorded", "computable", "valid", "retained")),
+fd <- acc %>% mutate(stage = factor(stage, levels = c("scheduled", "recorded", "valid", "dry sensor", "retained")),
                      y = 5 - as.integer(stage), x = if_else(system == "fluxbot", 1, 3.2),
                      label = sprintf("%s\n%s (%.1f%%)", tools::toTitleCase(as.character(stage)), format(n, big.mark = ","), pct_of_scheduled))
 fl <- fd %>% filter(!is.na(lost)) %>% mutate(dl = sprintf("-%s: %s", format(lost, big.mark = ","), lab_step[as.character(stage)]))

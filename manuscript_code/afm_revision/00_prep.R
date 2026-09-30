@@ -57,7 +57,8 @@ load_reprocessed <- function(system, flux_col) {
            starting_concen = co2_start, short = grepl("nb.obs", quality.check),
            # CO2 falling significantly in a dark soil chamber = chamber failure (lid not
            # sealed or not vented between closures), not uptake
-           decline = .data[[flux_col]] < 0 & !grepl("p-value", quality.check)) %>%
+           decline = .data[[flux_col]] < 0 & !grepl("p-value", quality.check),
+           wet = if ("wet" %in% names(.)) as.logical(wet) else FALSE) %>%
     filter(hour_of_obs >= analysis_start, hour_of_obs < analysis_end)
 }
 
@@ -91,8 +92,9 @@ load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
 
 # ---- QC ------------------------------------------------------------------------
 # qc = "fit"  : main analysis (reprocessed fluxes). Drop closures goFlux flags as too
-#               short (nb.obs) and closures with a statistically significant CO2 decline
-#               (chamber failure), then per-chamber robust fences (median +/- 5 MAD) to remove
+#               short (nb.obs), closures with a statistically significant CO2 decline
+#               (chamber failure) and Fluxbot closures with in-chamber RH >= 99% in the
+#               open-lid minute (wet K30; Pan et al. 2024), then per-chamber robust fences (median +/- 5 MAD) to remove
 #               isolated spikes. Non-significant negative values are kept (noise around zero);
 #               no value-based trimming of the pooled data.
 # qc = "iqr"  : submitted QC. Drop negative fluxes, then Tukey 1.5 x IQR fences on the
@@ -100,13 +102,18 @@ load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
 # qc = "none" : drop negative fluxes only.
 # qc = "mad"  : drop negatives, then per-chamber median +/- 5 MAD.
 # qc = "computed" / "valid": intermediate stages of the "fit" rule (for the filtering flow).
-apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad", "computed", "valid")) {
+apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad", "computed", "valid", "dry", "fit_nowet")) {
   qc <- match.arg(qc)
   d <- d[!is.na(d$flux), ]
   if (qc == "computed") return(d)                                  # every computable closure
   if (qc == "valid") return(d[!d$short & !d$decline, ])            # chamber failures removed
+  if (qc == "dry") return(d[!d$short & !d$decline & !d$wet, ])     # + wet-sensor closures removed
+  if (qc == "fit_nowet") {                                          # sensitivity: keep wet-sensor closures
+    d <- d[!d$short & !d$decline, ]
+    return(d %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())
+  }
   if (qc == "fit") {
-    if ("short" %in% names(d)) d <- d[!d$short & !d$decline, ]
+    if ("short" %in% names(d)) d <- d[!d$short & !d$decline & !d$wet, ]
     return(d %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())
   }
   d <- d[d$flux >= 0, ]

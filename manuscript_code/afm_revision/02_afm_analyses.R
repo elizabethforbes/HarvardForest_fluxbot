@@ -49,11 +49,13 @@ array_agreement <- function(d, k = 5, window = 3) {
     filter(!is.na(ac3), !is.na(fb3))
   fit <- lm(fb3 ~ ac3, data = pv)
   cc <- epi.ccc(pv$ac3, pv$fb3)
-  # moving-block bootstrap (24 h blocks) for the CI of the mean paired difference
-  diffs <- pv$fb3 - pv$ac3; nb <- ceiling(length(diffs) / 24)
+  # circular block bootstrap (blocks of 24 consecutive values) for the CI of the
+  # mean paired difference
+  diffs <- pv$fb3 - pv$ac3; nd <- length(diffs); nb <- ceiling(nd / 24)
   boot <- replicate(2000, {
-    starts <- sample(seq_len(length(diffs) - 23), nb, replace = TRUE)
-    mean(unlist(lapply(starts, function(s) diffs[s:(s + 23)]))[seq_along(diffs)])
+    starts <- sample(seq_len(nd), nb, replace = TRUE)
+    idx <- unlist(lapply(starts, function(s) ((s - 1 + 0:23) %% nd) + 1))[seq_len(nd)]
+    mean(diffs[idx])
   })
   list(data = pv, n = nrow(pv), intercept = unname(coef(fit)[1]), slope = unname(coef(fit)[2]),
        slope_ci = unname(confint(fit)[2, ]), intercept_ci = unname(confint(fit)[1, ]),
@@ -243,7 +245,7 @@ record("fig5_r2", ag$r2, "agreement")
 record("fig5_mean_autochamber", ag$mean_ac, "agreement")
 record("fig5_mean_fluxbot", ag$mean_fb, "agreement")
 record("paired_bias", ag$bias, "agreement", "fluxbot - autochamber, 3-h array means")
-record("paired_bias_lo", ag$bias_ci[1], "agreement", "24-h moving-block bootstrap")
+record("paired_bias_lo", ag$bias_ci[1], "agreement", "circular block bootstrap, 24-value blocks")
 record("paired_bias_hi", ag$bias_ci[2], "agreement")
 record("paired_bias_pct", 100 * ag$bias / ag$mean_ac, "agreement")
 record("fig5_intercept_pct_of_mean", 100 * abs(ag$intercept) / ag$mean_ac, "agreement")

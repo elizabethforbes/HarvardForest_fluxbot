@@ -10,7 +10,7 @@ for (s in scripts) {
   if (status != 0) stop(s, " failed")
 }
 # collect every number into one file
-files <- c("numbers_baseline.csv", "numbers_A7_pressure.csv", "numbers_for_text.csv", "numbers_A7_soiltemp.csv")
+files <- c("numbers_baseline.csv", "numbers_A7_pressure.csv", "numbers_for_text.csv", "numbers_A7_soiltemp.csv", "numbers_uptime.csv")
 all <- do.call(rbind, lapply(file.path("outputs", "afm_revision", files), read.csv))
 write.csv(all, file.path("outputs", "afm_revision", "numbers_all.csv"), row.names = FALSE)
 message("Done: ", nrow(all), " numbers in outputs/afm_revision/numbers_all.csv")

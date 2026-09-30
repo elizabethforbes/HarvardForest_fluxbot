@@ -68,3 +68,42 @@ fig <- (pa + pb + plot_layout(widths = c(1, 2.2))) / pc + plot_layout(heights = 
 ggsave(file.path(out_dir, "figures", "Fig_resilience.pdf"), fig, width = 190, height = 120, units = "mm", device = cairo_pdf)
 ggsave(file.path(out_dir, "figures", "Fig_resilience.png"), fig, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
 write_numbers("numbers_resilience.csv")
+
+# ---- Draft: the submitted Fig. 9 layout with schedule-based definitions -----------------------------
+# top: measurement success per unit (share of scheduled hours with a measurement) and by system;
+# bottom: daily share of each stand's units reporting, one line per system x stand.
+# Built twice: "valid" (hardware and chamber working; wet-sensor closures count as collected)
+# and "retained" (after the wet-sensor flag and spike screen, i.e. the analysed data).
+make_fig9 <- function(dset, tag, ylab) {
+  dd <- dset %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
+    mutate(id = as.character(id), stand = as.character(stand), method = as.character(method)) %>% distinct(method, stand, id, hour_of_obs)
+  g <- roster %>% tidyr::crossing(hour_of_obs = hours) %>%
+    left_join(dd %>% mutate(ok = TRUE), by = c("method", "stand", "id", "hour_of_obs")) %>% mutate(ok = coalesce(ok, FALSE))
+  ur <- g %>% group_by(method, stand, id) %>% summarise(success = mean(ok), .groups = "drop") %>%
+    mutate(unit = reorder(sub("autochamber", "AC ", sub("fluxbot", "FB ", id)), success))
+  s2 <- g %>% group_by(method, stand, hour_of_obs) %>% summarise(n_ok = sum(ok), n_units = n(), .groups = "drop")
+  st <- s2 %>% group_by(method, stand) %>% summarise(cov3 = mean(n_ok >= 3), out = {
+    r <- rle(n_ok[order(hour_of_obs)] == 0); if (any(r$values)) max(r$lengths[r$values]) else 0L }, .groups = "drop")
+  write.csv(st, file.path(out_dir, paste0("fig10_", tag, "_stats.csv")), row.names = FALSE)
+  cap <- paste(sprintf("%s %s: >= 3 units in %.0f%% of hours, longest outage %d h", lab_sys[st$method], stl[st$stand], 100 * st$cov3, st$out),
+               collapse = "\n")
+  pa <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width = 0.8) +
+    facet_grid(~ lab_sys[method], scales = "free_x", space = "free_x") + scale_fill_manual(values = pal, guide = "none") +
+    labs(x = NULL, y = ylab) + scale_y_continuous(limits = c(0, 100)) + theme_classic(base_size = 8) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6), strip.background = element_blank())
+  pb <- ggplot(ur, aes(lab_sys[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = 0.7) +
+    geom_jitter(width = 0.1, size = 0.8, alpha = 0.7) + scale_fill_manual(values = pal, guide = "none") +
+    scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_classic(base_size = 8)
+  daily <- s2 %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(method, stand, day) %>%
+    summarise(share = 100 * mean(n_ok / n_units), .groups = "drop") %>% mutate(stand = stl[stand])
+  pc <- ggplot(daily, aes(day, share, colour = method, linetype = stand)) + geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = pal, labels = lab_sys, name = NULL) + scale_linetype_manual(values = c("solid", "22"), name = NULL) +
+    scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b") +
+    labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)", caption = cap) +
+    theme_classic(base_size = 8) + theme(legend.position = "bottom", plot.caption = element_text(hjust = 0, size = 7))
+  fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc) + plot_layout(heights = c(1, 1.2)) + plot_annotation(tag_levels = "a")
+  ggsave(file.path(out_dir, "figures", paste0("Fig10_uptime_", tag, ".pdf")), fig, width = 190, height = 150, units = "mm", device = cairo_pdf)
+  ggsave(file.path(out_dir, "figures", paste0("Fig10_uptime_", tag, ".png")), fig, width = 190, height = 150, units = "mm", dpi = 300, device = ragg::agg_png)
+}
+make_fig9(build_dataset(qc = "valid"), "valid", "Measurement success, valid\n(% of scheduled hours)")
+make_fig9(readRDS(file.path(out_dir, "dataset_main.rds")), "retained", "Measurement success, retained\n(% of scheduled hours)")

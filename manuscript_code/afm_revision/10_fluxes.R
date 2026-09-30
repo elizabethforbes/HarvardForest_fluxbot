@@ -27,6 +27,8 @@ pkg <- file.path("..", "data_package")
 out_dir <- file.path("outputs", "afm_revision", "fluxes"); dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 cores <- max(1, parallel::detectCores() - 2)
 test_n <- as.integer(Sys.getenv("FLUX_TEST_N", "0"))   # >0: process only the first n closures per system
+fb_wstart <- as.integer(Sys.getenv("FB_WINDOW_START", "56"))   # Fluxbot fit-window start minute (sensitivity: 57)
+fluxbot_only <- fb_wstart != 56
 
 met <- read_csv(file.path(pkg, "ancillary", "hf001-10-15min-m_2023.csv"), show_col_types = FALSE) %>%
   transmute(time = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M", tz = "Etc/GMT+5"), airt = as.numeric(airt), bar = as.numeric(bar)) %>%
@@ -58,11 +60,11 @@ p_at <- function(stand, t) {
 }
 
 # Fluxbot closures: window [HH:56:00, HH+1:00:00) in UTC-aligned clock (minutes are tz-independent)
-fb <- fbr %>% mutate(wstart = floor_date(time, "hour") + 56 * 60) %>%
-  filter(time >= wstart, time < wstart + 240) %>%
+fb <- fbr %>% mutate(wstart = floor_date(time, "hour") + fb_wstart * 60) %>%
+  filter(time >= wstart, time < floor_date(time, "hour") + 3600) %>%
   mutate(UniqueID = paste0("FB_", unit, "_", format(wstart, "%Y%m%d%H%M", tz = "UTC")),
          Etime = as.numeric(difftime(time, wstart, units = "secs"))) %>%
-  group_by(UniqueID) %>% filter(n() >= 20, max(Etime) - min(Etime) >= 180) %>%
+  group_by(UniqueID) %>% filter(n() >= 20 * (60 - fb_wstart) / 4, max(Etime) - min(Etime) >= 0.75 * (60 - fb_wstart) * 60) %>%
   mutate(Tcham = { tt <- mean(air_temp_c, na.rm = TRUE); if (is.finite(tt)) tt else met_at(first(time), "airt") }) %>%
   ungroup() %>%
   mutate(Pcham = p_at(stand_code, wstart) / 10, Vtot = 0.768, Area = 81, flag = 1,
@@ -117,8 +119,8 @@ t0 <- Sys.time()
 gf_fb <- run_goflux(fb, prec_fb, warn_length = 20)
 message("Fluxbot goFlux: ", nrow(gf_fb), " closures, ", round(difftime(Sys.time(), t0, units = "mins"), 1), " min")
 t0 <- Sys.time()
-gf_ac <- run_goflux(ac, prec_ac, warn_length = 120)
-message("Autochamber goFlux: ", nrow(gf_ac), " closures, ", round(difftime(Sys.time(), t0, units = "mins"), 1), " min")
+gf_ac <- if (fluxbot_only) NULL else run_goflux(ac, prec_ac, warn_length = 120)
+if (!fluxbot_only) message("Autochamber goFlux: ", nrow(gf_ac), " closures, ", round(difftime(Sys.time(), t0, units = "mins"), 1), " min")
 
 keep <- c("UniqueID", "LM.flux", "LM.SE", "LM.r2", "HM.flux", "HM.SE", "HM.r2", "HM.k", "k.max", "g.fact",
           "MDF", "best.flux", "model", "quality.check")
@@ -130,11 +132,11 @@ tidy_out <- function(gf, d, system) {
     relocate(system, id, UniqueID, start_local)
 }
 fb_out <- tidy_out(gf_fb, fb, "fluxbot") %>% left_join(units %>% select(id = unit, stand_code), by = "id")
-ac_out <- tidy_out(gf_ac, ac, "autochamber") %>%
+ac_out <- if (fluxbot_only) NULL else tidy_out(gf_ac, ac, "autochamber") %>%
   left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id")
-sfx <- if (test_n > 0) "_test" else ""
+sfx <- paste0(if (test_n > 0) "_test" else "", if (fluxbot_only) paste0("_w", fb_wstart) else "")
 write_csv(fb_out, file.path(out_dir, paste0("fluxbot_fluxes", sfx, ".csv")))
-write_csv(ac_out, file.path(out_dir, paste0("autochamber_fluxes", sfx, ".csv")))
-write_csv(tibble(key = c("precision_fluxbot_ppm", "precision_autochamber_ppm", names(record_meta)),
+if (!fluxbot_only) write_csv(ac_out, file.path(out_dir, paste0("autochamber_fluxes", sfx, ".csv")))
+if (!fluxbot_only) write_csv(tibble(key = c("precision_fluxbot_ppm", "precision_autochamber_ppm", names(record_meta)),
                  value = c(prec_fb, prec_ac, unlist(record_meta))), file.path(out_dir, paste0("flux_run_metadata", sfx, ".csv")))
 message("Done.")

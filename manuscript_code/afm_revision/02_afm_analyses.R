@@ -431,8 +431,8 @@ for (nm in c("fluxbot", "autochamber")) {
 # Sensitivity table (A6 QC, A8 linear vs quadratic, timestamps, A7 pressure)
 # ================================================================================
 scen <- list()
-scen[["Main (goFlux best model, fit-based QC)"]] <- d
-scen[["Flux model: linear (LM) for all closures"]] <- build_dataset(flux_col = "LM.flux")
+scen[["Main (linear fits, fit-based QC)"]] <- d
+scen[["Flux model: goFlux best model (LM or HM)"]] <- build_dataset(flux_col = "best.flux")
 scen[["Flux model: Hutchinson-Mosier (HM) for all closures"]] <- build_dataset(flux_col = "HM.flux")
 scen[["QC: submitted rule (negatives removed, pooled 1.5 x IQR)"]] <- build_dataset(qc = "iqr")
 scen[["QC: negatives removed only"]] <- build_dataset(qc = "none")
@@ -451,7 +451,7 @@ write.csv(sens, file.path(out_dir, "sensitivity_table.csv"), row.names = FALSE)
 print(sens %>% select(scenario, n, gam_method, gam_method_lo, gam_method_hi, ccc, paired_bias,
                       q10_ac, q10_fb, gini_ac, gini_fb), digits = 3)
 for (i in seq_len(nrow(sens))) {
-  tag <- c("main", "lm", "hm", "qc_iqr", "qc_none", "ac_edt", "pressure_sealevel", "hf293", "submitted")[i]
+  tag <- c("main", "best", "hm", "qc_iqr", "qc_none", "ac_edt", "pressure_sealevel", "hf293", "submitted")[i]
   for (k in c("gam_method", "gam_method_lo", "gam_method_hi", "ccc", "paired_bias", "q10_ac", "q10_fb",
               "gini_ac", "gini_fb", "max_flux", "n", "gam_intercept"))
     record(paste0("sens_", tag, "_", k), sens[[k]][i], "sensitivity", sens$scenario[i])

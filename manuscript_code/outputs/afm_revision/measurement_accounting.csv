@@ -1,0 +1,11 @@
+"system","stage","n","pct_of_scheduled","lost","pct_lost_step"
+"fluxbot","scheduled",11520,100,NA,NA
+"fluxbot","recorded",8591,74.5746527777778,2929,25.4253472222222
+"fluxbot","computable",8381,72.7517361111111,210,2.44441857758119
+"fluxbot","valid",7687,66.7274305555556,694,8.28063476912063
+"fluxbot","retained",7686,66.71875,1,0.0130089761935736
+"autochamber","scheduled",17280,100,NA,NA
+"autochamber","recorded",14353,83.0613425925926,2927,16.9386574074074
+"autochamber","computable",14347,83.0266203703704,6,0.0418031073643141
+"autochamber","valid",14090,81.5393518518518,257,1.79131525754513
+"autochamber","retained",14040,81.25,50,0.35486160397445

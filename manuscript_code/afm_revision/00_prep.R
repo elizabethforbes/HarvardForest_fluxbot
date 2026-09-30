@@ -39,7 +39,8 @@ round_hour <- function(ts) {
 # ---- flux estimates -------------------------------------------------------------
 # source = "reprocessed" (default): fluxes recomputed for both systems from the raw
 #          records in data_package/ by afm_revision/10_fluxes.R (goFlux).
-#          flux_col: "best.flux" (goFlux model selection; main analysis), "LM.flux", "HM.flux".
+#          flux_col: "LM.flux" (linear fit; main analysis), "best.flux" (goFlux LM/HM
+#          model selection; SI), "HM.flux".
 # source = "submitted": the flux files behind the submitted manuscript
 #          (flux_col "fluxL_umolm2sec" or "fluxQ_umolm2sec"); used only to reproduce and
 #          compare with the submitted numbers.
@@ -48,7 +49,8 @@ analysis_end   <- as.POSIXct("2023-11-05 00:00:00", tz = "America/New_York")
 flux_dir <- file.path("outputs", "afm_revision", "fluxes")
 
 load_reprocessed <- function(system, flux_col) {
-  read.csv(file.path(flux_dir, paste0(system, "_fluxes.csv")), colClasses = c(id = "character")) %>%
+  f <- if (system == "fluxbot") getOption("afm.fluxbot_file", "fluxbot_fluxes.csv") else paste0(system, "_fluxes.csv")
+  read.csv(file.path(flux_dir, f), colClasses = c(id = "character")) %>%
     mutate(start_timestamp = start_local, hour_of_obs = round_hour(start_local),
            date = as.Date(hour_of_obs, tz = "America/New_York"), hour = hour(hour_of_obs),
            flux = .data[[flux_col]], stand = stand_code, method = system,
@@ -59,7 +61,7 @@ load_reprocessed <- function(system, flux_col) {
     filter(hour_of_obs >= analysis_start, hour_of_obs < analysis_end)
 }
 
-load_fluxbot <- function(flux_col = "best.flux", source = "reprocessed") {
+load_fluxbot <- function(flux_col = "LM.flux", source = "reprocessed") {
   if (source == "reprocessed") {
     load_reprocessed("fluxbot", flux_col) %>% mutate(id = paste0("fluxes_bot", id))
   } else {
@@ -72,7 +74,7 @@ load_fluxbot <- function(flux_col = "best.flux", source = "reprocessed") {
   }
 }
 
-load_autochamber <- function(flux_col = "best.flux", source = "reprocessed") {
+load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
   if (source == "reprocessed") {
     load_reprocessed("autochamber", flux_col)
   } else {
@@ -97,9 +99,12 @@ load_autochamber <- function(flux_col = "best.flux", source = "reprocessed") {
 #               pooled fluxes of each system.
 # qc = "none" : drop negative fluxes only.
 # qc = "mad"  : drop negatives, then per-chamber median +/- 5 MAD.
-apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad")) {
+# qc = "computed" / "valid": intermediate stages of the "fit" rule (for the filtering flow).
+apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad", "computed", "valid")) {
   qc <- match.arg(qc)
   d <- d[!is.na(d$flux), ]
+  if (qc == "computed") return(d)                                  # every computable closure
+  if (qc == "valid") return(d[!d$short & !d$decline, ])            # chamber failures removed
   if (qc == "fit") {
     if ("short" %in% names(d)) d <- d[!d$short & !d$decline, ]
     return(d %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())
@@ -117,7 +122,7 @@ apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad")) {
 # ---- build analysis dataset ----------------------------------------------------
 # Returns the equivalent of `merged_data_with_met` in the .qmd (before the stand
 # relabelling), with column fluxL_umolm2sec holding the chosen flux.
-build_dataset <- function(qc = "fit", flux_col = "best.flux", source = "reprocessed", met = load_met()) {
+build_dataset <- function(qc = "fit", flux_col = "LM.flux", source = "reprocessed", met = load_met()) {
   fb <- apply_qc(load_fluxbot(flux_col, source), qc)
   ac <- apply_qc(load_autochamber(flux_col, source), qc)
   assemble_dataset(fb, ac, met)
@@ -133,8 +138,8 @@ load_hf293 <- function() {
            stand = if_else(chamber <= 6, "unhealthy", "healthy"), method = "autochamber") %>%
     filter(!is.na(flux), hour_of_obs >= analysis_start, hour_of_obs < analysis_end)
 }
-build_dataset_hf293 <- function(met = load_met()) {
-  fb <- apply_qc(load_fluxbot(), "fit")
+build_dataset_hf293 <- function(met = load_met(), flux_col = "LM.flux") {
+  fb <- apply_qc(load_fluxbot(flux_col), "fit")
   ac <- load_hf293() %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup()
   assemble_dataset(fb, ac, met)
 }

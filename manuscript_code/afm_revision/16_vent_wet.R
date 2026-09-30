@@ -40,12 +40,13 @@ by_unit <- hi %>% group_by(unit) %>% summarise(pct_high = 100 * mean(high), n = 
 write.csv(by_unit, file.path(out_dir, "baseline_anomaly_by_unit.csv"), row.names = FALSE); print(by_unit)
 
 # does a high baseline depress the measured flux? (closure flux relative to the stand-hour autochamber mean)
-d <- readRDS(file.path(out_dir, "dataset_main.rds"))
+# diagnostics need the wet-sensor closures, which the main QC removes
+d <- build_dataset(qc = "fit_nowet")
 ach <- d %>% filter(method == "autochamber") %>% group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>%
   summarise(ac = mean(fluxL_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
 fbx <- d %>% filter(method == "fluxbot", fluxL_umolm2sec > 0.1) %>% mutate(unit = sub("fluxbot", "", as.character(id)), stand = as.character(stand)) %>%
   inner_join(cl %>% select(unit, hour_of_obs, anom, rh, base), by = c("unit", "hour_of_obs")) %>%
-  inner_join(ach, by = c("stand", "hour_of_obs")) %>% mutate(lr = log(fluxL_umolm2sec / ac),
+  inner_join(ach %>% filter(ac > 0.1), by = c("stand", "hour_of_obs")) %>% mutate(lr = log(fluxL_umolm2sec / ac),
     anom_bin = cut(anom, c(-Inf, 25, 50, 100, 200, Inf), labels = c("<25", "25-50", "50-100", "100-200", ">200")))
 bins <- fbx %>% group_by(anom_bin) %>% summarise(n = n(), ratio_median = exp(median(lr)), .groups = "drop")
 write.csv(bins, file.path(out_dir, "flux_ratio_by_baseline_anomaly.csv"), row.names = FALSE); print(bins)

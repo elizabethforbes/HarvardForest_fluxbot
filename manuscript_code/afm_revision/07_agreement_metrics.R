@@ -172,3 +172,35 @@ record("offset_loo_min", min(loo$offset), "loo"); record("offset_loo_max", max(l
 print(cm %>% arrange(stand, method, f), n = 40)
 
 print(write_numbers("numbers_agreement.csv"), row.names = FALSE)
+
+# ---- 5. what drives the Fluxbot/autochamber ratio? ------------------------------------------
+hrs3 <- matched_hours(d, 3)
+rs <- d %>% filter(hour_of_obs %in% hrs3) %>% group_by(hour_of_obs, stand, method) %>%
+  summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f) %>%
+  group_by(hour_of_obs) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot))
+metr <- load_met() %>% mutate(hour_of_obs = floor_date(with_tz(Time, "America/New_York"), "hour")) %>%
+  group_by(hour_of_obs) %>% summarise(airt = mean(airt), slrr = mean(slrr), s10t = mean(s10t))
+rx <- rs %>% inner_join(metr, by = "hour_of_obs") %>% mutate(lr = log(fb / ac), grad = airt - s10t)
+fr <- lm(lr ~ grad + slrr, data = rx); sr <- summary(fr)
+record("ratio_grad_pct_per_C", 100 * (exp(coef(fr)["grad"]) - 1), "ratio_drivers", "% change in Fluxbot/autochamber ratio per degC air minus soil")
+record("ratio_grad_se_pct", 100 * sr$coefficients["grad", 2], "ratio_drivers")
+record("ratio_slrr_pct_per_100Wm2", 100 * (exp(100 * coef(fr)["slrr"]) - 1), "ratio_drivers", "% change per 100 W m-2")
+record("ratio_model_r2", sr$r.squared, "ratio_drivers")
+record("ratio_model_n", nrow(rx), "ratio_drivers", "array-hours, >= 3 chambers per system x stand")
+record("ratio_grad_range_lo", min(rx$grad), "ratio_drivers"); record("ratio_grad_range_hi", max(rx$grad), "ratio_drivers")
+write_numbers("numbers_agreement.csv")
+
+# ---- Fig S6: spatial-null benchmark ----------------------------------------------------------
+suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
+pal3 <- c("autochamber vs autochamber" = "#3B8F63", "Fluxbot vs Fluxbot" = "#8C8C8C", "autochamber vs Fluxbot" = "#2F5D9E")
+nl <- null %>% mutate(pair = factor(pair, levels = names(pal3)), abs_bias = 100 * abs_bias)
+pan <- function(v, lab) ggplot(nl, aes(pair, .data[[v]], fill = pair)) +
+  geom_violin(colour = NA, alpha = 0.6) + geom_boxplot(width = 0.15, outliers = FALSE, fill = "white", linewidth = 0.3) +
+  scale_fill_manual(values = pal3, guide = "none") + labs(x = NULL, y = lab) +
+  scale_x_discrete(labels = c("AC vs AC", "FB vs FB", "AC vs FB")) + theme_classic(base_size = 8)
+pS6 <- pan("abs_bias", "Offset between subsets\n(% of mean flux)") + pan("nrmse_daily", "Daily RMSE\n(% of mean flux)") +
+  pan("r_hourly", "Hourly correlation (r)") + pan("ccc_daily", "Daily CCC") + plot_layout(ncol = 4) +
+  plot_annotation(tag_levels = "a")
+fd <- file.path(out_dir, "figures"); dir.create(fd, showWarnings = FALSE)
+ggsave(file.path(fd, "FigS6_spatial_null.pdf"), pS6, width = 190, height = 60, units = "mm", device = cairo_pdf)
+ggsave(file.path(fd, "FigS6_spatial_null.png"), pS6, width = 190, height = 60, units = "mm", dpi = 300, device = ragg::agg_png)

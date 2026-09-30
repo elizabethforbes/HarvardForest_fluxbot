@@ -100,14 +100,14 @@ save_fig(p5, "Fig5_flux_distributions", 90, 70)
 # ---- Fig 6: array-level agreement --------------------------------------------------------
 f6 <- readRDS(file.path(out_dir, "fig5_data.rds"))
 lim <- range(c(f6$ac3, f6$fb3)); lim <- c(floor(lim[1] * 2) / 2, ceiling(lim[2] * 2) / 2)
+sma_b <- sign(cor(f6$ac3, f6$fb3)) * sd(f6$fb3) / sd(f6$ac3); sma_a <- mean(f6$fb3) - sma_b * mean(f6$ac3)
 p6 <- ggplot(f6, aes(ac3, fb3)) +
   geom_abline(linetype = "dashed") +
   geom_point(size = 0.8, alpha = 0.5) +
-  geom_smooth(method = "lm", formula = y ~ x, colour = "#2F5D9E", linewidth = 0.6) +
+  geom_abline(intercept = sma_a, slope = sma_b, colour = "#2F5D9E", linewidth = 0.6) +
   annotate("text", x = lim[1], y = lim[2], hjust = 0, vjust = 1, size = 2.5,
-           label = sprintf("y = %.2f + %.2fx, R\u00b2 = %.2f\nCCC = %.2f (95%% CI %.2f\u2013%.2f)\nmean difference = %.2f",
-                           num("fig5_intercept"), num("fig5_slope"), num("fig5_r2"),
-                           num("ccc"), num("ccc_lo"), num("ccc_hi"), num("paired_bias"))) +
+           label = sprintf("r = %.2f\noffset = %.2f (%.0f%%)\nSMA slope = %.2f\nCCC = %.2f",
+                           num("ccc_pearson_r"), num("paired_bias"), num("paired_bias_pct"), sma_b, num("ccc"))) +
   coord_equal(xlim = lim, ylim = lim) +
   labs(x = expression(Autochamber ~ array ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)),
        y = expression(Fluxbot ~ array ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)))

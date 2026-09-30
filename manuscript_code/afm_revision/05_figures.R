@@ -23,7 +23,7 @@ save_fig <- function(p, name, width_mm, height_mm) {
          units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
 }
 
-d <- readRDS(file.path(out_dir, "dataset_iqr.rds")) %>%
+d <- readRDS(file.path(out_dir, "dataset_main.rds")) %>%
   mutate(stand_label = factor(if_else(stand == "healthy", "Stand 1", "Stand 2")),
          method_label = factor(lab_sys[as.character(method)], levels = lab_sys))
 nums <- read.csv(file.path(out_dir, "numbers_for_text.csv"))

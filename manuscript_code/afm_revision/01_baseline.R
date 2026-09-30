@@ -4,7 +4,8 @@
 source("afm_revision/00_prep.R")
 suppressPackageStartupMessages({ library(mgcv); library(zoo); library(epiR); library(ineq) })
 
-d <- build_dataset(qc = "iqr")
+# submitted flux files, submitted QC, HF001 parsed in local (New York) time as the .qmd did
+d <- build_dataset(qc = "iqr", flux_col = "fluxL_umolm2sec", source = "submitted", met = load_met(tz = "America/New_York"))
 
 # ---- n --------------------------------------------------------------------------
 record("n_obs_merged", nrow(d), "baseline", "rows in merged_data_with_met (text: 13591)")

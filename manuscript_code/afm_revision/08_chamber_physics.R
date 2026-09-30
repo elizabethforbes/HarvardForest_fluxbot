@@ -7,41 +7,28 @@
 #  4. Antecedent precipitation as a moisture proxy (no 2023 soil-moisture record found).
 
 source("afm_revision/00_prep.R")
-suppressPackageStartupMessages({ library(readxl); library(stringr); library(ggplot2); library(patchwork) })
+suppressPackageStartupMessages({ library(stringr); library(ggplot2); library(patchwork) })
 set.seed(20260930)
 
-hf_bots <- c(healthy = "100|13|22|114|108|101|112|111", unhealthy = "113|103|102|105|24|106|104|110")
-bots <- unlist(str_split(hf_bots, "\\|"))
-fdir <- file.path("..", "old R scripts", "fluxbot data 2023")
-parse_vec <- function(x) suppressWarnings(as.numeric(str_split(str_remove_all(x, "\\[|\\]"), ",")[[1]]))
-read_var <- function(file, col) {
-  f <- file.path(fdir, file); sh <- excel_sheets(f); sh <- sh[str_extract(sh, "\\d+$") %in% bots]
-  bind_rows(lapply(sh, function(s) {
-    x <- read_excel(f, sheet = s)
-    bind_rows(lapply(seq_len(nrow(x)), function(i) {
-      t <- parse_vec(x[["device timestamps"]][i]); v <- parse_vec(x[[col]][i]); n <- min(length(t), length(v))
-      data.frame(unix = t[seq_len(n)], v = v[seq_len(n)])
-    })) %>% mutate(bot = str_extract(s, "\\d+$"))
-  }))
-}
-temp <- read_var("fluxbot_temperature.xlsx", "temprerature") %>% rename(tc = v)
-co2 <- read_var("fluxbot_co2.xlsx", "co2") %>% rename(co2 = v)
-raw <- temp %>% distinct(bot, unix, .keep_all = TRUE) %>% inner_join(co2 %>% distinct(bot, unix, .keep_all = TRUE), by = c("bot", "unix")) %>%
-  mutate(time = as.POSIXct(unix, origin = "1970-01-01", tz = "America/New_York"),
-         stand = if_else(grepl(paste0("^(", hf_bots["healthy"], ")$"), bot), "healthy", "unhealthy"),
-         min = minute(time) + second(time) / 60) %>%
+units <- read.csv(file.path(pkg, "metadata", "fluxbot_units.csv"), colClasses = c(unit = "character"))
+raw <- readr::read_csv(file.path(pkg, "raw", "fluxbot_sensor_records_2023.csv.gz"), col_types = readr::cols(unit = readr::col_character())) %>%
+  left_join(units %>% select(unit, stand = stand_code), by = "unit") %>%
+  transmute(bot = unit, stand, tc = air_temp_c, co2 = co2_ppm,
+            time = as.POSIXct(unix_time, origin = "1970-01-01", tz = "America/New_York"),
+            min = minute(time) + second(time) / 60) %>%
   filter(time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < as.POSIXct("2023-11-05", tz = "America/New_York"),
-         tc > -20, tc < 50, co2 < 65000)
+         tc > -10, tc < 45, co2 > 0, co2 < 10000)
 dt_s <- raw %>% arrange(bot, time) %>% group_by(bot) %>% mutate(dt = as.numeric(difftime(time, lag(time), units = "secs"))) %>%
   filter(dt > 0, dt < 60) %>% pull(dt)
 record("fluxbot_sample_interval_s_median", median(dt_s), "chamber_physics", "raw sampling interval")
 
-# each record spans minute 55-60: 55:00-55:59 lid open, 56:00-59:59 fit window (closed)
-iv <- raw %>% filter(min >= 55) %>% mutate(hour_of_obs = ceiling_date(time, "hour")) %>%
+# each record spans minute 54-60 (firmware): 54:00-54:59 lid open, lid closes at 55:00,
+# 56:00-59:59 fit window
+iv <- raw %>% filter(min >= 54) %>% mutate(hour_of_obs = ceiling_date(time, "hour")) %>%
   group_by(stand, bot, hour_of_obs) %>% filter(n() >= 20) %>%
-  summarise(t_open = mean(tc[min < 56]), t_start = mean(tc[min >= 56 & min < 56.5]),
+  summarise(t_open = mean(tc[min < 55]), t_start = mean(tc[min >= 56 & min < 56.5]),
             t_end = mean(tc[min >= 59.5]), t_closed = mean(tc[min >= 56]),
-            co2_open = mean(co2[min < 56]), .groups = "drop") %>%
+            co2_open = mean(co2[min < 55]), .groups = "drop") %>%
   mutate(dT_closure = t_end - t_start)
 met <- load_met() %>% mutate(hour_of_obs = floor_date(with_tz(Time, "America/New_York"), "hour")) %>%
   group_by(hour_of_obs) %>% summarise(airt = mean(airt), slrr = mean(slrr), s10t = mean(s10t), prec = sum(prec), wspd = mean(wspd))
@@ -71,7 +58,7 @@ record("diel_peak_hour_s10t", dielT$hod[which.max(dielT$s10t)], "chamber_physics
 record("dT_closure_as_pct_of_TK", 100 * mean(iv$dT_closure, na.rm = TRUE) / (mean(iv$t_start, na.rm = TRUE) + 273.15), "chamber_physics")
 
 # does warming during closure relate to flux, and to the Fluxbot/autochamber ratio?
-d <- readRDS(file.path(out_dir, "dataset_iqr.rds"))
+d <- readRDS(file.path(out_dir, "dataset_main.rds"))
 fbx <- d %>% filter(method == "fluxbot") %>% mutate(bot = sub("fluxbot", "", as.character(id))) %>%
   inner_join(iv %>% select(bot, hour_of_obs, dT_closure, t_open, t_closed), by = c("bot", "hour_of_obs"))
 record("n_fluxbot_fluxes_with_chamberT", nrow(fbx), "chamber_physics")
@@ -88,7 +75,7 @@ m2b <- lm(log(fluxL_umolm2sec) ~ s10t + I(airt - s10t), data = fbx %>% filter(fl
 record("flux_pct_per_C_airHF_minus_soil_fb", 100 * (exp(coef(m2b)[3]) - 1), "chamber_physics", "HF001 air T minus s10t, Fluxbots")
 
 # ---- 2. our autochamber fluxes vs the HF team's processed fluxes (HF293-07) -------------------
-hf <- read.csv(file.path("data", "hf293-07-soil-resp-2022-2023.csv")) %>%
+hf <- read.csv(file.path(pkg, "ancillary", "hf293-07-soil-resp-2023.csv")) %>%
   mutate(time = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M", tz = "Etc/GMT+5"))
 record("hf293_2023_first", as.numeric(format(min(hf$time[hf$year == 2023]), "%j")), "hf293", "doy of first 2023 record")
 months23 <- table(hf$month[hf$year == 2023]); for (mm in names(months23)) record(paste0("hf293_2023_n_month", mm), months23[[mm]], "hf293")

@@ -1,0 +1,22 @@
+file,variable,description,units
+raw/fluxbot_sensor_records_2023.csv.gz,unit,Fluxbot unit ID (see metadata/fluxbot_units.csv),
+raw/fluxbot_sensor_records_2023.csv.gz,unix_time,Device timestamp (seconds since 1970-01-01 UTC),s
+raw/fluxbot_sensor_records_2023.csv.gz,datetime_utc,Device timestamp in UTC (ISO 8601),
+raw/fluxbot_sensor_records_2023.csv.gz,co2_ppm,Senseair K30 CO2 reading (65535/65533 = error code),ppm
+raw/fluxbot_sensor_records_2023.csv.gz,air_temp_c,SHT-30 in-chamber air temperature (44755.7 = failed read),degC
+raw/fluxbot_sensor_records_2023.csv.gz,rh_pct,SHT-30 in-chamber relative humidity (25600.4 = failed read),%
+raw/fluxbot_sensor_records_2023.csv.gz,pressure_hpa,LPS22 in-chamber pressure (station pressure),hPa
+raw/autochamber_co2_1hz_oct2023.csv.gz,datetime_est,Logger timestamp (Eastern Standard Time),
+raw/autochamber_co2_1hz_oct2023.csv.gz,chamber,Autochamber number (1-6 Hemlock tower/stand 2; 7-12 Bigelow Brook/stand 1; 0 = flush),
+raw/autochamber_co2_1hz_oct2023.csv.gz,co2_ppm,Analyzer CO2 (LI-840 at stand 2; LI-800 at stand 1),ppm
+metadata/fluxbot_units.csv,unit,Fluxbot unit ID,
+metadata/fluxbot_units.csv,stand_code,healthy = stand 1 (Bigelow Brook); unhealthy = stand 2 (Hemlock tower),
+metadata/fluxbot_units.csv,latitude/longitude,GPS position recorded 17 Nov 2023 (horizontal accuracy 4-6 m),decimal degrees
+metadata/fluxbot_units.csv,chamber_volume_cm3,Chamber headspace volume,cm3
+metadata/fluxbot_units.csv,collar_area_cm2,Soil area inside collar,cm2
+metadata/autochamber_chambers.csv,collar_height_cm,Collar height above soil,cm
+metadata/autochamber_chambers.csv,total_volume_cm3,Collar + lid + tubing/analyzer volume,cm3
+metadata/autochamber_chambers.csv,slot_minute,Minute of each half hour at which the chamber's 5-min measurement slot starts (lid closes 45 s later),min
+ancillary/hf001-10-15min-m_2023.csv,(all),HF001 Fisher met station 15-min data; see Harvard Forest Data Archive HF001 metadata (EST; bar = sea-level pressure),
+ancillary/hf293-07-soil-resp-2023.csv,rs,Soil respiration as published by the HF team (best 1-min window; visually checked),umol m-2 s-1
+ancillary/hf293-07-soil-resp-2023.csv,tsoil,Soil temperature at the chamber (mean of logger probes),degC

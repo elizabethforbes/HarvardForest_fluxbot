@@ -120,8 +120,8 @@ key_stats <- function(d, label) {
 # Main dataset: manuscript QC (negatives removed, pooled 1.5 x IQR fences),
 # linear-slope fluxes, HF001 joined in EST.
 # ================================================================================
-d <- build_dataset(qc = "iqr")
-saveRDS(d, file.path(out_dir, "dataset_iqr.rds"))
+d <- build_dataset()
+saveRDS(d, file.path(out_dir, "dataset_main.rds"))
 
 record("n_obs", nrow(d), "data")
 record("n_fluxbot_obs", sum(d$method == "fluxbot"), "data")
@@ -431,37 +431,27 @@ for (nm in c("fluxbot", "autochamber")) {
 # Sensitivity table (A6 QC, A8 linear vs quadratic, timestamps, A7 pressure)
 # ================================================================================
 scen <- list()
-scen[["main (IQR QC, linear, EST met)"]] <- d
-scen[["QC: negatives only (no value trimming)"]] <- build_dataset(qc = "none")
-scen[["QC: per-chamber median +/- 5 MAD"]] <- build_dataset(qc = "mad")
-scen[["Flux: quadratic initial slope"]] <- build_dataset(qc = "iqr", flux_col = "fluxQ_umolm2sec")
-met_ny <- load_met(tz = "America/New_York")
-scen[["Met join as submitted (local-time parse)"]] <- build_dataset(qc = "iqr", met = met_ny)
-# autochamber logger clock in EST (shift +1 h to EDT) -- unverified; sensitivity only
-shift_ac <- function(d) d %>% mutate(hour_of_obs = if_else(method == "autochamber", hour_of_obs + 3600, hour_of_obs),
-                                     hour = hour(hour_of_obs))
-d_shift <- build_dataset(qc = "iqr") %>% select(-s10t, -bar, -air_t, -precip) %>% shift_ac()
-d_shift <- d_shift %>% difference_left_join(load_met(), by = c("hour_of_obs" = "Time"),
-                                            max_dist = as.difftime(60, units = "mins")) %>%
+scen[["Main (goFlux best model, fit-based QC)"]] <- d
+scen[["Flux model: linear (LM) for all closures"]] <- build_dataset(flux_col = "LM.flux")
+scen[["Flux model: Hutchinson-Mosier (HM) for all closures"]] <- build_dataset(flux_col = "HM.flux")
+scen[["QC: submitted rule (negatives removed, pooled 1.5 x IQR)"]] <- build_dataset(qc = "iqr")
+scen[["QC: negatives removed only"]] <- build_dataset(qc = "none")
+# autochamber logger clock read as EDT, as in the submitted analysis (1 h early)
+d_shift <- d %>% select(-s10t, -bar, -air_t, -precip) %>%
+  mutate(hour_of_obs = if_else(method == "autochamber", hour_of_obs - 3600, hour_of_obs), hour = hour(hour_of_obs)) %>%
+  difference_left_join(load_met(), by = c("hour_of_obs" = "Time"), max_dist = as.difftime(60, units = "mins")) %>%
   reframe(s10t = mean(s10t), .by = c(id, hour_of_obs, stand, method, day_of_year, hour, fluxL_umolm2sec, stand_label))
-scen[["Autochamber clock +1 h (EST->EDT)"]] <- d_shift
-# local pressure (in-chamber LPS22 stand median) instead of sea-level HF001 `bar`
-sp_file <- file.path(out_dir, "stand_pressure_hourly.rds")
-if (file.exists(sp_file)) {
-  sp <- readRDS(sp_file) %>% mutate(stand = factor(stand, levels = levels(d$stand)))
-  hfbar <- load_met() %>% mutate(hour_of_obs = floor_date(Time, "hour")) %>%
-    group_by(hour_of_obs) %>% summarise(p_hf = mean(bar))
-  scen[["Pressure: local in-chamber (both systems)"]] <- d %>%
-    left_join(sp, by = c("stand", "hour_of_obs")) %>% left_join(hfbar, by = "hour_of_obs") %>%
-    mutate(ratio = coalesce(p_local / p_hf, median(p_local / p_hf, na.rm = TRUE)),
-           fluxL_umolm2sec = fluxL_umolm2sec * ratio)
-}
+scen[["Autochamber clock read as EDT (as submitted)"]] <- d_shift
+p_ratio <- as.numeric(read.csv(file.path(flux_dir, "flux_run_metadata.csv")) %>% filter(key == "pressure_ratio_local_hf001") %>% pull(value))
+scen[["Pressure: HF001 sea-level (as submitted)"]] <- d %>% mutate(fluxL_umolm2sec = fluxL_umolm2sec / p_ratio)
+scen[["Autochamber: HF-published fluxes (HF293)"]] <- build_dataset_hf293()
+scen[["Submitted flux files and QC"]] <- build_dataset(qc = "iqr", flux_col = "fluxL_umolm2sec", source = "submitted")
 sens <- bind_rows(lapply(names(scen), function(k) key_stats(scen[[k]], k)))
 write.csv(sens, file.path(out_dir, "sensitivity_table.csv"), row.names = FALSE)
 print(sens %>% select(scenario, n, gam_method, gam_method_lo, gam_method_hi, ccc, paired_bias,
                       q10_ac, q10_fb, gini_ac, gini_fb), digits = 3)
 for (i in seq_len(nrow(sens))) {
-  tag <- c("main", "qc_none", "qc_mad", "quadratic", "met_localtime", "ac_shift", "pressure")[i]
+  tag <- c("main", "lm", "hm", "qc_iqr", "qc_none", "ac_edt", "pressure_sealevel", "hf293", "submitted")[i]
   for (k in c("gam_method", "gam_method_lo", "gam_method_hi", "ccc", "paired_bias", "q10_ac", "q10_fb",
               "gini_ac", "gini_fb", "max_flux", "n", "gam_intercept"))
     record(paste0("sens_", tag, "_", k), sens[[k]][i], "sensitivity", sens$scenario[i])

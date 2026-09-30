@@ -1,27 +1,33 @@
-# Fluxbot vs autochamber offset under each combination of flux model (linear, quadratic,
-# HF-published best 1-min window); curvature = quadratic / linear initial slope.
+# Fluxbot vs autochamber offset under each combination of flux model: goFlux linear (LM),
+# Hutchinson-Mosier (HM) and best.flux selection for both systems, plus the fluxes published
+# by the Harvard Forest team for the autochambers (HF293-07). Offsets are computed on
+# stand-hours where each system had >= 3 chambers, averaged over the two stands.
 
 source("afm_revision/00_prep.R")
-fb <- load_fluxbot("fluxQ_umolm2sec") %>% rename(fq = flux) %>% mutate(fl = load_fluxbot()$flux)
-ac <- load_autochamber("fluxQ_umolm2sec") %>% rename(fq = flux) %>% mutate(fl = load_autochamber()$flux)
-for (x in list(fb=fb, ac=ac)) { y <- x %>% filter(fl > 0.3, fq > 0); print(quantile(y$fq/y$fl, c(.1,.25,.5,.75,.9))) }
-cat("Fluxbot length_interval s:"); print(summary(fb$length_interval)); cat("AC length_interval s:"); print(summary(ac$length_interval))
-# system x flux-model matrix on matched stand-hours: chamber-hour means, then mean over common stand-hours
-hf <- read.csv("data/hf293-07-soil-resp-2022-2023.csv") %>% filter(year == 2023, month == 10, rs > 0) %>%
-  mutate(ts = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M", tz = "Etc/GMT+5"), hour_of_obs = round_hour(format(with_tz(ts, "America/New_York"), "%Y-%m-%d %H:%M:%S")),
-         id = as.character(chamber), stand = if_else(chamber <= 6, "unhealthy", "healthy"))
-acq <- ac %>% mutate(hour_of_obs = hour_of_obs + 3600) # EST logger -> EDT
-agg <- function(x, v) x %>% filter(.data[[v]] > 0) %>% group_by(stand, id, hour_of_obs) %>% summarise(f = mean(.data[[v]]), .groups = "drop")
-S <- list(FB_linear = agg(fb, "fl"), FB_quadratic = agg(fb, "fq"),
-          AC_linear = agg(acq, "fl"), AC_quadratic = agg(acq, "fq"), AC_HF_best1min = agg(hf %>% mutate(rs = rs), "rs"))
-sh <- function(x) x %>% group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(f), .groups = "drop")
-SH <- lapply(S, sh)
-res <- expand.grid(fb = c("FB_linear", "FB_quadratic"), ac = c("AC_linear", "AC_quadratic", "AC_HF_best1min"), stringsAsFactors = FALSE)
-res <- bind_rows(lapply(seq_len(nrow(res)), function(i) {
-  j <- inner_join(SH[[res$fb[i]]], SH[[res$ac[i]]], by = c("stand", "hour_of_obs"), suffix = c("_fb", "_ac"))
-  a <- j %>% group_by(hour_of_obs) %>% filter(n() == 2) %>% summarise(fb = mean(f_fb), ac = mean(f_ac))
-  data.frame(fluxbot = res$fb[i], autochamber = res$ac[i], n_hours = nrow(a), mean_fb = mean(a$fb), mean_ac = mean(a$ac),
-             offset_pct = 100 * (mean(a$fb) / mean(a$ac) - 1), r = cor(a$fb, a$ac))
-}))
+
+sh <- function(x) x %>% group_by(stand, id, hour_of_obs) %>% summarise(f = mean(flux), .groups = "drop") %>%
+  group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(f), .groups = "drop")
+models <- c(LM = "LM.flux", HM = "HM.flux", best = "best.flux")
+FB <- lapply(models, function(m) sh(apply_qc(load_fluxbot(m), "fit")))
+AC <- c(lapply(models, function(m) sh(apply_qc(load_autochamber(m), "fit"))),
+        list(HF293 = sh(load_hf293() %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())))
+res <- bind_rows(lapply(names(FB), function(i) bind_rows(lapply(names(AC), function(j) {
+  a <- inner_join(FB[[i]], AC[[j]], by = c("stand", "hour_of_obs"), suffix = c("_fb", "_ac")) %>%
+    group_by(hour_of_obs) %>% filter(n() == 2) %>% summarise(fb = mean(f_fb), ac = mean(f_ac))
+  data.frame(fluxbot = i, autochamber = j, n_hours = nrow(a), mean_fb = mean(a$fb), mean_ac = mean(a$ac),
+             offset = mean(a$fb - a$ac), offset_pct = 100 * (mean(a$fb) / mean(a$ac) - 1), r = cor(a$fb, a$ac))
+})))) 
 print(res, digits = 3)
-write.csv(res, "outputs/afm_revision/flux_model_matrix.csv", row.names = FALSE)
+write.csv(res, file.path(out_dir, "flux_model_matrix.csv"), row.names = FALSE)
+for (k in seq_len(nrow(res))) {
+  tag <- paste0("fm_", res$fluxbot[k], "_vs_", res$autochamber[k])
+  record(paste0(tag, "_offset_pct"), res$offset_pct[k], "flux_model")
+  record(paste0(tag, "_r"), res$r[k], "flux_model")
+}
+# curvature (HM/LM) by system
+for (s in c("fluxbot", "autochamber")) {
+  x <- read.csv(file.path(flux_dir, paste0(s, "_fluxes.csv"))) %>% filter(LM.flux > 0.3, !is.na(curvature))
+  record(paste0("curvature_median_", s), median(x$curvature), "flux_model", "HM/LM initial slope")
+  record(paste0("share_HM_", s), mean(x$model == "HM"), "flux_model", "best.flux chose HM")
+}
+write_numbers("numbers_flux_model.csv")

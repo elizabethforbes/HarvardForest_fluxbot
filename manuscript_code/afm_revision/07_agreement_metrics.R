@@ -13,7 +13,7 @@ source("afm_revision/00_prep.R")
 suppressPackageStartupMessages({ library(zoo); library(epiR); library(lme4) })
 set.seed(20260930)
 
-d <- readRDS(file.path(out_dir, "dataset_iqr.rds"))
+d <- readRDS(file.path(out_dir, "dataset_main.rds"))
 
 metrics <- function(x, y) {  # x = reference (autochamber), y = Fluxbot
   ok <- is.finite(x) & is.finite(y); x <- x[ok]; y <- y[ok]

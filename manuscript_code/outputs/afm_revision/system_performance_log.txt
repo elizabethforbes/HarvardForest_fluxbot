@@ -1,14 +1,14 @@
 =============================================================================
 FLUXBOT SYSTEM STATISTICS (October 2-31, 2023)
 =============================================================================
-Number of units: 15 
+Number of units: 16 
 Deployment period: October 02 - October 31, 2023 ( 30 days)
-Potential measurements: 10,800 
-Collected measurements: 6,824 
-Retained after QC: 6,667 
-Collection rate: 63.2 %
-QC retention rate: 97.7 %
-Overall success rate: 61.7 %
+Potential measurements: 11,520 
+Collected measurements: 8,342 
+Retained after QC: 7,629 
+Collection rate: 72.4 %
+QC retention rate: 91.5 %
+Overall success rate: 66.2 %
 
 =============================================================================
 AUTOCHAMBER SYSTEM STATISTICS (October 2-31, 2023)
@@ -16,43 +16,43 @@ AUTOCHAMBER SYSTEM STATISTICS (October 2-31, 2023)
 Number of units: 12 
 Deployment period: October 02 - October 31, 2023 ( 30 days)
 Potential measurements: 17,280 
-Collected measurements: 13,525 
-Retained after QC: 12,926 
-Collection rate: 78.3 %
-QC retention rate: 95.6 %
-Overall success rate: 74.8 %
+Collected measurements: 14,251 
+Retained after QC: 13,931 
+Collection rate: 82.5 %
+QC retention rate: 97.8 %
+Overall success rate: 80.6 %
 
 =============================================================================
 COMPARATIVE SUMMARY (October 2-31, 2023)
 =============================================================================
 System | Units | Days | Potential | Collected | Retained | Collection% | Retention% | Overall%
 -------|-------|------|-----------|-----------|----------|-------------|------------|----------
-Fluxbot| 15    | 30   | 10,800    | 6,824     | 6,667    | 63.2        | 97.7       | 61.7
-AutoCh | 12    | 30   | 17,280    | 13,525    | 12,926   | 78.3        | 95.6       | 74.8
+Fluxbot| 16    | 30   | 11,520    | 8,342     | 7,629    | 72.4        | 91.5       | 66.2
+AutoCh | 12    | 30   | 17,280    | 14,251    | 13,931   | 82.5        | 97.8       | 80.6
 
 =============================================================================
 RAW NUMBERS FOR PARAGRAPH WRITING (October 2-31, 2023)
 =============================================================================
 
 FLUXBOT NUMBERS:
-Units: 15 
+Units: 16 
 Days: 30 
-Potential: 10800 
-Collected: 6824 
-Retained: 6667 
-Collection rate: 63.2 
-Retention rate: 97.7 
-Overall success: 61.7 
+Potential: 11520 
+Collected: 8342 
+Retained: 7629 
+Collection rate: 72.4 
+Retention rate: 91.5 
+Overall success: 66.2 
 
 AUTOCHAMBER NUMBERS:
 Units: 12 
 Days: 30 
 Potential: 17280 
-Collected: 13525 
-Retained: 12926 
-Collection rate: 78.3 
-Retention rate: 95.6 
-Overall success: 74.8 
+Collected: 14251 
+Retained: 13931 
+Collection rate: 82.5 
+Retention rate: 97.8 
+Overall success: 80.6 
 =============================================================================
 PLOT COVERAGE ANALYSIS: INCLUDING DOWNTIME (October 2-31, 2023)
 =============================================================================
@@ -63,30 +63,30 @@ FLUXBOT COVERAGE BY STAND:
 Stand: healthy
   Total possible hours: 720
   Hours with any data: 691 (96% uptime)
-  Hours with ≥3 units: 653 (90.7% of total time)
-  Mean units when active: 5.1
-  Max units observed: 7
+  Hours with ≥3 units: 670 (93.1% of total time)
+  Mean units when active: 6.9
+  Max units observed: 8
 
 Stand: unhealthy
   Total possible hours: 720
-  Hours with any data: 626 (86.9% uptime)
-  Hours with ≥3 units: 579 (80.4% of total time)
-  Mean units when active: 5.2
+  Hours with any data: 627 (87.1% uptime)
+  Hours with ≥3 units: 605 (84% of total time)
+  Mean units when active: 5.7
   Max units observed: 8
 
 AUTOCHAMBER COVERAGE BY STAND:
 --------------------------------
 Stand: healthy
   Total possible hours: 720
-  Hours with any data: 519 (72.1% uptime)
-  Hours with ≥3 units: 508 (70.6% of total time)
-  Mean units when active: 5.7
+  Hours with any data: 549 (76.2% uptime)
+  Hours with ≥3 units: 548 (76.1% of total time)
+  Mean units when active: 6
   Max units observed: 6
 
 Stand: unhealthy
   Total possible hours: 720
-  Hours with any data: 644 (89.4% uptime)
-  Hours with ≥3 units: 643 (89.3% of total time)
+  Hours with any data: 643 (89.3% uptime)
+  Hours with ≥3 units: 642 (89.2% of total time)
   Mean units when active: 6
   Max units observed: 6
 
@@ -95,21 +95,21 @@ COMPARATIVE COVERAGE SUMMARY
 =============================================================================
 System      | Stand     | Uptime% | ≥3Units% | Mean Active | Max Units
 ------------|-----------|---------|----------|-------------|----------
-Fluxbot     | healthy   | 96%     | 90.7%    | 5.1         | 7
-Fluxbot     | unhealthy | 86.9%   | 80.4%    | 5.2         | 8
-Autochamber | healthy   | 72.1%   | 70.6%    | 5.7         | 6
-Autochamber | unhealthy | 89.4%   | 89.3%    | 6           | 6
+Fluxbot     | healthy   | 96%     | 93.1%    | 6.9         | 8
+Fluxbot     | unhealthy | 87.1%   | 84%      | 5.7         | 8
+Autochamber | healthy   | 76.2%   | 76.1%    | 6           | 6
+Autochamber | unhealthy | 89.3%   | 89.2%    | 6           | 6
 
 =============================================================================
 OVERALL SYSTEM PERFORMANCE
 =============================================================================
 Fluxbot System:
-  Average uptime across plots: 91.4 %
-  Average ≥3 units coverage: 85.6 %
+  Average uptime across plots: 91.6 %
+  Average ≥3 units coverage: 88.6 %
 
 Autochamber System:
-  Average uptime across plots: 80.8 %
-  Average ≥3 units coverage: 79.9 %
+  Average uptime across plots: 82.8 %
+  Average ≥3 units coverage: 82.7 %
 
 =============================================================================
 RAW NUMBERS FOR REPORTING
@@ -119,8 +119,8 @@ FLUXBOT DETAILED STATS:
 # A tibble: 2 x 8
   stand     total_possible_hours hours_with_data hours_with_min_3
   <chr>                    <int>           <int>            <int>
-1 healthy                    720             691              653
-2 unhealthy                  720             626              579
+1 healthy                    720             691              670
+2 unhealthy                  720             627              605
 # i 4 more variables: percent_coverage_min3 <dbl>, percent_uptime <dbl>,
 #   mean_units_when_active <dbl>, max_units <dbl>
 
@@ -128,7 +128,7 @@ AUTOCHAMBER DETAILED STATS:
 # A tibble: 2 x 8
   stand     total_possible_hours hours_with_data hours_with_min_3
   <chr>                    <int>           <int>            <int>
-1 healthy                    720             519              508
-2 unhealthy                  720             644              643
+1 healthy                    720             549              548
+2 unhealthy                  720             643              642
 # i 4 more variables: percent_coverage_min3 <dbl>, percent_uptime <dbl>,
 #   mean_units_when_active <dbl>, max_units <dbl>

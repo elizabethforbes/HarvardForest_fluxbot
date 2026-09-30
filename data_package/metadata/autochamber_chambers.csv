@@ -1,0 +1,13 @@
+chamber,logger_site,stand,stand_code,site_name,analyzer,collar_height_cm,collar_area_cm2,lid_volume_cm3,system_volume_cm3,total_volume_cm3,slot_minute
+1,site1,stand 2,unhealthy,Hemlock tower,LI-840,4.85,646.328,6398.6472,274.14,9807.478,0
+2,site1,stand 2,unhealthy,Hemlock tower,LI-840,4.9,646.328,6398.6472,274.14,9839.794,5
+3,site1,stand 2,unhealthy,Hemlock tower,LI-840,5.85,646.328,6398.6472,274.14,10453.806,10
+4,site1,stand 2,unhealthy,Hemlock tower,LI-840,4.45,646.328,6398.6472,274.14,9548.947,15
+5,site1,stand 2,unhealthy,Hemlock tower,LI-840,5.75,646.328,6398.6472,274.14,10389.173,20
+6,site1,stand 2,unhealthy,Hemlock tower,LI-840,5.15,646.328,6398.6472,274.14,10001.376,25
+7,site2,stand 1,healthy,Bigelow Brook,LI-800,4.8,646.328,6398.6472,274.14,9775.162,0
+8,site2,stand 1,healthy,Bigelow Brook,LI-800,4.3,646.328,6398.6472,274.14,9451.998,5
+9,site2,stand 1,healthy,Bigelow Brook,LI-800,5.5,646.328,6398.6472,274.14,10227.591,10
+10,site2,stand 1,healthy,Bigelow Brook,LI-800,4.3,646.328,6398.6472,274.14,9451.998,15
+11,site2,stand 1,healthy,Bigelow Brook,LI-800,3.6,646.328,6398.6472,274.14,8999.568,20
+12,site2,stand 1,healthy,Bigelow Brook,LI-800,4,646.328,6398.6472,274.14,9258.099,25

@@ -1,0 +1,17 @@
+unit,stand_code,stand,site_name,latitude,longitude,gps_date,chamber_volume_cm3,collar_area_cm2,collar_inner_diameter_cm,collar_insertion_cm,co2_sensor,notes
+13,healthy,stand 1,Bigelow Brook,42.541517,-72.174427,2023-11-17,768,81,10.2,4,Senseair K30,NA
+22,healthy,stand 1,Bigelow Brook,42.541534,-72.17445,2023-11-17,768,81,10.2,4,Senseair K30,NA
+100,healthy,stand 1,Bigelow Brook,42.54141,-72.174652,2023-11-17,768,81,10.2,4,Senseair K30,NA
+101,healthy,stand 1,Bigelow Brook,42.541219,-72.174365,2023-11-17,768,81,10.2,4,Senseair K30,NA
+108,healthy,stand 1,Bigelow Brook,42.541316,-72.174405,2023-11-17,768,81,10.2,4,Senseair K30,NA
+111,healthy,stand 1,Bigelow Brook,42.541352,-72.174433,2023-11-17,768,81,10.2,4,Senseair K30,NA
+112,healthy,stand 1,Bigelow Brook,42.541272,-72.174594,2023-11-17,768,81,10.2,4,Senseair K30,pressure sensor faulty; excluded from submitted analysis
+114,healthy,stand 1,Bigelow Brook,42.541468,-72.174569,2023-11-17,768,81,10.2,4,Senseair K30,NA
+24,unhealthy,stand 2,Hemlock tower,42.539123,-72.178633,2023-11-17,768,81,10.2,4,Senseair K30,NA
+102,unhealthy,stand 2,Hemlock tower,42.539158,-72.178545,2023-11-17,768,81,10.2,4,Senseair K30,NA
+103,unhealthy,stand 2,Hemlock tower,42.539081,-72.178539,2023-11-17,768,81,10.2,4,Senseair K30,NA
+104,unhealthy,stand 2,Hemlock tower,42.53911,-72.178555,2023-11-17,768,81,10.2,4,Senseair K30,NA
+105,unhealthy,stand 2,Hemlock tower,42.539126,-72.178547,2023-11-17,768,81,10.2,4,Senseair K30,NA
+106,unhealthy,stand 2,Hemlock tower,42.538878,-72.17854,2023-11-17,768,81,10.2,4,Senseair K30,NA
+110,unhealthy,stand 2,Hemlock tower,42.538963,-72.178556,2023-11-17,768,81,10.2,4,Senseair K30,NA
+113,unhealthy,stand 2,Hemlock tower,42.539111,-72.178413,2023-11-17,768,81,10.2,4,Senseair K30,NA

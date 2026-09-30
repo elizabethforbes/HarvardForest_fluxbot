@@ -1,15 +1,14 @@
 # A7 (local drivers): compare the Fisher met-station 10 cm soil temperature
 # (HF001 s10t, used for all analyses) with the soil temperature logged at each
-# autochamber (HF293 processed files, recovered from git commit e99e240:
-# "R scripts/HFauto_site{1,2}_2023October.csv"; `tsoil` = mean of the logger's
-# soil probes at that chamber). There is no in-soil sensor on the Fluxbots.
+# autochamber (HF293-07 in data_package/ancillary; `tsoil` = mean of the logger's soil
+# probes at that chamber). There is no in-soil sensor on the Fluxbots.
 
 source("afm_revision/00_prep.R")
 
-ts <- bind_rows(lapply(1:2, function(s)
-  read.csv(file.path("data", sprintf("HFauto_site%d_2023October_tsoil.csv", s))))) %>%
-  # logger timestamps parsed in EST, the HF convention (see 00_prep.R)
-  mutate(time = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M:%S", tz = "Etc/GMT+5"),
+ts <- read.csv(file.path(pkg, "ancillary", "hf293-07-soil-resp-2023.csv")) %>%
+  filter(month %in% 10:11) %>%
+  # logger timestamps are EST, the HF convention
+  mutate(time = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M", tz = "Etc/GMT+5"),
          hour_of_obs = floor_date(with_tz(time, "America/New_York"), "hour"),
          stand = if_else(chamber <= 6, "unhealthy", "healthy")) %>%
   filter(!is.na(tsoil))
@@ -35,7 +34,7 @@ for (st in c("healthy", "unhealthy")) {
 record("s10t_range_same_hours", max(cmp$s10t) - min(cmp$s10t), "A7")
 
 # Q10 of both systems with the local (stand-mean autochamber) soil temperature
-d <- readRDS(file.path(out_dir, "dataset_iqr.rds")) %>%
+d <- readRDS(file.path(out_dir, "dataset_main.rds")) %>%
   mutate(hour_of_obs = as.POSIXct(hour_of_obs, tz = "America/New_York"), stand = as.character(stand)) %>%
   inner_join(local_hourly, by = c("stand", "hour_of_obs")) %>% filter(fluxL_umolm2sec > 0)
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)

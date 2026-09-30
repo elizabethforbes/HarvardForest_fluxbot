@@ -16,3 +16,8 @@ calculated_data/
 calculated_data/
 .Rproj.user/
 *.Rproj
+.DS_Store
+.Rproj.user
+.Rhistory
+.quarto/
+*_files/

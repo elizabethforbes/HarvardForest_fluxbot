@@ -10,5 +10,3 @@ filter_iqr <- function(data, column) {
     filter(data[[column]] >= lower_bound & data[[column]] <= upper_bound)
 }
 
-# Example usage:
-HF_fluxestimates_filtered <- filter_iqr(HF_fluxestimates, "final_flux_umolm2sec")

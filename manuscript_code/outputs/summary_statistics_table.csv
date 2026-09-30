@@ -1,0 +1,5 @@
+"method","stand","timeofday","Mean","Median","P95","SE","N"
+"autochamber",NA,"evening",2.77,2.68,4.46,0.02,1654
+"autochamber",NA,"morning",2.51,2.4,4.15,0.02,1672
+"fluxbot",NA,"evening",2.67,2.6,4.68,0.03,1739
+"fluxbot",NA,"morning",2.32,2.12,4.45,0.03,1584

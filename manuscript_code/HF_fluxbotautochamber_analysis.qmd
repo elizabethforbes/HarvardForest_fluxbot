@@ -28,7 +28,15 @@ library(patchwork) # for multiple panels in figures
 library(fuzzyjoin) # for merging datasets by timestamp
 library(smplot2) # stats on plots
 library(gtsummary) # pub-ready tables
+library(kableExtra) # Table 1/2 formatting
+library(ggpubr) # ggqqplot
 ```
+
+> **AFM revision (Sep 2026):** the analyses, numbers and figures used in the revised
+> manuscript are produced by the scripts in `afm_revision/` (run
+> `Rscript afm_revision/run_all.R` from `manuscript_code/`). This notebook is kept
+> as the record of the submitted analysis; see `afm_revision/README.md` for the
+> differences.
 
 ## Data: upload, clean
 
@@ -144,7 +152,7 @@ HFauto_fluxestimates_subset <- HFauto_fluxestimates %>%
 First, use custom filter function to isolate those flux estimates in both datasets that fall within the interquartile range of the respective datasets, then bind the two datasets' rows to create a single merged dataset of autochamber fluxes and fluxbot fluxes:
 
 ```{r}
-#| echo = false
+#| echo: false
 
 # use the filter function (stored in this project folder) to clean the data before merging: only include those data that fall within the interquartile range to remove outliers and focus on the fluxes that are most descriptive of the site.
 source("filter_iqr.R")
@@ -187,7 +195,7 @@ merged_data <- merged_data %>%
 Add meterological data to the dataset for future models including soil temp:
 
 ```{r}
-#| echo = false
+#| echo: false
 
 met_data_subset$Time <- as.POSIXct(met_data_subset$datetime, format = "%Y-%m-%dT%H:%M")
 
@@ -231,7 +239,7 @@ merged_data_with_met <- merged_data_with_met %>%
 ### Figure 1: time-series of mean flux estimates across arrays
 
 ```{r}
-#| echo = false
+#| echo: false
 
 # calculate 3hr rolling average:
 merged_data_with_met <- merged_data_with_met %>%
@@ -287,7 +295,7 @@ p3
 ### Figure 2: chamber-level flux estimate distributions
 
 ```{r}
-#| echo = false
+#| echo: false
 
 # Plot the data with reordered id:
 ggplot(merged_data_with_met, aes(y = as.factor(id), x = fluxL_umolm2sec)) +
@@ -304,7 +312,7 @@ ggplot(merged_data_with_met, aes(y = as.factor(id), x = fluxL_umolm2sec)) +
 ### Figure 3: modeled vs. predicted soil flux
 
 ```{r}
-#| echo = FALSE
+#| echo: false
 
 # Fit the GAM model with a smooth term for hour of day and random effect for id
 model_gam <- gam(fluxL_umolm2sec ~ stand + s(hour(hour_of_obs)) + method + 
@@ -349,7 +357,7 @@ ggplot(merged_data_with_met, aes(x = predicted_flux, y = fluxL_umolm2sec)) +
 ### Figure 4: distribution of flux estimates across arrays
 
 ```{r}
-#| echo = FALSE
+#| echo: false
 
 # First, count chambers for each combination of hour, method, and stand
 chamber_counts <- merged_data %>%
@@ -403,7 +411,7 @@ ggplot(filtered_data, aes(x = fluxL_umolm2sec, fill = method)) +
 ### Figure 5: array-wide mean flux agreement
 
 ```{r}
-#| echo = FALSE
+#| echo: false
 
 # Calculate the mean flux for each hour, stand, and method
 mean_data <- filtered_data %>%
@@ -470,7 +478,7 @@ cat("Slope:", slope, "\nR²:", r_squared, "\nLin's CCC:", round(ccc_value, 2), "
 ### Figure 6: diurnal variation in flux
 
 ```{r}
-#| echo = FALSE
+#| echo: false
 
 # Fit a smooth spline and extract fitted values using predict
 smooth_data <- merged_data_with_met %>% 
@@ -554,7 +562,7 @@ merged_data_with_met %>%
 ### Figure 7: 10cm soil temperature sensitivity of flux rates
 
 ```{r}
-#| echo = FALSE
+#| echo: false
 
 # Function to fit the model, create predictions, and calculate SE manually
 fit_nls_and_predict_with_se <- function(data) {
@@ -731,7 +739,7 @@ ggplot() +
 ### Figure 8: spatial heterogeneity
 
 ```{r}
-#| echo = FALSE
+#| echo: false
 
 # Filter the data to only include hours where there are at least 12 autochambers and 12 fluxbots
 filtered_data <- merged_data_with_met %>%
@@ -825,7 +833,7 @@ calc_summary_stats <- function(x) {
 
 # Calculate summary statistics by location and time period
 summary_table <- table_data %>%
-  filter(timeofday == c("morning", "evening")) %>% 
+  filter(timeofday %in% c("morning", "evening")) %>% 
   group_by(method, stand, timeofday) %>%
   summarise(
     stats = list(calc_summary_stats(fluxL_umolm2sec)),
@@ -837,47 +845,13 @@ summary_table <- table_data %>%
 formatted_table <- summary_table %>%
   arrange(method, stand, timeofday)
 
-# Create publication-ready table
-pub_table <- formatted_table %>%
-  kable(
-    col.names = c("Array", "Stand", "Time of day", 
-                  "Mean", "Median", "95th Percentile", "SE", "N"),
-    caption = "Summary Statistics: Flux by Array type, Location, and Approx. Min/Max Time of Day",
-    align = c("l", "l", "l", "c", "c", "c", "c", "c"),
-    format = "html"
-  ) %>%
-  kable_styling(
-    latex_options = c('striped', 'hold_position', 'scale_down'),
-    stripe_color = 'gray!10'
-  ) %>%
-  pack_rows('Autochamber array:', 1, 4) %>%
-  pack_rows('Fluxbot array:', 5, 8) %>%
-  add_header_above(c(' ' = 3, 'Summary Statistics' = 4, ' ' = 1)) %>%
-  footnote(
-    general = c('SE = Standard Error', 'P95 = 95th Percentile', 'N = number of flux obs.',
-                "morning = 5am - 10am", "evening = 3pm - 8pm"),
-    general_title = 'Note:'
-  )
-
-
-# Display the table
+# Publication table (the AFM version is written by afm_revision/02_afm_analyses.R to
+# outputs/afm_revision/table2.csv)
+pub_table <- knitr::kable(formatted_table, digits = 2,
+  col.names = c("Array", "Stand", "Time of day", "Mean", "Median", "95th Percentile", "SE", "N"),
+  caption = "Summary Statistics: Flux by Array type, Location, and Approx. Min/Max Time of Day")
 pub_table
-
-# save table
-
-# Save tables in journal-appropriate formats
-library(webshot2)
-
-# Save as high-resolution image (PNG) - good for most journals
-save_kable(pub_table, 
-           file = "summary_statistics_table.png", 
-           zoom = 2)  # High resolution
-
-# Save as PDF (vector format) - best quality for print journals
-save_kable(pub_table, 
-           file = "summary_statistics_table.pdf",
-           zoom = 1.5)
-  arrange(location, time_period)
+write.csv(formatted_table, file.path("outputs", "summary_statistics_table.csv"), row.names = FALSE)
 
 ```
 

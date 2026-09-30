@@ -1,0 +1,5 @@
+"method","stand","cv","n_chambers","mean"
+"autochamber","healthy",0.239755734771875,6,2.81772275406877
+"autochamber","unhealthy",0.206839964833933,6,2.44993230277576
+"fluxbot","healthy",0.183082534691053,7,2.4503700745907
+"fluxbot","unhealthy",0.318424571638514,8,2.50087656352283

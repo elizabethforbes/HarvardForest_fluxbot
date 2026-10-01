@@ -1,0 +1,10 @@
+# Fig. S7. The two laboratory tests of wet K30 sensors on one page (panels built by 3_lab_tests/01 and 02).
+source("R/setup.R")
+source("R/fig_style.R")
+suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
+sep <- readRDS(file.path(out_dir, "panels_ptfe_sep.rds")); dec <- readRDS(file.path(out_dir, "panels_cover_dec.rds"))
+ttl <- function(p, t) p + ggtitle(t) + theme(plot.title = element_text(size = 8, face = "bold"))
+pa <- ttl(sep$zoom, "22 Sep 2023: one PTFE-covered and one uncovered K30; covered sensor sprayed at 17:32") + theme(legend.position = "bottom")
+pb <- ttl(dec$phases, "13 Dec 2023: two covered (t1, t2) and three uncovered (c1-c3) K30s") + theme(legend.position = "bottom")
+pfig <- (pa / pb / dec$diff / dec$h2o) + plot_layout(heights = c(2, 3, 1.2, 0.9)) + plot_annotation(tag_levels = "a")
+save_afm(pfig, "FigS07_lab_tests", 190, 235, tif = FALSE)

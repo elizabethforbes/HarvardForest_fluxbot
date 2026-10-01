@@ -1,0 +1,98 @@
+# Measurement accounting and filtering flow, with agreement between systems at each stage.
+#
+# Definitions (per closure = one intended chamber measurement), 2-31 October 2023, when
+# both systems were deployed:
+#   intended   : closures at each system's programmed interval for every installed unit
+#                (Fluxbot: 1 per unit-hour; autochamber: 2 per chamber-hour). Units that stopped
+#                before 31 October count as downtime.
+#   recorded   : scheduled closures with any raw CO2 data in the closure window
+#   valid      : recorded closures with enough data to fit a flux (Fluxbot >= 75% of the 180-s
+#                window; autochamber >= 120 s of the 220-s window) that are not chamber
+#                failures (no significant CO2 decline; significant CO2 accumulation, i.e. the chamber
+#                sealed; no stuck lid, i.e. open-lid CO2 > 500 ppm above the other units through a
+#                saturated episode)
+#   retained   : valid closures that pass the per-chamber spike screen (median +/- 5 MAD). This is
+#                the main, "as deployed" dataset (all conditions, wet sensors included).
+#   RH-screened: retained closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
+#                open-lid minute; condensation on the K30, Pan et al. 2024). A strict subset,
+#                compared alongside the main dataset.
+# Derived rates: uptime = recorded / intended; downtime = 1 - uptime;
+#   measurement success = retained / intended; QC retention = retained / recorded;
+#   measurement density = retained closures per unit per day; replicated coverage = share of
+#   hours with >= 3 retained chambers of a system in a stand.
+
+source("R/setup.R")
+suppressPackageStartupMessages(library(readr))
+
+p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-11-01", tz = "America/New_York")
+n_days <- as.numeric(difftime(p1, p0, units = "days"))
+units <- read_csv(file.path(pkg, "metadata", "fluxbot_units.csv"), col_types = cols(unit = col_character()))
+chambers <- read_csv(file.path(pkg, "metadata", "autochamber_chambers.csv"), show_col_types = FALSE)
+
+# ---- recorded closures from the raw records ------------------------------------------------------
+fbr <- read_csv(file.path(pkg, "raw", "fluxbot_sensor_records_2023.csv.gz"), col_types = cols(unit = col_character())) %>%
+  mutate(time = as.POSIXct(unix_time, origin = "1970-01-01", tz = "America/New_York")) %>%
+  filter(!is.na(co2_ppm), minute(time) >= 56) %>%
+  mutate(hr = floor_date(time, "hour") + 3600) %>% filter(hr >= p0, hr < p1) %>% distinct(unit, hr)
+acr <- read_csv(file.path(pkg, "raw", "autochamber_co2_1hz_oct2023.csv.gz"),
+                col_types = cols(datetime_est = col_character(), chamber = col_integer(), co2_ppm = col_double())) %>%
+  filter(chamber %in% 1:12, !is.na(co2_ppm)) %>%
+  left_join(chambers %>% select(chamber, slot_minute), by = "chamber") %>%
+  mutate(time = as.POSIXct(datetime_est, format = "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT+5"),
+         sec = ((minute(time) %% 30) - slot_minute) * 60 + second(time)) %>%
+  filter(sec >= 75, sec < 295) %>%
+  mutate(slot = floor_date(time, "30 mins")) %>% filter(slot >= p0, slot < p1) %>% distinct(chamber, slot)
+
+acct <- function(system) {
+  flx <- read.csv(file.path(flux_dir, paste0(system, "_fluxes.csv")), colClasses = c(id = "character")) %>%
+    mutate(t = round_hour(start_local)) %>% filter(t >= p0, t < p1) %>%
+    mutate(lid_fail = if ("lid_fail" %in% names(.)) coalesce(as.logical(lid_fail), FALSE) else FALSE,
+           decline = (LM.flux < 0 & !grepl("p-value", quality.check)) | grepl("p-value", quality.check) | (!is.na(LM.r2) & LM.r2 < 0.5) | lid_fail,
+           wet = coalesce(as.logical(wet), FALSE))
+  # "recorded" windows that yielded no flux are counted as lost at the "valid" step
+  n_units <- if (system == "fluxbot") nrow(units) else nrow(chambers)
+  sched <- n_units * n_days * ifelse(system == "fluxbot", 24, 48)
+  rec <- if (system == "fluxbot") nrow(fbr) else nrow(acr)
+  comp <- nrow(flx)
+  valid <- flx %>% filter(!decline)
+  ret <- valid %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
+  scr <- ret %>% filter(!wet)
+  tibble(system, stage = c("intended", "recorded", "valid", "retained", "RH-screened"),
+         n = c(sched, rec, nrow(valid), nrow(ret), nrow(scr))) %>%
+    mutate(pct_of_intended = 100 * n / sched, lost = lag(n) - n, pct_lost_step = 100 * lost / lag(n))
+}
+acc <- bind_rows(acct("fluxbot"), acct("autochamber"))
+write.csv(acc, file.path(out_dir, "measurement_accounting.csv"), row.names = FALSE)
+print(acc, n = 20)
+for (i in seq_len(nrow(acc))) record(paste0("acct_", acc$system[i], "_", acc$stage[i]), acc$n[i], "accounting",
+                                      sprintf("%.1f%% of intended", acc$pct_of_intended[i]))
+for (s in c("fluxbot", "autochamber")) {
+  a <- acc %>% filter(system == s); g <- function(st) a$n[a$stage == st]
+  record(paste0("uptime_pct_", s), 100 * g("recorded") / g("intended"), "accounting")
+  record(paste0("success_pct_", s), 100 * g("retained") / g("intended"), "accounting", "as deployed")
+  record(paste0("success_screened_pct_", s), 100 * g("RH-screened") / g("intended"), "accounting", "RH-screened")
+  record(paste0("qc_retention_pct_", s), 100 * g("retained") / g("recorded"), "accounting")
+  record(paste0("density_per_unit_day_", s), g("retained") / (ifelse(s == "fluxbot", nrow(units), nrow(chambers)) * n_days), "accounting")
+}
+
+# ---- agreement at each stage ------------------------------------------------------------------------
+stage_agree <- function(qc) {
+  d <- build_dataset(qc = qc) %>% filter(hour_of_obs < p1)
+  hrs <- matched_hours(d, 3)
+  s <- d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>%
+    summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% group_by(hour_of_obs, method) %>%
+    summarise(f = mean(f), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f)
+  dd <- s %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>%
+    filter(n() >= 12) %>% summarise(a = mean(autochamber), f = mean(fluxbot))
+  tibble(stage = qc, n_hours = nrow(s), offset = mean(s$fluxbot - s$autochamber),
+         offset_pct = 100 * (mean(s$fluxbot) / mean(s$autochamber) - 1),
+         r_hourly = cor(s$autochamber, s$fluxbot), r_daily = cor(dd$a, dd$f), n_days = nrow(dd))
+}
+ag <- bind_rows(lapply(c("valid", "deployed", "screened"), stage_agree)) %>%
+  mutate(stage = c("valid", "retained", "RH-screened"))
+write.csv(ag, file.path(out_dir, "agreement_by_stage.csv"), row.names = FALSE)
+print(ag)
+for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
+  record(paste0("stage_", ag$stage[i], "_", k), ag[[k]][i], "accounting", "array means, hours with >= 3 chambers per system x stand")
+
+write_numbers()

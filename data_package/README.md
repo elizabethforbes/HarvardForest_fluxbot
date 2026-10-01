@@ -1,14 +1,14 @@
 # Data package: Fluxbot 2.0 and autochamber soil CO2 fluxes, Harvard Forest, October 2023
 
-This folder holds every input needed to reproduce the analysis. The analysis code in `manuscript_code/afm_revision/` reads only this folder. The same files are intended for the Zenodo archive (concept DOI https://doi.org/10.5281/zenodo.15660442, which resolves to the latest version).
+This folder holds every input needed to reproduce the analysis. `manuscript_code/1_clean/` turns these raw files into the cleaned datasets in `data_clean/`, which every analysis reads. The same files are intended for the Zenodo archive (concept DOI https://doi.org/10.5281/zenodo.15660442, which resolves to the latest version).
 
 To reproduce all fluxes, statistics and figures, run from `manuscript_code/`:
 
 ```
-Rscript afm_revision/run_all.R
+Rscript run_all.R
 ```
 
-This takes a few minutes. `10_fluxes.R` recomputes every closure from the raw records with goFlux.
+This takes about 11 minutes. `1_clean/01_fluxes.R` recomputes every closure from the raw records with goFlux.
 
 `build_data_package.R` rebuilds this folder from the original sources (Google Sheets exports, logger files, the Harvard Forest Data Archive). Maintainers need it only if the sources change.
 
@@ -27,7 +27,7 @@ This takes a few minutes. `10_fluxes.R` recomputes every closure from the raw re
 
 See `data_dictionary.csv`.
 
-## Known issues in the raw records (handled in `10_fluxes.R`)
+## Known issues in the raw records (handled in `manuscript_code/1_clean/01_fluxes.R`)
 
 - Fluxbot CO2 = 65535 or 65533 are transmission and read error codes. These rows are removed as whole rows.
 - Fluxbot air temperature = 44755.7 °C and RH = 25600.4 % are failed sensor reads (0xFFFF). They are treated as missing.

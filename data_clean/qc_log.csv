@@ -1,0 +1,13 @@
+system,qc_status,n,pct_of_closures
+autochamber,retained,13406,93.44
+autochamber,spike,58,0.4
+autochamber,chamber failure: poor linear fit,206,1.44
+autochamber,chamber failure: CO2 decline,257,1.79
+autochamber,chamber failure: no CO2 accumulation,420,2.93
+fluxbot,retained,6815,81.4
+fluxbot,spike,5,0.06
+fluxbot,chamber failure: poor linear fit,162,1.94
+fluxbot,chamber failure: CO2 decline,503,6.01
+fluxbot,chamber failure: no CO2 accumulation,150,1.79
+fluxbot,chamber failure: stuck lid,737,8.8
+fluxbot,"retained, wet sensor (removed in RH-screened subset)",620,7.41

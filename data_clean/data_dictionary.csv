@@ -1,0 +1,43 @@
+file,column,description
+closures_*.csv,system,fluxbot or autochamber
+closures_*.csv,id,Fluxbot unit number or autochamber chamber number
+closures_*.csv,UniqueID,"closure identifier: system, unit and closure start (UTC, YYYYMMDDHHMM)"
+closures_*.csv,start_local,"start of the fit window, local time (America/New_York)"
+closures_*.csv,start_utc,"start of the fit window, UTC"
+closures_*.csv,"LM.flux, LM.SE, LM.r2","linear-model flux (umol m-2 s-1; main analysis), its standard error and R2 (goFlux)"
+closures_*.csv,"HM.flux, HM.SE, HM.r2, HM.k, k.max, g.fact","Hutchinson-Mosier flux (umol m-2 s-1), standard error, R2, curvature parameter kappa, its maximum, and g-factor (HM/LM)"
+closures_*.csv,MDF,minimal detectable flux (umol m-2 s-1)
+closures_*.csv,"best.flux, model",goFlux best-model flux and the model chosen (LM or HM; sensitivity analysis)
+closures_*.csv,quality.check,goFlux quality flags (nb.obs = too few records; p-value = slope not significant; others informational)
+closures_*.csv,n_obs,CO2 records in the fit window
+closures_*.csv,co2_start,CO2 at the start of the fit window (ppm)
+closures_*.csv,Tcham,temperature used in the gas law (C): Fluxbot in-chamber SHT-30; autochamber HF001 air temperature
+closures_*.csv,Pcham_kPa,station pressure used in the gas law (kPa)
+closures_*.csv,"Vtot_L, Area_cm2",system volume (L) and collar area (cm2)
+closures_*.csv,curvature,HM/LM flux ratio (g-factor) used as a curvature index
+closures_*.csv,stand_code,healthy = stand 1 (Bigelow Brook); unhealthy = stand 2 (Hemlock tower)
+closures_*.csv,rh_open,Fluxbot in-chamber RH in the open-lid minute 54:00-55:00 (%); NA for autochambers
+closures_*.csv,hour_of_obs,"closure hour (start rounded to the nearest hour), UTC; analyses use local time"
+closures_*.csv,short,QC flag: too few records to fit (goFlux nb.obs)
+closures_*.csv,decline,QC flag: significant CO2 decline (chamber failure)
+closures_*.csv,no_accum,QC flag: no significant CO2 accumulation (chamber failure)
+closures_*.csv,poor_fit,QC flag: linear-fit R2 < 0.5 (chamber failure)
+closures_*.csv,lid_fail,QC flag: Fluxbot lid stuck shut (chamber failure); FALSE for autochambers
+closures_*.csv,wet,Fluxbot wet-sensor flag: RH >= 99% in the open-lid minute; FALSE for autochambers
+closures_*.csv,spike,QC flag: outside the chamber's median +/- 5 MAD among closures passing the earlier rules
+closures_*.csv,qc_status,"first QC rule that removed the closure, or retained"
+closures_*.csv,in_deployed,closure is in the main (as-deployed) dataset
+closures_*.csv,in_screened,closure is in the RH-screened subset
+chamber_hours_*.csv,id,autochamber1-12 or fluxbot<unit>
+chamber_hours_*.csv,hour_of_obs,"hour, UTC (ISO 8601); analyses use local time (America/New_York)"
+chamber_hours_*.csv,stand,healthy = stand 1; unhealthy = stand 2
+chamber_hours_*.csv,method,autochamber or fluxbot
+chamber_hours_*.csv,day_of_year,day of year of hour_of_obs (local)
+chamber_hours_*.csv,hour,"hour of day (local, 0-23)"
+chamber_hours_*.csv,fluxL_umolm2sec,linear-model CO2 flux (umol m-2 s-1); autochambers: mean of the hour's two closures
+chamber_hours_*.csv,s10t,"HF001 soil temperature at 10 cm (C), mean of 15-min records within +/- 60 min"
+chamber_hours_*.csv,bar,"HF001 barometric pressure reduced to sea level (mbar), same window"
+chamber_hours_*.csv,air_t,"HF001 air temperature (C), same window"
+chamber_hours_*.csv,precip,"HF001 precipitation (mm per 15 min), mean over the same window"
+chamber_hours_*.csv,stand_label,stand 1 or stand 2
+qc_log.csv,"system, qc_status, n, pct_of_closures","closures per QC status (analysis period), % of computed closures"

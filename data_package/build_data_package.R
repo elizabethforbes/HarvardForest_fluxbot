@@ -7,14 +7,14 @@
 # Sources
 #  - Fluxbot sensor records: Google-Sheets exports (one tab per unit, one row per hourly
 #    transmission holding arrays of device timestamps and readings), in
-#    "old R scripts/fluxbot data 2023/fluxbot_{co2,temperature,humidity,pressure}.xlsx"
+#    "legacy/old R scripts/fluxbot data 2023/fluxbot_{co2,temperature,humidity,pressure}.xlsx"
 #    (identical, by md5, to the copies in the Drive folder "manuscripts/Fluxbot data, code").
 #  - Autochamber raw CO2 (1 Hz, analyzer output per chamber): Drive
 #    "manuscripts/autochamber data, code/site{1,2}_October_RawData.csv", written by
 #    "AutoChamber Code_AS.R" from the Campbell loggers' .dat files.
 #  - Fluxbot GPS positions: Drive "Harvard Forest 2023/fluxbot locations/Harvard Forest 2023.csv".
 #  - Autochamber geometry: collar heights, lid and system volume from
-#    "old R scripts/HFarray_fluxbotcalcs_final.Rmd.qmd" (lines 26-40).
+#    "legacy/old R scripts/HFarray_fluxbotcalcs_final.Rmd.qmd" (lines 26-40).
 #  - HF001 Fisher met station (15-min), Harvard Forest Data Archive.
 #  - HF293-07 autochamber soil respiration and soil temperature as published by the
 #    Harvard Forest team (used as an independent reference and for local soil temperature).
@@ -40,7 +40,7 @@ units <- gps %>% transmute(unit, stand_code, stand = if_else(stand_code == "heal
 write_csv(units, file.path(pkg, "metadata", "fluxbot_units.csv"))
 
 # ---- Fluxbot sensor records --------------------------------------------------------------------
-xdir <- file.path("old R scripts", "fluxbot data 2023")
+xdir <- file.path("legacy", "old R scripts", "fluxbot data 2023")
 parse_vec <- function(x) suppressWarnings(as.numeric(str_split(str_remove_all(x, "\\[|\\]"), ",")[[1]]))
 read_var <- function(file, col, name) {
   f <- file.path(xdir, file); sh <- excel_sheets(f); sh <- sh[str_extract(sh, "\\d+$") %in% units$unit]

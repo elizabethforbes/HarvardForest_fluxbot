@@ -1,1 +1,4 @@
 /.quarto/
+
+# run logs (sessionInfo.txt is kept)
+outputs/logs/*.log

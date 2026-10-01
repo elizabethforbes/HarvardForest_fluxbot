@@ -1,9 +1,0 @@
-Warning message:
-One or more parsing issues, call `problems()` on your data frame for details,
-e.g.:
-  dat <- vroom(...)
-  problems(dat) 
-precision: Fluxbot 5.14 ppm, autochamber 2.31 ppm
-Fluxbot goFlux: 9145 closures, 0.2 min
-Autochamber goFlux: 14653 closures, 0.4 min
-Done.

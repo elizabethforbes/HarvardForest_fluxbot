@@ -1,6 +1,6 @@
 # Data package: Fluxbot 2.0 and autochamber soil CO2 fluxes, Harvard Forest, October 2023
 
-This folder holds every input needed to reproduce the analysis. The analysis code in `manuscript_code/afm_revision/` reads only this folder. The same files are intended for the Zenodo archive (https://doi.org/10.5281/zenodo.15660443).
+This folder holds every input needed to reproduce the analysis. The analysis code in `manuscript_code/afm_revision/` reads only this folder. The same files are intended for the Zenodo archive (concept DOI https://doi.org/10.5281/zenodo.15660442, which resolves to the latest version).
 
 To reproduce all fluxes, statistics and figures, run from `manuscript_code/`:
 
@@ -40,11 +40,11 @@ See `data_dictionary.csv`.
 
 Fluxbot data: Forbes, Gewirtzman et al. (this study).
 
-Autochamber raw data: Harvard Forest hemlock autochamber network (A. Keiser, M. Nieland, A. Sow, M. Van Scoy).
+Autochamber raw data: Harvard Forest hemlock autochamber network (HF293; A. Finzi, A. Keiser, M.-A. Giasson, M. Nieland). Field operations and maintenance: M. Van Scoy.
 
-HF001: Boose & VanScoy (2025), Harvard Forest Data Archive HF001.
+HF001: Boose & VanScoy (2025), Harvard Forest Data Archive HF001 (v.34), https://doi.org/10.6073/pasta/7a7ffd2eaa2ea9965d701998d4e2b1f5.
 
-HF293: Harvard Forest Data Archive HF293.
+HF293: Finzi, Keiser, Giasson & Nieland (2026), Harvard Forest Data Archive HF293 (v.10), https://doi.org/10.6073/pasta/a4ebf6b3eb19d832fcf09c81ec6dfa73.
 
 ## Laboratory test of the K30 PTFE envelope (raw/lab_ptfe_test_2023-09-22/)
 

@@ -1,0 +1,7 @@
+"stand","gC_m2","share_observed","sampling"
+"healthy",76.1642752210901,0.766666666666667,"all autochamber hours"
+"unhealthy",75.685527750981,0.894444444444444,"all autochamber hours"
+"healthy",73.0504561294926,0.638888888888889,"Fluxbot retained hours (main QC)"
+"unhealthy",74.2916581403795,0.654166666666667,"Fluxbot retained hours (main QC)"
+"healthy",76.1117389179092,0.745833333333333,"Fluxbot hours with wet closures kept"
+"unhealthy",75.0123001430321,0.738888888888889,"Fluxbot hours with wet closures kept"

@@ -85,7 +85,9 @@ state_tab <- st_h %>% count(series, state) %>% group_by(series) %>% mutate(pct =
 write.csv(state_tab, file.path(out_dir, "fig10_state_shares.csv"), row.names = FALSE)
 for (i in seq_len(nrow(state_tab))) record(sprintf("state_%s_%s", gsub(" ", "_", state_tab$series[i]),
   c("rep3", "u12", "qc", "down")[as.integer(state_tab$state[i])]), state_tab$pct[i], "resilience", "% of stand-hours")
-ser_pal <- c("Autochamber Stand 1" = "#1B7837", "Autochamber Stand 2" = "#7FBF7B", "Fluxbot 2.0 Stand 1" = "#4D4D4D", "Fluxbot 2.0 Stand 2" = "#E08214")
+# colours follow the system palette used in all figures (autochamber green, Fluxbot grey):
+# dark shade + solid = stand 1, light shade + dashed = stand 2
+ser_pal <- c("Autochamber Stand 1" = "#1F6E43", "Autochamber Stand 2" = "#7FBF96", "Fluxbot 2.0 Stand 1" = "#4D4D4D", "Fluxbot 2.0 Stand 2" = "#A6A6A6")
 ser_lty <- c("Autochamber Stand 1" = "solid", "Autochamber Stand 2" = "22", "Fluxbot 2.0 Stand 1" = "solid", "Fluxbot 2.0 Stand 2" = "22")
 ur <- unit_rate %>% mutate(unit = reorder(sub("autochamber", "AC ", sub("fluxbot", "FB ", id)), success))
 pa <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width = 0.8) +
@@ -102,8 +104,23 @@ pc <- ggplot(daily, aes(day, share, colour = series, linetype = series)) + geom_
   scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b", expand = c(0, 0)) +
   labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)") +
   theme_classic(base_size = 8) + theme(legend.position = "top", legend.key.width = unit(8, "mm"))
-pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series), fill = state)) + geom_tile(height = 0.85) +
-  scale_fill_manual(values = c("#2166AC", "#92C5DE", "#FDB863", "#D6604D"), name = NULL) +
+# timeline: each row in its system's colour (dark = >= 3 units, light = 1-2 units); amber = measured
+# but removed by QC; blank = no data
+st_h <- st_h %>% mutate(fill_key = case_when(
+  state == ">= 3 units" ~ paste(lab_sys[method], ">= 3 units"),
+  state == "1-2 units" ~ paste(lab_sys[method], "1-2 units"),
+  state == "measured, removed by QC" ~ "Measured, removed by QC",
+  TRUE ~ "No data (down)"))
+fill_pal <- c("Autochamber >= 3 units" = "#2E7D4F", "Autochamber 1-2 units" = "#A9D3B9",
+              "Fluxbot 2.0 >= 3 units" = "#5E5E5E", "Fluxbot 2.0 1-2 units" = "#C8C8C8",
+              "Measured, removed by QC" = "#E6A532", "No data (down)" = "white")
+rows <- tibble(series = factor(levels(st_h$series), levels = levels(st_h$series)))
+pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series))) +
+  geom_tile(aes(fill = fill_key), height = 0.8) +
+  geom_tile(data = rows, aes(x = p0 + (p1 - p0) / 2, y = forcats::fct_rev(series)), width = as.numeric(difftime(p1, p0, units = "secs")),
+            height = 0.8, fill = NA, colour = "grey60", linewidth = 0.3, inherit.aes = FALSE) +
+  scale_fill_manual(values = fill_pal, breaks = names(fill_pal), name = NULL) +
+  guides(fill = guide_legend(nrow = 2, override.aes = list(colour = "grey60", linewidth = 0.3))) +
   scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + labs(x = NULL, y = NULL) +
   theme_classic(base_size = 8) + theme(legend.position = "bottom", axis.line.y = element_blank(), axis.ticks.y = element_blank())
 fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc / pd) + plot_layout(heights = c(1, 0.9, 0.55)) + plot_annotation(tag_levels = "a")

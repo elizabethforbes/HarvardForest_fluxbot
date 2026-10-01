@@ -58,6 +58,10 @@ load_reprocessed <- function(system, flux_col) {
            # CO2 falling significantly in a dark soil chamber = chamber failure (lid not
            # sealed or not vented between closures), not uptake
            decline = .data[[flux_col]] < 0 & !grepl("p-value", quality.check),
+           # no detectable CO2 accumulation (goFlux: slope not significant). At October fluxes of ~2
+           # umol m-2 s-1 a sealed chamber always accumulates CO2, so this is a chamber that did not
+           # seal (lid not closing; e.g. the stand-1 autochamber pneumatics on 5 and 25-30 Oct)
+           no_accum = grepl("p-value", quality.check),
            wet = if ("wet" %in% names(.)) as.logical(wet) else FALSE,
            # lid stuck shut (headspace not venting; flagged in 10_fluxes.R): also a chamber failure
            lid_fail = if ("lid_fail" %in% names(.)) as.logical(lid_fail) else FALSE) %>%
@@ -95,11 +99,11 @@ load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
 # ---- QC ------------------------------------------------------------------------
 # Two nested datasets are compared with the autochambers throughout:
 # qc = "deployed" : MAIN ("as deployed", all conditions). Drop closures goFlux flags as too
-#                   short (nb.obs) and chamber failures: a statistically significant CO2 decline,
-#                   or a stuck lid (open-lid CO2 > 500 ppm above the other units through a
-#                   saturated episode; 10_fluxes.R). Then per-chamber robust fences (median +/- 5 MAD)
-#                   remove isolated spikes. Wet-sensor closures are kept. Non-significant negative
-#                   values are kept (noise around zero); no value-based trimming of the pooled data.
+#                   short (nb.obs) and chamber failures: a statistically significant CO2 decline, no
+#                   significant CO2 accumulation (chamber not sealed), or a stuck lid (open-lid CO2
+#                   > 500 ppm above the other units through a saturated episode; 10_fluxes.R). Then
+#                   per-chamber robust fences (median +/- 5 MAD) remove isolated spikes. Wet-sensor
+#                   closures are kept. No value-based trimming of the pooled data.
 # qc = "screened" : "RH-screened". The deployed dataset minus Fluxbot closures with in-chamber
 #                   RH >= 99% in the open-lid minute (wet K30; Pan et al. 2024). A strict subset.
 # qc = "valid" / "computed": intermediate stages (filtering flow).
@@ -116,7 +120,8 @@ apply_qc <- function(d, qc = c("deployed", "screened", "iqr", "none", "mad", "co
   if (qc == "computed") return(d)                                  # every computable closure
   if (!"lid_fail" %in% names(d)) d$lid_fail <- FALSE
   if (!"wet" %in% names(d)) d$wet <- FALSE
-  if ("decline" %in% names(d)) d$decline <- d$decline | d$lid_fail  # chamber failures: CO2 decline or stuck lid
+  if (!"no_accum" %in% names(d)) d$no_accum <- FALSE
+  if ("decline" %in% names(d)) d$decline <- d$decline | d$no_accum | d$lid_fail  # chamber failures: CO2 decline, no accumulation, or stuck lid
   if (qc == "valid") return(d[!d$short & !d$decline, ])            # chamber failures removed
   if (qc == "dry") return(d[!d$short & !d$decline & !d$wet, ])     # valid minus wet-sensor closures
   if (qc %in% c("deployed", "screened")) {

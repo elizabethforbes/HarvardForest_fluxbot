@@ -8,8 +8,9 @@
 #   recorded   : scheduled closures with any raw CO2 data in the closure window
 #   valid      : recorded closures with enough data to fit a flux (Fluxbot >= 75% of the 180-s
 #                window; autochamber >= 120 s of the 220-s window) that are not chamber
-#                failures (no statistically significant CO2 decline; no stuck lid, i.e. open-lid CO2
-#                > 500 ppm above the other units through a saturated episode)
+#                failures (no significant CO2 decline; significant CO2 accumulation, i.e. the chamber
+#                sealed; no stuck lid, i.e. open-lid CO2 > 500 ppm above the other units through a
+#                saturated episode)
 #   retained   : valid closures that pass the per-chamber spike screen (median +/- 5 MAD). This is
 #                the main, "as deployed" dataset (all conditions, wet sensors included).
 #   RH-screened: retained closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
@@ -46,7 +47,7 @@ acct <- function(system) {
   flx <- read.csv(file.path(flux_dir, paste0(system, "_fluxes.csv")), colClasses = c(id = "character")) %>%
     mutate(t = round_hour(start_local)) %>% filter(t >= p0, t < p1) %>%
     mutate(lid_fail = if ("lid_fail" %in% names(.)) coalesce(as.logical(lid_fail), FALSE) else FALSE,
-           decline = (LM.flux < 0 & !grepl("p-value", quality.check)) | lid_fail, wet = coalesce(as.logical(wet), FALSE))
+           decline = (LM.flux < 0 & !grepl("p-value", quality.check)) | grepl("p-value", quality.check) | lid_fail, wet = coalesce(as.logical(wet), FALSE))
   # "recorded" windows that yielded no flux are counted as lost at the "valid" step
   n_units <- if (system == "fluxbot") nrow(units) else nrow(chambers)
   sched <- n_units * n_days * ifelse(system == "fluxbot", 24, 48)
@@ -95,7 +96,7 @@ for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
 
 # ---- flow diagram ---------------------------------------------------------------------------------
 lab_step <- c(recorded = "no data transmitted / logger or power down",
-              valid = "too few records, or chamber failure (CO2 decline or stuck lid)",
+              valid = "too few records, or chamber failure (CO2 decline, no accumulation, stuck lid)",
               retained = "spike (> 5 MAD from chamber median)",
               `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)")
 fd <- acc %>% mutate(stage = factor(stage, levels = c("intended", "recorded", "valid", "retained", "RH-screened")),
@@ -113,6 +114,7 @@ pflow <- ggplot() +
   annotate("text", x = c(1, 3.2, 5.3), y = 4.65, label = c("Fluxbot 2.0 (16 units)", "Autochamber (12 chambers)", "Agreement (array means)"),
            fontface = "bold", size = 2.6) +
   scale_x_continuous(limits = c(0.4, 6.1)) + scale_y_continuous(limits = c(-0.4, 4.8)) + theme_void()
-ggsave(file.path(out_dir, "figures", "FigS_filter_flow.pdf"), pflow, width = 190, height = 120, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "FigS_filter_flow.png"), pflow, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
+ggsave(file.path(out_dir, "figures", "Fig7_measurement_flow.pdf"), pflow, width = 190, height = 120, units = "mm", device = cairo_pdf)
+ggsave(file.path(out_dir, "figures", "Fig7_measurement_flow.tif"), pflow, width = 190, height = 120, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
+ggsave(file.path(out_dir, "figures", "Fig7_measurement_flow.png"), pflow, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
 write_numbers("numbers_filter_flow.csv")

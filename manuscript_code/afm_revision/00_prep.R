@@ -58,7 +58,9 @@ load_reprocessed <- function(system, flux_col) {
            # CO2 falling significantly in a dark soil chamber = chamber failure (lid not
            # sealed or not vented between closures), not uptake
            decline = .data[[flux_col]] < 0 & !grepl("p-value", quality.check),
-           wet = if ("wet" %in% names(.)) as.logical(wet) else FALSE) %>%
+           wet = if ("wet" %in% names(.)) as.logical(wet) else FALSE,
+           # lid stuck shut (headspace not venting; flagged in 10_fluxes.R): also a chamber failure
+           lid_fail = if ("lid_fail" %in% names(.)) as.logical(lid_fail) else FALSE) %>%
     filter(hour_of_obs >= analysis_start, hour_of_obs < analysis_end)
 }
 
@@ -106,6 +108,8 @@ apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad", "computed", "valid",
   qc <- match.arg(qc)
   d <- d[!is.na(d$flux), ]
   if (qc == "computed") return(d)                                  # every computable closure
+  if (!"lid_fail" %in% names(d)) d$lid_fail <- FALSE
+  if ("decline" %in% names(d)) d$decline <- d$decline | d$lid_fail  # chamber failures: CO2 decline or stuck lid
   if (qc == "valid") return(d[!d$short & !d$decline, ])            # chamber failures removed
   if (qc == "dry") return(d[!d$short & !d$decline & !d$wet, ])     # + wet-sensor closures removed
   if (qc == "fit_nowet") {                                          # sensitivity: keep wet-sensor closures

@@ -7,7 +7,8 @@
 #   recorded   : scheduled closures with any raw CO2 data in the closure window
 #   valid      : recorded closures with enough data to fit a flux (Fluxbot >= 75% of the 180-s
 #                window; autochamber >= 120 s of the 220-s window) that are not chamber
-#                failures (no statistically significant CO2 decline)
+#                failures (no statistically significant CO2 decline; no stuck lid, i.e. open-lid CO2
+#                > 500 ppm above the other units through a saturated episode)
 #   dry sensor : valid closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
 #                open-lid minute; condensation on the K30 optics, Pan et al. 2024)
 #   retained   : dry-sensor closures that pass the per-chamber spike screen (median +/- 5 MAD);
@@ -42,7 +43,8 @@ acr <- read_csv(file.path(pkg, "raw", "autochamber_co2_1hz_oct2023.csv.gz"),
 acct <- function(system) {
   flx <- read.csv(file.path(flux_dir, paste0(system, "_fluxes.csv")), colClasses = c(id = "character")) %>%
     mutate(t = round_hour(start_local)) %>% filter(t >= p0, t < p1) %>%
-    mutate(decline = LM.flux < 0 & !grepl("p-value", quality.check), wet = coalesce(as.logical(wet), FALSE))
+    mutate(lid_fail = if ("lid_fail" %in% names(.)) coalesce(as.logical(lid_fail), FALSE) else FALSE,
+           decline = (LM.flux < 0 & !grepl("p-value", quality.check)) | lid_fail, wet = coalesce(as.logical(wet), FALSE))
   # "recorded" windows that yielded no flux are counted as lost at the "valid" step
   n_units <- if (system == "fluxbot") nrow(units) else nrow(chambers)
   sched <- n_units * n_days * ifelse(system == "fluxbot", 24, 48)

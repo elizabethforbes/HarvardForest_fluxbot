@@ -8,19 +8,19 @@ fluxL_umolm2sec ~ stand + method + s(hour, bs = "cc", k = 12) +
 
 Parametric coefficients:
                Estimate Std. Error t value Pr(>|t|)    
-(Intercept)     2.49342    0.21953  11.358   <2e-16 ***
-standunhealthy  0.03095    0.24059   0.129    0.898    
-methodfluxbot  -0.20887    0.24305  -0.859    0.390    
+(Intercept)     2.49345    0.21956  11.357   <2e-16 ***
+standunhealthy  0.03078    0.24062   0.128    0.898    
+methodfluxbot  -0.20808    0.24308  -0.856    0.392    
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 Approximate significance of smooth terms:
            edf Ref.df      F p-value    
-s(hour)  6.652 10.000  19.57  <2e-16 ***
-s(s10t)  8.486  8.882 828.67  <2e-16 ***
-s(id)   24.896 25.000 307.59  <2e-16 ***
+s(hour)  6.593 10.000  19.61  <2e-16 ***
+s(s10t)  8.485  8.881 828.54  <2e-16 ***
+s(id)   24.896 25.000 307.68  <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 R-sq.(adj) =   0.54   Deviance explained = 54.2%
--REML =  16499  Scale est. = 0.6365    n = 13736
+-REML =  16492  Scale est. = 0.63637   n = 13732

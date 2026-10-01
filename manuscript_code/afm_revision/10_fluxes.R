@@ -78,6 +78,26 @@ rh_open <- fbr %>% filter(minute(time) == 54, rh_pct >= 0, rh_pct <= 100.5) %>%
   mutate(wstart = floor_date(time, "hour") + fb_wstart * 60,
          UniqueID = paste0("FB_", unit, "_", format(wstart, "%Y%m%d%H%M", tz = "UTC"))) %>%
   group_by(UniqueID) %>% summarise(rh_open = mean(rh_pct), .groups = "drop")
+# stuck lids: runs of wet hours (RH >= 99%, gaps of up to 3 h bridged) during which the unit's open-lid
+# CO2 stays > 500 ppm above the median of the other units in its stand (median over the run). The
+# headspace is not venting (field log: unit 114 stuck shut 7 Oct); saturated RH is a consequence.
+# These closures are chamber failures, counted with the CO2-decline failures.
+base_uh <- fbr %>% filter(minute(time) == 54) %>% mutate(hr = floor_date(time, "hour")) %>%
+  group_by(stand_code, unit, hr) %>% filter(n() >= 3) %>% summarise(base = median(co2_ppm), .groups = "drop") %>%
+  group_by(stand_code, hr) %>% filter(n() >= 3) %>% mutate(anom = base - sapply(seq_along(base), function(i) median(base[-i]))) %>% ungroup()
+wet_uh <- rh_open %>% mutate(unit = sub("^FB_(.*)_[0-9]{12}$", "\\1", UniqueID),
+                             hr = as.POSIXct(sub(".*_", "", UniqueID), format = "%Y%m%d%H%M", tz = "UTC") - fb_wstart * 60) %>%
+  transmute(unit, hr = floor_date(hr, "hour"), wet = rh_open >= 99)
+lid_hours <- full_join(wet_uh, base_uh %>% select(unit, hr, anom), by = c("unit", "hr")) %>% group_by(unit) %>%
+  group_modify(function(g, key) {
+    g <- tibble(hr = seq(min(g$hr), max(g$hr), by = 3600)) %>% left_join(g, by = "hr") %>% mutate(wet = coalesce(wet, FALSE))
+    w <- which(g$wet); if (!length(w)) return(tibble(hr = as.POSIXct(character(0), tz = "UTC")))
+    brk <- c(TRUE, diff(w) > 4); s0 <- w[brk]; s1 <- w[c(brk[-1], TRUE)]
+    keep <- which(mapply(function(a, b) isTRUE(median(g$anom[a:b], na.rm = TRUE) > 500), s0, s1))
+    if (!length(keep)) return(tibble(hr = as.POSIXct(character(0), tz = "UTC")))
+    tibble(hr = do.call(c, lapply(keep, function(i) g$hr[s0[i]:s1[i]])))
+  }) %>% ungroup() %>%
+  transmute(UniqueID = paste0("FB_", unit, "_", format(hr + fb_wstart * 60, "%Y%m%d%H%M", tz = "UTC")), lid_fail = TRUE)
 record_meta <- list(fluxbot_bad_pressure_units = paste(bad_p, collapse = ";"), pressure_ratio_local_hf001 = p_ratio)
 
 # ---- Autochamber raw ---------------------------------------------------------------------------
@@ -141,9 +161,10 @@ tidy_out <- function(gf, d, system) {
     relocate(system, id, UniqueID, start_local)
 }
 fb_out <- tidy_out(gf_fb, fb, "fluxbot") %>% left_join(units %>% select(id = unit, stand_code), by = "id") %>%
-  left_join(rh_open, by = "UniqueID") %>% mutate(wet = !is.na(rh_open) & rh_open >= 99)
+  left_join(rh_open, by = "UniqueID") %>% mutate(wet = !is.na(rh_open) & rh_open >= 99) %>%
+  left_join(lid_hours, by = "UniqueID") %>% mutate(lid_fail = coalesce(lid_fail, FALSE))
 ac_out <- if (fluxbot_only) NULL else tidy_out(gf_ac, ac, "autochamber") %>%
-  left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id") %>% mutate(rh_open = NA_real_, wet = FALSE)
+  left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id") %>% mutate(rh_open = NA_real_, wet = FALSE, lid_fail = FALSE)
 sfx <- paste0(if (test_n > 0) "_test" else "", if (fluxbot_only) paste0("_w", fb_wstart) else "")
 write_csv(fb_out, file.path(out_dir, paste0("fluxbot_fluxes", sfx, ".csv")))
 if (!fluxbot_only) write_csv(ac_out, file.path(out_dir, paste0("autochamber_fluxes", sfx, ".csv")))

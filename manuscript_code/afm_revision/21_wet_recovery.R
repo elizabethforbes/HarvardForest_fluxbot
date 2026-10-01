@@ -34,6 +34,7 @@ uh <- grid %>% left_join(cl, by = c("unit", "hour_of_obs")) %>% left_join(fbq, b
   mutate(wet = !is.na(rh) & rh >= 99, lr = if_else(flux > 0.1 & ac > 0.1, log(flux / ac), NA_real_)) %>% arrange(unit, hour_of_obs)
 stopifnot(nrow(uh) == nrow(grid))
 
+lid_uh <- load_fluxbot() %>% filter(lid_fail) %>% transmute(unit = gsub("[^0-9]", "", as.character(id)), hour_of_obs)
 # ---- wet episodes -------------------------------------------------------------------------------
 episodes <- uh %>% group_by(unit) %>% group_modify(function(g, key) {
   w <- which(g$wet); if (!length(w)) return(tibble())
@@ -44,9 +45,10 @@ episodes <- uh %>% group_by(unit) %>% group_modify(function(g, key) {
            anom_end = mapply(function(a, b) median(g$anom[max(a, b - 2):b], na.rm = TRUE), start_i, end_i),
            anom_ep = mapply(function(a, b) median(g$anom[a:b], na.rm = TRUE), start_i, end_i))
 }) %>% ungroup() %>%
-  # open-lid CO2 hundreds to thousands of ppm above the other units for the whole episode = headspace not
-  # venting (lid stuck shut; field log: unit 114 stuck shut 7 Oct), not a wet sensor
-  mutate(type = if_else(!is.na(anom_ep) & anom_ep > 500, "lid failure", "wet sensor"))
+  # stuck lid (flagged in 10_fluxes.R: open-lid CO2 > 500 ppm above the other units through the episode;
+  # field log: unit 114 stuck shut 7 Oct), not a wet sensor
+  mutate(type = if_else(mapply(function(u, a, b) any(lid_uh$unit == u & lid_uh$hour_of_obs >= a & lid_uh$hour_of_obs <= b), unit, start, end),
+                        "lid failure", "wet sensor"))
 print(episodes %>% count(type, unit) %>% filter(type == "lid failure"))
 for (ty in c("lid failure", "wet sensor")) { e <- episodes %>% filter(type == ty); tg <- gsub(" ", "_", ty)
   record(paste0("ep_", tg, "_n"), nrow(e), "wet_recovery"); record(paste0("ep_", tg, "_wet_h"), sum(e$wet_h), "wet_recovery")
@@ -145,10 +147,7 @@ print(acc)
 # ---- bias: agreement with wet closures kept, removed, and with a post-wet buffer -----------------
 fb0 <- load_fluxbot() %>% mutate(unit = gsub("[^0-9]", "", as.character(id))) %>%
   left_join(near_wet %>% select(unit, hour_of_obs, h_since_wet), by = c("unit", "hour_of_obs")) %>% mutate(wet_orig = wet)
-lid_h <- bind_rows(lapply(which(episodes$type == "lid failure"), function(i) tibble(unit = episodes$unit[i],
-  hour_of_obs = seq(episodes$start[i], episodes$end[i], by = 3600))))
-fb0 <- fb0 %>% left_join(lid_h %>% mutate(lid = TRUE), by = c("unit", "hour_of_obs")) %>% mutate(lid = coalesce(lid, FALSE))
-qc_in <- apply_qc(fb0 %>% mutate(wet = FALSE), "valid")
+qc_in <- apply_qc(fb0 %>% mutate(wet = FALSE, lid = lid_fail, lid_fail = FALSE), "valid")
 record("removed_wet_closures_total", sum(qc_in$wet_orig), "wet_recovery", "valid closures with the wet flag")
 record("removed_wet_closures_lid", sum(qc_in$lid & qc_in$wet_orig), "wet_recovery", "of which inside lid-failure episodes")
 ac0 <- apply_qc(load_autochamber(), "fit"); met <- load_met()
@@ -162,8 +161,8 @@ agree <- function(fb) {
          r_hourly = cor(s$autochamber, s$fluxbot), r_daily = cor(dd$a, dd$f), n_days = nrow(dd))
 }
 sc <- bind_rows(
-  agree(apply_qc(fb0, "fit_nowet")) %>% mutate(scenario = "wet closures kept"),
-  agree(apply_qc(fb0 %>% mutate(wet = lid), "fit")) %>% mutate(scenario = "lid-failure episodes removed, wet-sensor closures kept"),
+  agree(apply_qc(fb0 %>% mutate(lid_fail = FALSE), "fit_nowet")) %>% mutate(scenario = "wet closures kept"),
+  agree(apply_qc(fb0, "fit_nowet")) %>% mutate(scenario = "lid-failure episodes removed, wet-sensor closures kept"),
   agree(apply_qc(fb0, "fit")) %>% mutate(scenario = "wet closures removed (main)"),
   bind_rows(lapply(c(1, 3, 6, 12, 24), function(k) agree(apply_qc(fb0 %>% mutate(wet = wet | (!is.na(h_since_wet) & h_since_wet >= 1 & h_since_wet <= k)), "fit")) %>%
     mutate(scenario = paste0("main + ", k, " h after wet removed")))))

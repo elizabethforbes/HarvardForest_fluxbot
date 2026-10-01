@@ -1,4 +1,4 @@
-# Fig. 4. Agreement of hourly and daily array means (scatter with SMA fit; Bland-Altman), as deployed and
+# Fig. 3. Agreement of hourly and daily array means (scatter with SMA fit; Bland-Altman), as deployed and
 # RH-screened.
 source("R/setup.R")
 source("R/fig_style.R")
@@ -58,4 +58,4 @@ p4b <- ggplot(ba, aes(m, df)) + geom_hline(yintercept = 0, colour = "grey75") +
   guides(colour = guide_legend(order = 1, override.aes = list(size = 2, alpha = 1)), linetype = guide_legend(order = 2)) +
   coord_cartesian(xlim = c(1, 4.6), ylim = c(-2.1, 2.3)) + lgd +
   labs(x = expression(Mean ~ of ~ the ~ two ~ systems ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot - autochamber ~ (mu * mol ~ m^-2 ~ s^-1)), tag = "b")
-save_fig((p4a | p4b), "Fig4_array_agreement", 190, 100)
+save_fig((p4a | p4b), "Fig3_array_agreement", 190, 100)

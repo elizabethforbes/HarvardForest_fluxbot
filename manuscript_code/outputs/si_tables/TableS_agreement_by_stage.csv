@@ -1,0 +1,4 @@
+"Stage","Compared hours","Offset (%)","r, hourly","r, daily","Days"
+"Valid",362,-10.1,0.72,0.83,16
+"Retained (as deployed)",361,-9.9,0.71,0.83,16
+"RH-screened subset",312,-8.5,0.75,0.88,15

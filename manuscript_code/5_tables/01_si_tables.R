@@ -19,6 +19,12 @@ acc <- rd("measurement_accounting.csv") %>%
                             retained = "spike (> 5 MAD from chamber median)", `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)"))
 w(acc, "TableS_accounting.csv")
 
+# S-stages: agreement of array means at each stage of the accounting (as deployed = retained)
+stg <- rd("agreement_by_stage.csv") %>%
+  transmute(Stage = recode(stage, valid = "Valid", retained = "Retained (as deployed)", `RH-screened` = "RH-screened subset"),
+            `Compared hours` = n_hours, `Offset (%)` = r2(offset_pct, 1), `r, hourly` = r2(r_hourly), `r, daily` = r2(r_daily), `Days` = n_days)
+w(stg, "TableS_agreement_by_stage.csv")
+
 # S-datasets: the two datasets side by side (hourly, daily, 72-h, budget)
 dc <- rd("table_datasets_compared.csv")
 w(dc %>% transmute(Dataset = dataset, `Fluxbot closures` = fluxbot_closures, `% of intended` = r2(pct_of_intended, 1),

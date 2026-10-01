@@ -1,4 +1,4 @@
-# Fig. 7. Spatial heterogeneity (Lorenz curves, Gini) and sampling effort (CI half-width vs number of chambers).
+# Fig. 5. Spatial heterogeneity (Lorenz curves, Gini) and sampling effort (CI half-width vs number of chambers).
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork); library(ineq) })
@@ -34,4 +34,4 @@ p9b <- ggplot(eff %>% filter(n >= 3), aes(n, 100 * analytic, colour = method, li
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
   labs(x = "Number of chambers per stand", y = "Uncertainty of stand mean (±%)") +
   theme(legend.position = c(0.72, 0.78), legend.spacing.y = unit(0, "mm"))
-save_fig(p9a + p9b + tags_afm(), "Fig7_heterogeneity_effort", 190, 85)
+save_fig(p9a + p9b + tags_afm(), "Fig5_heterogeneity_effort", 190, 85)

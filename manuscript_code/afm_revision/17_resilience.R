@@ -104,10 +104,11 @@ pc <- ggplot(daily, aes(day, share, colour = series, linetype = series)) + geom_
   scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b", expand = c(0, 0)) +
   labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)") +
   theme_classic(base_size = 8) + theme(legend.position = "top", legend.key.width = unit(8, "mm"))
-# timeline: the same state colours for both systems (dark = >= 3 units, light = 1-2 units,
-# amber = measured but removed by QC, blank = no data)
+# timeline: the same state colours for both systems, from good (blue, >= 3 units) to bad
+# (red, no data)
 st_h <- st_h %>% mutate(fill_key = as.character(state))
-fill_pal <- c(">= 3 units" = "#3B5B7A", "1-2 units" = "#A9C1D9", "measured, removed by QC" = "#E6A532", "no data (down)" = "white")
+# good-to-bad diverging scale (ColorBrewer RdYlBu, colourblind-safe; avoids the system greens/greys)
+fill_pal <- c(">= 3 units" = "#2C7BB6", "1-2 units" = "#ABD9E9", "measured, removed by QC" = "#FDAE61", "no data (down)" = "#D7191C")
 rows <- tibble(series = factor(levels(st_h$series), levels = levels(st_h$series)))
 pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series))) +
   geom_tile(aes(fill = fill_key), height = 0.8) +

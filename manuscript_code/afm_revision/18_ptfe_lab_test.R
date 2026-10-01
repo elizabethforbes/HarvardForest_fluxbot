@@ -82,6 +82,7 @@ mk <- function(t0, t1, evs = ev, zoom = NULL) ggplot(pd %>% filter(time >= t0, t
 library(patchwork)
 t_all <- range(k30$time)
 zw <- c(wet_t - 900, as.POSIXct("2023-09-22 17:50:00", tz = "America/New_York"))
+saveRDS(list(zoom = mk(zw[1], zw[2]), full = mk(t_all[1], t_all[2], evs = ev[1:3, ], zoom = zw)), file.path(out_dir, "panels_ptfe_sep.rds"))
 pfig <- mk(t_all[1], t_all[2], evs = ev[1:3, ], zoom = zw) / mk(wet_t - 900, as.POSIXct("2023-09-22 17:50:00", tz = "America/New_York")) +
   plot_layout(guides = "collect") + plot_annotation(tag_levels = "a") & theme(legend.position = "bottom")
 ggsave(file.path(out_dir, "figures", "FigS_ptfe_lab_test.pdf"), pfig, width = 190, height = 140, units = "mm", device = cairo_pdf)

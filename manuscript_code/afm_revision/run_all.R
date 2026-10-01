@@ -6,7 +6,7 @@
 scripts <- c("10_fluxes.R", "01_baseline.R", "03_pressure.R", "02_afm_analyses.R",
              "04_local_soil_temperature.R", "05_figures.R", "06_uptime.R", "07_agreement_metrics.R", "08_chamber_physics.R", "09_flux_model_matrix.R",
              "11_filter_flow.R", "12_scales_budget.R", "13_sampling_rate.R", "14_q10_moisture.R", "15_window_sensitivity.R", "16_vent_wet.R", "17_resilience.R",
-             "18_ptfe_lab_test.R", "19_cover_test_dec.R", "20_lab_failure_modes.R", "21_wet_recovery.R", "22_wet_selection_bias.R")
+             "18_ptfe_lab_test.R", "19_cover_test_dec.R", "20_lab_failure_modes.R", "21_wet_recovery.R", "22_wet_selection_bias.R", "23_fig_moisture_si.R")
 if (Sys.getenv("SKIP_FLUXES") == "1") scripts <- setdiff(scripts, "10_fluxes.R")
 for (s in scripts) {
   message("== ", s)

@@ -103,6 +103,7 @@ pc <- ggplot(kd, aes(t6, diff)) + shade() + fill_ph + geom_hline(yintercept = 0,
   coord_cartesian(ylim = c(-130, 130)) + xs + labs(x = NULL, y = "Covered - uncovered\n(ppm, group means)") + th
 pd2 <- ggplot(grid %>% filter(!is.na(h2o)), aes(time, h2o / 1000)) + shade() + fill_ph + geom_line(linewidth = 0.3) + xs +
   labs(x = "Time (13 Dec 2023, K30 logger clock)", y = expression(LGR ~ H[2]*O ~ (ppt))) + th
+saveRDS(list(overview = pa, phases = pb, diff = pc, h2o = pd2), file.path(out_dir, "panels_cover_dec.rds"))
 pfig <- pa / pb / pc / pd2 + plot_layout(heights = c(1.4, 3, 1.3, 1), guides = "collect") + plot_annotation(tag_levels = "a") &
   theme(legend.position = "bottom") & guides(colour = guide_legend(override.aes = list(size = 2, alpha = 1), nrow = 1))
 ggsave(file.path(out_dir, "figures", "FigS_cover_test_dec.pdf"), pfig, width = 190, height = 210, units = "mm", device = cairo_pdf)

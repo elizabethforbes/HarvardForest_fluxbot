@@ -2,10 +2,10 @@
 # PDF and a 600 dpi LZW TIFF, sized to Elsevier column widths
 # (single = 90 mm, 1.5 = 140 mm, double = 190 mm).
 # Main figures (Fig. 1 is the field photo, not generated here):
-#   Fig 2 time series and cumulative budgets; Fig 3 agreement (scatter + Bland-Altman);
-#   Fig 4 diel; Fig 5 temperature response; Fig 6 heterogeneity and sampling effort;
-#   Fig 7 measurement flow (11_filter_flow.R); Fig 8 uptime and coverage (17_resilience.R).
-# SI figures written here: chamber distributions, GAM fit, flux distributions.
+#   Fig 2 time series and cumulative budgets; Fig 3 chamber-level distributions; Fig 4 agreement
+#   (scatter + Bland-Altman); Fig 5 diel; Fig 6 temperature response; Fig 7 heterogeneity and
+#   sampling effort; Fig 8 measurement flow (11_filter_flow.R); Fig 9 uptime and coverage (17_resilience.R).
+# SI figures written here: GAM fit, flux distributions.
 # Datasets: "as deployed" (main; dataset_main.rds) and the "RH-screened" subset.
 
 source("afm_revision/00_prep.R")
@@ -94,7 +94,7 @@ p2c <- ggplot(cum, aes(hour_of_obs, cum, colour = series, fill = series, linetyp
 save_fig(p2a / p2b / p2c + plot_layout(heights = c(2.4, 0.9, 1.3)) + plot_annotation(tag_levels = "a"),
          "Fig2_timeseries", 190, 200)
 
-# ---- SI: chamber-level distributions ----------------------------------------------
+# ---- Fig 3: chamber-level distributions ----------------------------------------------
 ord <- d %>% group_by(id) %>% summarise(m = mean(fluxL_umolm2sec)) %>% arrange(m)
 p3 <- ggplot(d %>% mutate(id = factor(id, levels = ord$id)),
              aes(fluxL_umolm2sec, id)) +
@@ -104,7 +104,7 @@ p3 <- ggplot(d %>% mutate(id = factor(id, levels = ord$id)),
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   guides(colour = guide_legend(override.aes = list(size = 1.5, alpha = 1))) +
   labs(x = flux_lab, y = NULL) + theme(legend.position = "bottom")
-save_fig(p3, "FigS_chamber_distributions", 140, 120)
+save_fig(p3, "Fig3_chamber_distributions", 140, 120)
 
 # ---- SI: GAM observed vs fitted -----------------------------------------------------
 g <- readRDS(file.path(out_dir, "gam_re.rds"))
@@ -133,7 +133,7 @@ p5 <- ggplot(d5, aes(fluxL_umolm2sec, fill = method, colour = method)) +
   labs(x = flux_lab, y = "Density") + theme(legend.position = c(0.8, 0.8))
 save_fig(p5, "FigS_flux_distributions", 90, 70)
 
-# ---- Fig 3: array-level agreement --------------------------------------------------------
+# ---- Fig 4: array-level agreement --------------------------------------------------------
 # hourly array means (mean of the two stand means) in compared hours (>= 3 units of each system
 # per stand), as deployed; filled points = hours also in the RH-screened comparison, open = hours
 # present only as deployed (wet sensors). Large points: daily means (days with >= 12 compared hours).
@@ -165,9 +165,9 @@ p3b <- ggplot(ba, aes(m, df)) + geom_hline(yintercept = 0, colour = "grey60") +
   geom_hline(data = bal, aes(yintercept = lo), linetype = "22", colour = "#2F5D9E") + geom_hline(data = bal, aes(yintercept = hi), linetype = "22", colour = "#2F5D9E") +
   geom_text(data = bal, aes(x = Inf, y = hi, label = sprintf("mean %.2f\n95%% LoA %.2f to %.2f", mu, lo, hi)), hjust = 1.05, vjust = -0.3, size = 2.1, inherit.aes = FALSE) +
   facet_wrap(~ ds, ncol = 1) + labs(x = expression(Mean ~ of ~ systems ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot - autochamber ~ (mu * mol ~ m^-2 ~ s^-1)))
-save_fig(p3a + p3b + plot_layout(widths = c(1.3, 1)) + plot_annotation(tag_levels = "a"), "Fig3_array_agreement", 190, 105)
+save_fig(p3a + p3b + plot_layout(widths = c(1.3, 1)) + plot_annotation(tag_levels = "a"), "Fig4_array_agreement", 190, 105)
 
-# ---- Fig 4: diel pattern (common stand-hours) --------------------------------------------
+# ---- Fig 5: diel pattern (common stand-hours) --------------------------------------------
 diel <- read.csv(file.path(out_dir, "diel_common_window.csv"))
 p7 <- ggplot(diel, aes(hour, mean, colour = method, fill = method)) +
   geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.2, colour = NA) +
@@ -176,9 +176,9 @@ p7 <- ggplot(diel, aes(hour, mean, colour = method, fill = method)) +
   scale_fill_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_x_continuous(breaks = seq(0, 24, 4)) +
   labs(x = "Hour of day (EDT)", y = flux_lab) + theme(legend.position = c(0.2, 0.88))
-save_fig(p7, "Fig4_diel", 90, 70)
+save_fig(p7, "Fig5_diel", 90, 70)
 
-# ---- Fig 5: temperature response (common stand-hours) -------------------------------------
+# ---- Fig 6: temperature response (common stand-hours) -------------------------------------
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
 dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), fluxL_umolm2sec > 0)
 tseq <- seq(min(dq$s10t), max(dq$s10t), length.out = 100)
@@ -198,9 +198,9 @@ p8 <- ggplot(dq, aes(s10t, fluxL_umolm2sec)) +
   geom_text(data = qlab, aes(x = -Inf, y = Inf, label = lab), parse = TRUE, hjust = -0.05, vjust = 1.3, size = 2.5) +
   facet_wrap(~method_label) + scale_colour_manual(values = pal, guide = "none") +
   labs(x = "Soil temperature at 10 cm, HF001 (\u00b0C)", y = flux_lab)
-save_fig(p8, "Fig5_temperature_response", 140, 70)
+save_fig(p8, "Fig6_temperature_response", 140, 70)
 
-# ---- Fig 6: spatial heterogeneity and sampling effort ---------------------------------------
+# ---- Fig 7: spatial heterogeneity and sampling effort ---------------------------------------
 lz <- d %>% group_by(hour_of_obs) %>%
   filter(sum(method == "autochamber") >= 12 & sum(method == "fluxbot") >= 12) %>% ungroup() %>%
   group_by(method, id) %>% summarise(mf = mean(fluxL_umolm2sec), .groups = "drop") %>%
@@ -224,8 +224,8 @@ p9b <- ggplot(eff %>% filter(n >= 2), aes(n, 100 * analytic, colour = method, li
   scale_y_continuous(limits = c(0, 60), oob = squish) +
   labs(x = "Number of chambers", y = "95% CI half-width of stand mean (% of mean)") +
   theme(legend.position = c(0.72, 0.78), legend.spacing.y = unit(0, "mm"))
-save_fig(p9a + p9b + plot_annotation(tag_levels = "a"), "Fig6_heterogeneity_effort", 190, 85)
+save_fig(p9a + p9b + plot_annotation(tag_levels = "a"), "Fig7_heterogeneity_effort", 190, 85)
 
-# Fig 7 (measurement flow) is drawn by 11_filter_flow.R and Fig 8 (uptime and coverage) by 17_resilience.R
+# Fig 8 (measurement flow) is drawn by 11_filter_flow.R and Fig 9 (uptime and coverage) by 17_resilience.R
 
 cat("Figures written to", fig_dir, "\n")

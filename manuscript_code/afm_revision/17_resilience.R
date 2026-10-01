@@ -119,7 +119,7 @@ pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series))) +
   scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + labs(x = NULL, y = NULL) +
   theme_classic(base_size = 8) + theme(legend.position = "bottom", axis.line.y = element_blank(), axis.ticks.y = element_blank())
 fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc / pd) + plot_layout(heights = c(1, 0.9, 0.55)) + plot_annotation(tag_levels = "a")
-ggsave(file.path(out_dir, "figures", "Fig8_uptime_coverage.pdf"), fig, width = 190, height = 175, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "Fig8_uptime_coverage.tif"), fig, width = 190, height = 175, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
-ggsave(file.path(out_dir, "figures", "Fig8_uptime_coverage.png"), fig, width = 190, height = 175, units = "mm", dpi = 300, device = ragg::agg_png)
+ggsave(file.path(out_dir, "figures", "Fig9_uptime_coverage.pdf"), fig, width = 190, height = 175, units = "mm", device = cairo_pdf)
+ggsave(file.path(out_dir, "figures", "Fig9_uptime_coverage.tif"), fig, width = 190, height = 175, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
+ggsave(file.path(out_dir, "figures", "Fig9_uptime_coverage.png"), fig, width = 190, height = 175, units = "mm", dpi = 300, device = ragg::agg_png)
 write_numbers("numbers_resilience.csv")

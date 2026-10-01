@@ -114,7 +114,7 @@ pflow <- ggplot() +
   annotate("text", x = c(1, 3.2, 5.3), y = 4.65, label = c("Fluxbot 2.0 (16 units)", "Autochamber (12 chambers)", "Agreement (array means)"),
            fontface = "bold", size = 2.6) +
   scale_x_continuous(limits = c(0.4, 6.1)) + scale_y_continuous(limits = c(-0.4, 4.8)) + theme_void()
-ggsave(file.path(out_dir, "figures", "Fig7_measurement_flow.pdf"), pflow, width = 190, height = 120, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "Fig7_measurement_flow.tif"), pflow, width = 190, height = 120, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
-ggsave(file.path(out_dir, "figures", "Fig7_measurement_flow.png"), pflow, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
+ggsave(file.path(out_dir, "figures", "Fig8_measurement_flow.pdf"), pflow, width = 190, height = 120, units = "mm", device = cairo_pdf)
+ggsave(file.path(out_dir, "figures", "Fig8_measurement_flow.tif"), pflow, width = 190, height = 120, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
+ggsave(file.path(out_dir, "figures", "Fig8_measurement_flow.png"), pflow, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
 write_numbers("numbers_filter_flow.csv")

@@ -1,3 +1,3 @@
 "dataset","fluxbot_closures","pct_of_intended","compared_hours","offset_pct","r_hourly","ccc_hourly","r_daily","ccc_daily","r_72h","nrmse_72h","budget_fluxbot","budget_autochamber","budget_ratio","budget_ratio_lo","budget_ratio_hi","sampling_bias_pct"
-"As deployed (main; all conditions)",6979,60.5815972222222,397,-7.456,0.5247,0.50248,0.6418,0.60702,0.74,13.943,70.512,78.604,0.89705,0.75508,1.0794,-0.42413
-"RH-screened (wet-sensor closures removed)",6307,54.7482638888889,345,-4.5593,0.56698,0.5585,0.73191,0.70391,0.78615,13.484,71.504,78.604,0.90967,0.74399,1.1319,-2.6273
+"As deployed (main; all conditions)",6815,59.1579861111111,361,-9.9357,0.70887,0.64619,0.82594,0.70517,0.90345,11.139,71.852,81.567,0.88089,0.74581,1.0588,-0.69362
+"RH-screened (wet-sensor closures removed)",6195,53.7760416666667,312,-8.4539,0.74931,0.70251,0.88004,0.77421,0.92277,10.619,72.434,81.567,0.88803,0.73085,1.1098,-2.0159

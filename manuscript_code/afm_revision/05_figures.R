@@ -35,31 +35,37 @@ nums <- read.csv(file.path(out_dir, "numbers_for_text.csv"))
 num <- function(k) nums$value[nums$key == k]
 
 # ---- Fig 2: time series and cumulative budgets ---------------------------------------------
-# (a) hourly stand means (points) and 24-h centred rolling means (lines) of each array, as
-#     deployed; ticks mark hours when at least half of the stand's recording Fluxbots were wet
+# blue ticks mark hours when at least half of the stand's recording Fluxbots were wet
 # (b) soil temperature (HF001, 10 cm) and hourly precipitation
 # (c) cumulative CO2-C from 2 Oct, gap-filled per stand (s10t + time-of-day GAM, as in
 #     12_scales_budget.R), mean of the two stands; bands = chamber-bootstrap 95% intervals
 p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-11-01", tz = "America/New_York")
-sh <- d %>% group_by(stand_label, method, hour_of_obs) %>% summarise(f = mean(fluxL_umolm2sec), n = n(), .groups = "drop") %>% filter(n >= 3)
-roll <- sh %>% group_by(stand_label, method) %>%
-  complete(hour_of_obs = seq(p0, p1 - 3600, by = "hour")) %>% arrange(hour_of_obs, .by_group = TRUE) %>%
+# (a) individual chamber fluxes (points) by system (rows) and stand (columns); thick line = this
+#     system's 24-h centred rolling mean of stand means; thin dashed line = the other system's
+dd2 <- d %>% filter(hour_of_obs >= p0, hour_of_obs < p1)
+roll <- dd2 %>% group_by(stand_label, method, hour_of_obs) %>% summarise(f = mean(fluxL_umolm2sec), n = n(), .groups = "drop") %>% filter(n >= 3) %>%
+  group_by(stand_label, method) %>% complete(hour_of_obs = seq(p0, p1 - 3600, by = "hour")) %>% arrange(hour_of_obs, .by_group = TRUE) %>%
   mutate(r = rollapply(f, 24, function(x) if (sum(!is.na(x)) >= 12) mean(x, na.rm = TRUE) else NA, fill = NA, align = "center")) %>% ungroup()
+own <- roll %>% mutate(method_label = factor(lab_sys[as.character(method)], levels = lab_sys))
+other <- roll %>% mutate(method_label = factor(lab_sys[if_else(method == "fluxbot", "autochamber", "fluxbot")], levels = lab_sys))
 wet_h <- load_fluxbot() %>% filter(!lid_fail) %>% group_by(stand, hour_of_obs) %>% summarise(w = mean(wet), .groups = "drop") %>%
-  filter(w >= 0.5) %>% mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"))
-p2a <- ggplot(sh, aes(hour_of_obs, f, colour = method)) +
-  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = "#4575B4", alpha = 0.6, length = unit(1.5, "mm")) +
-  geom_point(size = 0.4, alpha = 0.35, stroke = 0) + geom_line(data = roll, aes(y = r), linewidth = 0.6, na.rm = TRUE) +
-  facet_wrap(~ stand_label, ncol = 1) + scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
-  scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b") + labs(x = NULL, y = flux_lab) +
-  theme(legend.position = "top")
+  filter(w >= 0.5, hour_of_obs >= p0, hour_of_obs < p1) %>%
+  mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"), method_label = factor(lab_sys["fluxbot"], levels = lab_sys))
+xs2 <- scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b", date_breaks = "1 week", expand = c(0.01, 0))
+p2a <- ggplot(dd2, aes(hour_of_obs, fluxL_umolm2sec)) +
+  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = "#4575B4", alpha = 0.7, length = unit(2, "mm")) +
+  geom_point(aes(colour = method), size = 0.55, alpha = 0.45, stroke = 0) +
+  geom_line(data = other, aes(y = r), colour = "grey20", linewidth = 0.35, linetype = "22", na.rm = TRUE) +
+  geom_line(data = own, aes(y = r), colour = "black", linewidth = 0.8, na.rm = TRUE) +
+  facet_grid(method_label ~ stand_label) + scale_colour_manual(values = pal, guide = "none") +
+  coord_cartesian(ylim = c(0, 7)) + xs2 + labs(x = NULL, y = flux_lab)
 metp <- met %>% mutate(hr = floor_date(with_tz(Time, "America/New_York"), "hour")) %>% group_by(hr) %>%
   summarise(s10t = mean(s10t), prec = sum(prec), .groups = "drop") %>% filter(hr >= p0, hr < p1)
 sc <- max(metp$prec, na.rm = TRUE) / 20
 p2b <- ggplot(metp, aes(hr)) + geom_col(aes(y = prec / sc), fill = "#4575B4", alpha = 0.6, width = 3600) +
   geom_line(aes(y = s10t), linewidth = 0.4) +
-  scale_y_continuous(name = "Soil temp. 10 cm (\u00b0C)", sec.axis = sec_axis(~ . * sc, name = "Precip. (mm h-1)")) +
-  scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b") + labs(x = NULL)
+  scale_y_continuous(name = expression(Soil ~ T ~ (degree * C)), sec.axis = sec_axis(~ . * sc, name = expression(Rain ~ (mm ~ h^-1)))) +
+  xs2 + labs(x = NULL)
 gf_series <- function(x) {   # x: chamber-level rows of one system; hourly gap-filled flux, mean of stands
   s <- x %>% group_by(stand, hour_of_obs, id) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
     group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(f), .groups = "drop") %>%
@@ -89,22 +95,26 @@ p2c <- ggplot(cum, aes(hour_of_obs, cum, colour = series, fill = series, linetyp
   geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, colour = NA, na.rm = TRUE) + geom_line(linewidth = 0.6) +
   scale_colour_manual(values = cpal, name = NULL) + scale_fill_manual(values = cpal, name = NULL) +
   scale_linetype_manual(values = c("Autochamber" = "solid", "Fluxbot 2.0, as deployed" = "solid", "Fluxbot 2.0, RH-screened" = "22"), name = NULL) +
-  scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b") +
-  labs(x = NULL, y = expression("Cumulative CO"[2]*"-C (g C m"^-2*")")) + theme(legend.position = c(0.25, 0.8))
-save_fig(p2a / p2b / p2c + plot_layout(heights = c(2.4, 0.9, 1.3)) + plot_annotation(tag_levels = "a"),
-         "Fig2_timeseries", 190, 200)
+  xs2 + labs(x = NULL, y = expression("Cumulative C (g m"^-2*")")) +
+  theme(legend.position = c(0.22, 0.78), legend.key.height = unit(3, "mm"))
+save_fig(p2a / p2b / p2c + plot_layout(heights = c(3.4, 0.7, 1.2)) + plot_annotation(tag_levels = "a"),
+         "Fig2_timeseries", 190, 210)
 
 # ---- Fig 3: chamber-level distributions ----------------------------------------------
-ord <- d %>% group_by(id) %>% summarise(m = mean(fluxL_umolm2sec)) %>% arrange(m)
-p3 <- ggplot(d %>% mutate(id = factor(id, levels = ord$id)),
-             aes(fluxL_umolm2sec, id)) +
-  geom_jitter(aes(colour = method), height = 0.2, size = 0.2, alpha = 0.2, stroke = 0) +
+# four arrays (system x stand); chambers ordered by mean flux within each array
+d3 <- d %>% mutate(array = factor(paste0(lab_sys[as.character(method)], ", ", stand_label),
+                                  levels = c("Autochamber, Stand 1", "Autochamber, Stand 2", "Fluxbot 2.0, Stand 1", "Fluxbot 2.0, Stand 2")),
+                   unit = sub("^(autochamber|fluxbot|fluxes_bot)", "", as.character(id)))
+ord <- d3 %>% group_by(array, unit) %>% summarise(m = mean(fluxL_umolm2sec), .groups = "drop") %>% arrange(array, m) %>% mutate(key = paste(array, unit))
+d3 <- d3 %>% mutate(key = factor(paste(array, unit), levels = ord$key))
+p3 <- ggplot(d3, aes(fluxL_umolm2sec, key)) +
+  geom_jitter(aes(colour = method), height = 0.2, size = 0.25, alpha = 0.25, stroke = 0) +
   geom_boxplot(outliers = FALSE, fill = NA, linewidth = 0.3, width = 0.6) +
-  facet_wrap(~stand_label, scales = "free_y") +
-  scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
-  guides(colour = guide_legend(override.aes = list(size = 1.5, alpha = 1))) +
-  labs(x = flux_lab, y = NULL) + theme(legend.position = "bottom")
-save_fig(p3, "Fig3_chamber_distributions", 140, 120)
+  facet_wrap(~ array, scales = "free_y", ncol = 2) +
+  scale_y_discrete(labels = function(k) sub(".* ", "", k)) +
+  scale_colour_manual(values = pal, guide = "none") + coord_cartesian(xlim = c(0, 7.5)) +
+  labs(x = flux_lab, y = "Chamber or unit")
+save_fig(p3, "Fig3_chamber_distributions", 140, 130)
 
 # ---- SI: GAM observed vs fitted -----------------------------------------------------
 g <- readRDS(file.path(out_dir, "gam_re.rds"))
@@ -134,38 +144,52 @@ p5 <- ggplot(d5, aes(fluxL_umolm2sec, fill = method, colour = method)) +
 save_fig(p5, "FigS_flux_distributions", 90, 70)
 
 # ---- Fig 4: array-level agreement --------------------------------------------------------
-# hourly array means (mean of the two stand means) in compared hours (>= 3 units of each system
-# per stand), as deployed; filled points = hours also in the RH-screened comparison, open = hours
-# present only as deployed (wet sensors). Large points: daily means (days with >= 12 compared hours).
-# (b) Bland-Altman: difference vs mean, with mean difference and 95% limits of agreement.
+# hourly array means (mean of the two stand means) in compared hours (>= 3 units of each system per
+# stand), as deployed. Grey: hours that are also in the RH-screened comparison (dry sensors); blue:
+# hours present only as deployed (wet sensors). Outlined points: daily means (>= 12 compared hours).
+# (b) Bland-Altman plot of the same hourly means: mean difference and 95% limits of agreement.
 arr <- function(dd) { hrs <- matched_hours(dd, 3)
   dd %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
     group_by(hour_of_obs, method) %>% summarise(f = mean(f), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f) }
 hd <- arr(d); hs <- arr(d_scr)
-hd <- hd %>% mutate(subset = if_else(hour_of_obs %in% hs$hour_of_obs, "also RH-screened", "as deployed only"))
+hd <- hd %>% mutate(subset = if_else(hour_of_obs %in% hs$hour_of_obs, "Hourly, dry sensors", "Hourly, wet sensors"))
 dy <- hd %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>%
   summarise(autochamber = mean(autochamber), fluxbot = mean(fluxbot))
-lim <- range(c(hd$autochamber, hd$fluxbot)); lim <- c(floor(lim[1] * 2) / 2, ceiling(lim[2] * 2) / 2)
+stt <- function(a, f) c(sprintf("%.2f", cor(a, f)), sprintf("%+.0f%%", 100 * (mean(f) / mean(a) - 1)), sprintf("%.2f", epiR::epi.ccc(a, f)$rho.c$est))
+tabd <- rbind(stt(hd$autochamber, hd$fluxbot), stt(hs$autochamber, hs$fluxbot), stt(dy$autochamber, dy$fluxbot))
+dimnames(tabd) <- list(c("Hourly, as deployed", "Hourly, RH-screened", "Daily, as deployed"), c("r", "Offset", "CCC"))
+tg <- gridExtra::tableGrob(tabd, theme = gridExtra::ttheme_minimal(base_size = 6.5, padding = unit(c(3, 1.6), "mm"),
+        core = list(fg_params = list(hjust = 1, x = 0.9)), rowhead = list(fg_params = list(hjust = 0, x = 0.05, fontface = "plain")),
+        colhead = list(fg_params = list(fontface = "bold"))))
+cols4 <- c("Hourly, dry sensors" = "grey45", "Hourly, wet sensors" = "#4575B4")
 sma_b <- sign(cor(hd$autochamber, hd$fluxbot)) * sd(hd$fluxbot) / sd(hd$autochamber); sma_a <- mean(hd$fluxbot) - sma_b * mean(hd$autochamber)
-st <- function(x) sprintf("%s: r = %.2f, offset = %+.0f%%, CCC = %.2f", x$lab, cor(x$a, x$f), 100 * (mean(x$f) / mean(x$a) - 1), epiR::epi.ccc(x$a, x$f)$rho.c$est)
-lab3 <- paste(st(list(lab = "Hourly, as deployed", a = hd$autochamber, f = hd$fluxbot)),
-              st(list(lab = "Hourly, RH-screened", a = hs$autochamber, f = hs$fluxbot)),
-              st(list(lab = "Daily, as deployed", a = dy$autochamber, f = dy$fluxbot)), sep = "\n")
-p3a <- ggplot(hd, aes(autochamber, fluxbot)) + geom_abline(linetype = "dashed") +
-  geom_point(aes(shape = subset), size = 0.9, alpha = 0.6) + scale_shape_manual(values = c("also RH-screened" = 16, "as deployed only" = 1), name = "Hourly means") +
-  geom_point(data = dy, size = 2.2, colour = "#B2182B") +
-  geom_abline(intercept = sma_a, slope = sma_b, colour = "#2F5D9E", linewidth = 0.6) +
-  annotate("text", x = lim[1], y = lim[2], hjust = 0, vjust = 1, size = 2.1, label = lab3, lineheight = 0.95) +
-  coord_equal(xlim = lim, ylim = lim) + theme(legend.position = "bottom") +
-  labs(x = expression(Autochamber ~ array ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot ~ array ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)))
-ba <- bind_rows(hd %>% mutate(ds = "As deployed"), hs %>% mutate(ds = "RH-screened")) %>% mutate(m = (autochamber + fluxbot) / 2, df = fluxbot - autochamber)
-bal <- ba %>% group_by(ds) %>% summarise(mu = mean(df), lo = mu - 1.96 * sd(df), hi = mu + 1.96 * sd(df), .groups = "drop")
-p3b <- ggplot(ba, aes(m, df)) + geom_hline(yintercept = 0, colour = "grey60") +
-  geom_point(size = 0.7, alpha = 0.5) + geom_hline(data = bal, aes(yintercept = mu), colour = "#2F5D9E") +
-  geom_hline(data = bal, aes(yintercept = lo), linetype = "22", colour = "#2F5D9E") + geom_hline(data = bal, aes(yintercept = hi), linetype = "22", colour = "#2F5D9E") +
-  geom_text(data = bal, aes(x = Inf, y = hi, label = sprintf("mean %.2f\n95%% LoA %.2f to %.2f", mu, lo, hi)), hjust = 1.05, vjust = -0.3, size = 2.1, inherit.aes = FALSE) +
-  facet_wrap(~ ds, ncol = 1) + labs(x = expression(Mean ~ of ~ systems ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot - autochamber ~ (mu * mol ~ m^-2 ~ s^-1)))
-save_fig(p3a + p3b + plot_layout(widths = c(1.3, 1)) + plot_annotation(tag_levels = "a"), "Fig4_array_agreement", 190, 105)
+lim <- c(0.8, 5)
+lgd <- theme(legend.position = c(0.02, 0.98), legend.justification = c(0, 1), legend.title = element_blank(),
+             legend.background = element_rect(fill = alpha("white", 0.8), colour = NA), legend.key.size = unit(3, "mm"),
+             legend.spacing.y = unit(0, "mm"), legend.margin = margin(1, 2, 1, 2))
+p4a <- ggplot(hd, aes(autochamber, fluxbot)) +
+  geom_abline(aes(intercept = 0, slope = 1, linetype = "1:1"), colour = "grey30", linewidth = 0.4) +
+  geom_abline(aes(intercept = sma_a, slope = sma_b, linetype = "SMA fit"), colour = "black", linewidth = 0.5) +
+  geom_point(aes(colour = subset), size = 0.9, alpha = 0.6, stroke = 0) +
+  geom_point(data = dy, aes(fill = "Daily means"), shape = 21, size = 2.1, colour = "black", stroke = 0.35) +
+  scale_colour_manual(values = cols4) + scale_fill_manual(values = c("Daily means" = "#F4A582")) +
+  scale_linetype_manual(values = c("1:1" = "22", "SMA fit" = "solid")) +
+  guides(colour = guide_legend(order = 1, override.aes = list(size = 2, alpha = 1)), fill = guide_legend(order = 2), linetype = guide_legend(order = 3)) +
+  coord_equal(xlim = lim, ylim = lim, expand = FALSE) + lgd +
+  labs(x = expression(Autochamber ~ array ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot ~ array ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)), tag = "a") +
+  inset_element(tg, left = 0.5, bottom = 0.02, right = 0.99, top = 0.28, align_to = "panel", ignore_tag = TRUE)
+ba <- hd %>% mutate(m = (autochamber + fluxbot) / 2, df = fluxbot - autochamber)
+mu <- mean(ba$df); lo <- mu - 1.96 * sd(ba$df); hi <- mu + 1.96 * sd(ba$df)
+p4b <- ggplot(ba, aes(m, df)) + geom_hline(yintercept = 0, colour = "grey75") +
+  geom_point(aes(colour = subset), size = 0.9, alpha = 0.6, stroke = 0) +
+  geom_hline(aes(yintercept = mu, linetype = "Mean difference"), linewidth = 0.5) +
+  geom_hline(aes(yintercept = lo, linetype = "95% limits of agreement"), linewidth = 0.4) + geom_hline(aes(yintercept = hi, linetype = "95% limits of agreement"), linewidth = 0.4) +
+  annotate("text", x = 4.6, y = c(mu, lo, hi), label = sprintf("%.2f", c(mu, lo, hi)), hjust = 1, vjust = -0.4, size = 2.3) +
+  scale_colour_manual(values = cols4) + scale_linetype_manual(values = c("Mean difference" = "solid", "95% limits of agreement" = "22"), breaks = c("Mean difference", "95% limits of agreement")) +
+  guides(colour = guide_legend(order = 1, override.aes = list(size = 2, alpha = 1)), linetype = guide_legend(order = 2)) +
+  coord_cartesian(xlim = c(1, 4.6), ylim = c(-2.1, 2.3)) + lgd +
+  labs(x = expression(Mean ~ of ~ the ~ two ~ systems ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot - autochamber ~ (mu * mol ~ m^-2 ~ s^-1)), tag = "b")
+save_fig((p4a | p4b), "Fig4_array_agreement", 190, 100)
 
 # ---- Fig 5: diel pattern (common stand-hours) --------------------------------------------
 diel <- read.csv(file.path(out_dir, "diel_common_window.csv"))

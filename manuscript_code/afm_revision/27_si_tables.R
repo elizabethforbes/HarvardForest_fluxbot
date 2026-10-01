@@ -14,7 +14,7 @@ acc <- rd("measurement_accounting.csv") %>%
             Stage = recode(stage, intended = "Intended", recorded = "Recorded", valid = "Valid", retained = "Retained (as deployed)", `RH-screened` = "RH-screened subset"),
             Closures = n, `% of intended` = r2(pct_of_intended, 1), `Removed at this step` = lost,
             Reason = recode(stage, intended = "", recorded = "no data (logger, power or transmission down)",
-                            valid = "too few records, or chamber failure (CO2 decline, no accumulation, stuck lid)",
+                            valid = "too few records, or chamber failure (CO2 decline, no or poor accumulation, stuck lid)",
                             retained = "spike (> 5 MAD from chamber median)", `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)"))
 w(acc, "TableS_accounting.csv")
 

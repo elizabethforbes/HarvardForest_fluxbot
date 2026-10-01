@@ -5,10 +5,10 @@ Number of units: 16
 Deployment period: October 02 - October 31, 2023 ( 30 days)
 Potential measurements: 11,520 
 Collected measurements: 8,333 
-Retained after QC: 6,951 
+Retained after QC: 6,790 
 Collection rate: 72.3 %
-QC retention rate: 83.4 %
-Overall success rate: 60.3 %
+QC retention rate: 81.5 %
+Overall success rate: 58.9 %
 
 =============================================================================
 AUTOCHAMBER SYSTEM STATISTICS (October 2-31, 2023)
@@ -17,18 +17,18 @@ Number of units: 12
 Deployment period: October 02 - October 31, 2023 ( 30 days)
 Potential measurements: 17,280 
 Collected measurements: 14,251 
-Retained after QC: 13,517 
+Retained after QC: 13,310 
 Collection rate: 82.5 %
-QC retention rate: 94.8 %
-Overall success rate: 78.2 %
+QC retention rate: 93.4 %
+Overall success rate: 77 %
 
 =============================================================================
 COMPARATIVE SUMMARY (October 2-31, 2023)
 =============================================================================
 System | Units | Days | Potential | Collected | Retained | Collection% | Retention% | Overall%
 -------|-------|------|-----------|-----------|----------|-------------|------------|----------
-Fluxbot| 16    | 30   | 11,520    | 8,333     | 6,951    | 72.3        | 83.4       | 60.3
-AutoCh | 12    | 30   | 17,280    | 14,251    | 13,517   | 82.5        | 94.8       | 78.2
+Fluxbot| 16    | 30   | 11,520    | 8,333     | 6,790    | 72.3        | 81.5       | 58.9
+AutoCh | 12    | 30   | 17,280    | 14,251    | 13,310   | 82.5        | 93.4       | 77.0
 
 =============================================================================
 RAW NUMBERS FOR PARAGRAPH WRITING (October 2-31, 2023)
@@ -39,20 +39,20 @@ Units: 16
 Days: 30 
 Potential: 11520 
 Collected: 8333 
-Retained: 6951 
+Retained: 6790 
 Collection rate: 72.3 
-Retention rate: 83.4 
-Overall success: 60.3 
+Retention rate: 81.5 
+Overall success: 58.9 
 
 AUTOCHAMBER NUMBERS:
 Units: 12 
 Days: 30 
 Potential: 17280 
 Collected: 14251 
-Retained: 13517 
+Retained: 13310 
 Collection rate: 82.5 
-Retention rate: 94.8 
-Overall success: 78.2 
+Retention rate: 93.4 
+Overall success: 77 
 =============================================================================
 PLOT COVERAGE ANALYSIS: INCLUDING DOWNTIME (October 2-31, 2023)
 =============================================================================

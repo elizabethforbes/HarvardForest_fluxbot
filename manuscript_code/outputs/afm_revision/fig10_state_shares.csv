@@ -1,14 +1,14 @@
 "series","state","n","pct"
-"Autochamber Stand 1",">= 3 units",524,72.7777777777778
-"Autochamber Stand 1","1-2 units",11,1.52777777777778
-"Autochamber Stand 1","no data (down)",185,25.6944444444444
+"Autochamber Stand 1",">= 3 units",491,68.1944444444444
+"Autochamber Stand 1","1-2 units",23,3.19444444444444
+"Autochamber Stand 1","no data (down)",206,28.6111111111111
 "Autochamber Stand 2",">= 3 units",644,89.4444444444444
 "Autochamber Stand 2","1-2 units",1,0.138888888888889
 "Autochamber Stand 2","measured, removed by QC",2,0.277777777777778
 "Autochamber Stand 2","no data (down)",73,10.1388888888889
-"Fluxbot 2.0 Stand 1",">= 3 units",661,91.8055555555556
-"Fluxbot 2.0 Stand 1","1-2 units",34,4.72222222222222
+"Fluxbot 2.0 Stand 1",">= 3 units",650,90.2777777777778
+"Fluxbot 2.0 Stand 1","1-2 units",45,6.25
 "Fluxbot 2.0 Stand 1","no data (down)",25,3.47222222222222
-"Fluxbot 2.0 Stand 2",">= 3 units",560,77.7777777777778
-"Fluxbot 2.0 Stand 2","1-2 units",69,9.58333333333333
-"Fluxbot 2.0 Stand 2","no data (down)",91,12.6388888888889
+"Fluxbot 2.0 Stand 2",">= 3 units",553,76.8055555555556
+"Fluxbot 2.0 Stand 2","1-2 units",75,10.4166666666667
+"Fluxbot 2.0 Stand 2","no data (down)",92,12.7777777777778

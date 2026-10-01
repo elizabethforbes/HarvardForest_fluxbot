@@ -1,5 +1,5 @@
 "System","Stand","Units","Mean unit success (%)","Hours with >= 1 unit (%)","Hours with >= 3 units (%)","Longest outage (h)","Hours < 3 units, observed (%)","... expected if independent (%)"
-"fluxbot","healthy",8,65.9,96.5,91.8,25,8.2,1.2
-"fluxbot","unhealthy",8,55.3,87.4,77.8,47,22.2,6.5
-"autochamber","healthy",6,70.5,74.3,72.8,164,27.2,6.6
+"fluxbot","healthy",8,64.3,96.5,90.3,25,9.7,1.7
+"fluxbot","unhealthy",8,54,87.2,76.8,47,23.2,7.7
+"autochamber","healthy",6,67.2,71.4,68.2,164,31.8,9.4
 "autochamber","unhealthy",6,89.3,89.6,89.4,26,10.6,0.2

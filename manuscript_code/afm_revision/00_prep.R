@@ -62,6 +62,9 @@ load_reprocessed <- function(system, flux_col) {
            # umol m-2 s-1 a sealed chamber always accumulates CO2, so this is a chamber that did not
            # seal (lid not closing; e.g. the stand-1 autochamber pneumatics on 5 and 25-30 Oct)
            no_accum = grepl("p-value", quality.check),
+           # poor linear fit (R2 < 0.5): a sealed chamber at these fluxes accumulates CO2 almost
+           # linearly (median R2 0.99); weak, noisy accumulation means a leaking or failing chamber
+           poor_fit = !is.na(LM.r2) & LM.r2 < 0.5,
            wet = if ("wet" %in% names(.)) as.logical(wet) else FALSE,
            # lid stuck shut (headspace not venting; flagged in 10_fluxes.R): also a chamber failure
            lid_fail = if ("lid_fail" %in% names(.)) as.logical(lid_fail) else FALSE) %>%
@@ -100,7 +103,7 @@ load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
 # Two nested datasets are compared with the autochambers throughout:
 # qc = "deployed" : MAIN ("as deployed", all conditions). Drop closures goFlux flags as too
 #                   short (nb.obs) and chamber failures: a statistically significant CO2 decline, no
-#                   significant CO2 accumulation (chamber not sealed), or a stuck lid (open-lid CO2
+#                   significant CO2 accumulation or a poor linear fit (R2 < 0.5; chamber not sealed), or a stuck lid (open-lid CO2
 #                   > 500 ppm above the other units through a saturated episode; 10_fluxes.R). Then
 #                   per-chamber robust fences (median +/- 5 MAD) remove isolated spikes. Wet-sensor
 #                   closures are kept. No value-based trimming of the pooled data.
@@ -121,7 +124,8 @@ apply_qc <- function(d, qc = c("deployed", "screened", "iqr", "none", "mad", "co
   if (!"lid_fail" %in% names(d)) d$lid_fail <- FALSE
   if (!"wet" %in% names(d)) d$wet <- FALSE
   if (!"no_accum" %in% names(d)) d$no_accum <- FALSE
-  if ("decline" %in% names(d)) d$decline <- d$decline | d$no_accum | d$lid_fail  # chamber failures: CO2 decline, no accumulation, or stuck lid
+  if (!"poor_fit" %in% names(d)) d$poor_fit <- FALSE
+  if ("decline" %in% names(d)) d$decline <- d$decline | d$no_accum | d$poor_fit | d$lid_fail  # chamber failures
   if (qc == "valid") return(d[!d$short & !d$decline, ])            # chamber failures removed
   if (qc == "dry") return(d[!d$short & !d$decline & !d$wet, ])     # valid minus wet-sensor closures
   if (qc %in% c("deployed", "screened")) {

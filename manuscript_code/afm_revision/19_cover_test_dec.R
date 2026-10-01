@@ -41,7 +41,8 @@ record("cover_lgr_h2o_median_wet_ppm", median(grid$h2o[grid$time >= at("16:40:00
 err <- kall %>% group_by(sensor) %>% summarise(pct = 100 * mean(co2 >= 65533))
 for (i in seq_len(nrow(err))) record(paste0("cover_errors_pct_", err$sensor[i]), err$pct[i], "cover_dec", "% readings = error code, whole run")
 
-# response fits per sensor and phase (the steady phase has too little variation for tau)
+# response fits per sensor and phase (the steady phase has too little variation for tau; in the
+# bare-spray phase only the uncovered sensors still record)
 fo_filter <- function(x, tau) if (tau == 0) x else { a <- 1 - exp(-1 / tau); as.numeric(stats::filter(a * x, 1 - a, method = "recursive", init = x[1])) }
 fgrid <- lapply(setNames(nm = c(0, 5, 10, 15, 20, 30, 40, 50, 60, 75, 90, 120, 150)), function(tau) fo_filter(grid$co2, as.numeric(tau)))
 fit_resp <- function(s, p) {
@@ -55,7 +56,7 @@ fit_resp <- function(s, p) {
   }
   as_tibble(best) %>% mutate(sensor = s, phase = phases$phase[p])
 }
-fits <- bind_rows(lapply(unique(k$sensor), function(s) bind_rows(lapply(2:5, function(p) fit_resp(s, p))))) %>%
+fits <- bind_rows(lapply(unique(k$sensor), function(s) bind_rows(lapply(2:6, function(p) fit_resp(s, p))))) %>%
   mutate(group = if_else(substr(sensor, 1, 1) == "t", "Covered", "Uncovered"))
 write.csv(fits, file.path(out_dir, "cover_test_dec_response_fits.csv"), row.names = FALSE)
 print(fits, n = 50)
@@ -77,23 +78,42 @@ write.csv(off, file.path(out_dir, "cover_test_dec_offsets.csv"), row.names = FAL
 for (i in seq_len(nrow(off))) { tag <- gsub("[^a-z]", "", tolower(off$phase[i]))
   for (v in c("diff_median", "cov_minus_lgr", "unc_minus_lgr", "n")) record(paste0("cover_offset_", tag, "_", v), off[[v]][i], "cover_dec", "quiescent periods (LGR range < 15 ppm over 61 s)") }
 
-# figure: a, full record with phases; b, covered - uncovered; c, LGR water vapour
-shade <- geom_rect(data = phases[-1, ], aes(xmin = t0, xmax = t1, ymin = -Inf, ymax = Inf, fill = phase), inherit.aes = FALSE, alpha = 0.25)
-fill_ph <- scale_fill_manual(values = c("Dry, steady" = "grey85", "Dry PTFE" = "#FEE090", "Wet PTFE" = "#4575B4", "Dry bracket" = "#FDAE61", "Wet bracket" = "#74ADD1", "Bare K30s sprayed" = "#D73027"), breaks = levels(phases$phase)[-1], name = NULL)
-xs <- scale_x_datetime(date_breaks = "15 min", date_labels = "%H:%M", limits = at(c("15:35:00", "18:32:00")), expand = c(0, 0))
-pal <- c("LGR (reference)" = "black", "Uncovered K30" = "#E08214", "Covered K30" = "#2C7BB6")
-pd <- bind_rows(k %>% transmute(time, co2, sensor, series = paste(group, "K30")),
-                grid %>% filter(!is.na(co2)) %>% transmute(time, co2, sensor = "LGR", series = "LGR (reference)"))
-pa <- ggplot(pd, aes(time, co2, colour = series)) + shade + fill_ph +
-  geom_line(data = ~ filter(.x, series == "LGR (reference)"), linewidth = 0.35) +
-  geom_point(data = ~ filter(.x, series != "LGR (reference)"), size = 0.35, alpha = 0.7) +
-  scale_colour_manual(values = pal, name = NULL) + coord_cartesian(ylim = c(420, 1650)) + xs +
-  labs(x = NULL, y = expression(CO[2] ~ (ppm))) + theme_classic(base_size = 8)
-pb <- ggplot(kd, aes(t6, diff)) + shade + fill_ph + geom_hline(yintercept = 0, colour = "grey40") + geom_point(size = 0.3) +
-  coord_cartesian(ylim = c(-130, 130)) + xs + labs(x = NULL, y = "Covered − uncovered (ppm)") + theme_classic(base_size = 8)
-pc <- ggplot(grid %>% filter(!is.na(h2o)), aes(time, h2o / 1000)) + shade + fill_ph + geom_line(linewidth = 0.3) + xs +
-  labs(x = "Time (13 Dec 2023)", y = expression(H[2]*O ~ (ppt))) + theme_classic(base_size = 8)
-pfig <- pa / pb / pc + plot_layout(heights = c(3, 1.4, 1), guides = "collect") + plot_annotation(tag_levels = "a") & theme(legend.position = "bottom")
-ggsave(file.path(out_dir, "figures", "FigS_cover_test_dec.pdf"), pfig, width = 190, height = 170, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "FigS_cover_test_dec.png"), pfig, width = 190, height = 170, units = "mm", dpi = 300, device = ragg::agg_png)
+# figure: a, whole run (overview); b, treatment phases, each sensor; c, covered - uncovered (group means);
+# d, LGR water vapour. Phase names are printed on the shading.
+ph_fill <- c("Dry, steady" = "grey92", "Dry PTFE" = "#FEE090", "Wet PTFE" = "#4575B4", "Dry bracket" = "#FDAE61",
+             "Wet bracket" = "#74ADD1", "Bare K30s sprayed" = "#D73027")
+shade <- function(ph = phases) geom_rect(data = ph, aes(xmin = t0, xmax = t1, ymin = -Inf, ymax = Inf, fill = phase), inherit.aes = FALSE, alpha = 0.22, show.legend = FALSE)
+ph_lab <- function(ph = phases[-1, ], size = 2.3) geom_text(data = ph, aes(x = t0 + (t1 - t0) / 2, y = Inf, label = phase), inherit.aes = FALSE, vjust = 1.4, size = size, colour = "grey20")
+fill_ph <- scale_fill_manual(values = ph_fill, guide = "none")
+sens_pal <- c(c1 = "#B35806", c2 = "#F1A340", c3 = "#FDB863", t1 = "#2166AC", t2 = "#67A9CF")
+sens_lab <- c(c1 = "c1 uncovered", c2 = "c2 uncovered", c3 = "c3 uncovered", t1 = "t1 covered", t2 = "t2 covered")
+win <- at(c("15:35:00", "18:32:00"))
+xs <- scale_x_datetime(date_breaks = "15 min", date_labels = "%H:%M", limits = win, expand = c(0, 0))
+th <- theme_classic(base_size = 8)
+ref <- geom_line(data = grid %>% filter(!is.na(co2)), aes(time, co2), inherit.aes = FALSE, linewidth = 0.3, colour = "black")
+pa <- ggplot(k, aes(time, co2, colour = sensor)) + shade() + fill_ph + ref +
+  annotate("rect", xmin = win[1], xmax = win[2], ymin = -Inf, ymax = Inf, fill = NA, colour = "grey40", linetype = "22") +
+  geom_point(size = 0.15, alpha = 0.6) + scale_colour_manual(values = sens_pal, labels = sens_lab, name = NULL) +
+  scale_x_datetime(date_breaks = "1 hour", date_labels = "%H:%M", expand = c(0.01, 0)) + coord_cartesian(ylim = c(420, 1650)) +
+  labs(x = NULL, y = expression(CO[2] ~ (ppm)), title = "Whole run; dashed box = panels b-d") + th + theme(plot.title = element_text(size = 7))
+pb <- ggplot(k, aes(time, co2, colour = sensor)) + shade() + fill_ph + ph_lab() + ref +
+  geom_point(size = 0.35, alpha = 0.75) + scale_colour_manual(values = sens_pal, labels = sens_lab, name = NULL) +
+  coord_cartesian(ylim = c(420, 1750)) + xs + labs(x = NULL, y = expression(CO[2] ~ (ppm))) + th
+pc <- ggplot(kd, aes(t6, diff)) + shade() + fill_ph + geom_hline(yintercept = 0, colour = "grey40") + geom_point(size = 0.3) +
+  coord_cartesian(ylim = c(-130, 130)) + xs + labs(x = NULL, y = "Covered - uncovered\n(ppm, group means)") + th
+pd2 <- ggplot(grid %>% filter(!is.na(h2o)), aes(time, h2o / 1000)) + shade() + fill_ph + geom_line(linewidth = 0.3) + xs +
+  labs(x = "Time (13 Dec 2023, K30 logger clock)", y = expression(LGR ~ H[2]*O ~ (ppt))) + th
+pfig <- pa / pb / pc / pd2 + plot_layout(heights = c(1.4, 3, 1.3, 1), guides = "collect") + plot_annotation(tag_levels = "a") &
+  theme(legend.position = "bottom") & guides(colour = guide_legend(override.aes = list(size = 2, alpha = 1), nrow = 1))
+ggsave(file.path(out_dir, "figures", "FigS_cover_test_dec.pdf"), pfig, width = 190, height = 210, units = "mm", device = cairo_pdf)
+ggsave(file.path(out_dir, "figures", "FigS_cover_test_dec.png"), pfig, width = 190, height = 210, units = "mm", dpi = 300, device = ragg::agg_png)
+
+# per-sensor status in the last phase (which sensors were affected by spraying)
+last <- kall %>% filter(time >= phases$t0[6] - 300) %>% group_by(sensor) %>%
+  summarise(last_valid = format(max(time[co2 < 65533]), "%H:%M:%S"), pct_err_after_1801 = 100 * mean(co2 >= 65533), .groups = "drop")
+print(last)
+jump <- k %>% filter(time >= phases$t0[6], time < phases$t1[6]) %>% mutate(x = approx(as.numeric(grid$time), grid$co2, xout = as.numeric(time))$y) %>%
+  group_by(sensor) %>% summarise(n = n(), rmse_vs_lgr = sqrt(mean((co2 - x - median(co2 - x, na.rm = TRUE))^2, na.rm = TRUE)))
+print(jump)
+for (i in seq_len(nrow(jump))) record(paste0("cover_spray_rmse_", jump$sensor[i]), jump$rmse_vs_lgr[i], "cover_dec", "bare-spray phase, offset-removed RMSE vs LGR")
 print(write_numbers("numbers_cover_dec.csv") %>% select(key, value), row.names = FALSE)

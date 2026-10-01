@@ -11,10 +11,11 @@ r2 <- function(x, k = 2) round(x, k)
 # S-accounting: measurement accounting
 acc <- rd("measurement_accounting.csv") %>%
   transmute(System = recode(system, fluxbot = "Fluxbot (16 units)", autochamber = "Autochamber (12 chambers)"),
-            Stage = recode(stage, intended = "Intended", recorded = "Recorded", valid = "Valid", retained = "Retained (as deployed)", `RH-screened` = "RH-screened subset"),
+            Stage = recode(stage, intended = "Intended", recorded = "Recorded", computed = "Flux computed", valid = "Valid", retained = "Retained (as deployed)", `RH-screened` = "RH-screened subset"),
             Closures = n, `% of intended` = r2(pct_of_intended, 1), `Removed at this step` = lost,
             Reason = recode(stage, intended = "", recorded = "no data (logger, power or transmission down)",
-                            valid = "too few records, or chamber failure (CO2 decline, no or poor accumulation, stuck lid)",
+                            computed = "too few records to fit a flux",
+                            valid = "failed fit or chamber check (no CO2 accumulation, CO2 decline, linear-fit R2 < 0.5, stuck lid)",
                             retained = "spike (> 5 MAD from chamber median)", `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)"))
 w(acc, "TableS_accounting.csv")
 

@@ -32,6 +32,6 @@ p9b <- ggplot(eff %>% filter(n >= 3), aes(n, 100 * analytic, colour = method, li
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_linetype_manual(values = c("solid", "22"), name = NULL) +
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
-  labs(x = "Number of chambers", y = "95% CI half-width of stand mean (% of mean)") +
+  labs(x = "Number of chambers per stand", y = "Uncertainty of stand mean (±%)") +
   theme(legend.position = c(0.72, 0.78), legend.spacing.y = unit(0, "mm"))
 save_fig(p9a + p9b + tags_afm(), "Fig7_heterogeneity_effort", 190, 85)

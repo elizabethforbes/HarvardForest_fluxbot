@@ -13,36 +13,34 @@ set.seed(20260930)
 met <- load_met()
 
 # ---- Fig 2: time series and cumulative budgets ---------------------------------------------
-# blue ticks mark hours when at least half of the stand's recording Fluxbots were wet
-# (b) soil temperature (HF001, 10 cm) and hourly precipitation
+# (b) air temperature (HF001) and hourly precipitation
 # (c) cumulative CO2-C from 2 Oct, gap-filled per stand (s10t + time-of-day GAM, as in
 #     2_analysis/09_scales_budget.R), mean of the two stands; bands = chamber-bootstrap 95% intervals
 p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-11-01", tz = "America/New_York")
 # (a) individual chamber fluxes (points) by system (rows) and stand (columns); thick line = this
-#     system's 24-h centred rolling mean of stand means; thin dashed line = the other system's
+#     system's 24-h centred rolling mean of stand means; thin dashed line = the other system's. Rolling
+#     means use only stand-hours in which both systems had >= 3 units, so the two lines compare like
+#     with like (using each system's own hours changes their correlation by < 0.01).
 dd2 <- d %>% filter(hour_of_obs >= p0, hour_of_obs < p1)
 roll <- dd2 %>% group_by(stand_label, method, hour_of_obs) %>% summarise(f = mean(fluxL_umolm2sec), n = n(), .groups = "drop") %>% filter(n >= 3) %>%
+  group_by(stand_label, hour_of_obs) %>% filter(n() == 2) %>%
   group_by(stand_label, method) %>% complete(hour_of_obs = seq(p0, p1 - 3600, by = "hour")) %>% arrange(hour_of_obs, .by_group = TRUE) %>%
   mutate(r = rollapply(f, 24, function(x) if (sum(!is.na(x)) >= 12) mean(x, na.rm = TRUE) else NA, fill = NA, align = "center")) %>% ungroup()
 own <- roll %>% mutate(method_label = factor(lab_sys[as.character(method)], levels = lab_sys))
 other <- roll %>% mutate(method_label = factor(lab_sys[if_else(method == "fluxbot", "autochamber", "fluxbot")], levels = lab_sys))
-wet_h <- load_fluxbot() %>% filter(!lid_fail) %>% group_by(stand, hour_of_obs) %>% summarise(w = mean(wet), .groups = "drop") %>%
-  filter(w >= 0.5, hour_of_obs >= p0, hour_of_obs < p1) %>%
-  mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"), method_label = factor(lab_sys["fluxbot"], levels = lab_sys))
 xs2 <- scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b", date_breaks = "1 week", expand = c(0.01, 0))
 p2a <- ggplot(dd2, aes(hour_of_obs, fluxL_umolm2sec)) +
-  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = col_wet, alpha = a_mean, length = unit(2, "mm")) +
   geom_point(aes(colour = method), size = pt_dense, alpha = a_dense, stroke = 0) +
   geom_line(data = other, aes(y = r), colour = "grey20", linewidth = lw_thin, linetype = "22", na.rm = TRUE) +
   geom_line(data = own, aes(y = r), colour = col_fit, linewidth = 0.8, na.rm = TRUE) +
   facet_grid(method_label ~ stand_label) + scale_colour_manual(values = pal, guide = "none") +
   coord_cartesian(ylim = c(0, 7)) + xs2 + labs(x = NULL, y = flux_lab)
 metp <- met %>% mutate(hr = floor_date(with_tz(Time, "America/New_York"), "hour")) %>% group_by(hr) %>%
-  summarise(s10t = mean(s10t), prec = sum(prec), .groups = "drop") %>% filter(hr >= p0, hr < p1)
-sc <- max(metp$prec, na.rm = TRUE) / 20
+  summarise(s10t = mean(s10t), airt = mean(airt), prec = sum(prec), .groups = "drop") %>% filter(hr >= p0, hr < p1)
+sc <- max(metp$prec, na.rm = TRUE) / max(metp$airt, na.rm = TRUE)
 p2b <- ggplot(metp, aes(hr)) + geom_col(aes(y = prec / sc), fill = col_wet, alpha = a_mean, width = 3600) +
-  geom_line(aes(y = s10t), linewidth = 0.4) +
-  scale_y_continuous(name = expression(Soil ~ T ~ (degree * C)), sec.axis = sec_axis(~ . * sc, name = expression(Rain ~ (mm ~ h^-1)))) +
+  geom_line(aes(y = airt), linewidth = 0.4) +
+  scale_y_continuous(name = expression(Air ~ T ~ (degree * C)), sec.axis = sec_axis(~ . * sc, name = expression(Rain ~ (mm ~ h^-1)))) +
   xs2 + labs(x = NULL)
 gf_series <- function(x) {   # x: chamber-level rows of one system; hourly gap-filled flux, mean of stands
   s <- x %>% group_by(stand, hour_of_obs, id) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%

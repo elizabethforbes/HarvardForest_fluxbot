@@ -6,8 +6,8 @@
 #                (Fluxbot: 1 per unit-hour; autochamber: 2 per chamber-hour). Units that stopped
 #                before 31 October count as downtime.
 #   recorded   : scheduled closures with any raw CO2 data in the closure window
-#   valid      : recorded closures with enough data to fit a flux (Fluxbot >= 75% of the 180-s
-#                window; autochamber >= 120 s of the 220-s window) that are not chamber
+#   computed   : recorded closures with enough records to fit a flux
+#   valid      : computed closures that pass the fit and chamber checks, i.e. are not chamber
 #                failures (no significant CO2 decline; significant CO2 accumulation, i.e. the chamber
 #                sealed; no stuck lid, i.e. open-lid CO2 > 500 ppm above the other units through a
 #                saturated episode)
@@ -57,8 +57,8 @@ acct <- function(system) {
   valid <- flx %>% filter(!decline)
   ret <- valid %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
   scr <- ret %>% filter(!wet)
-  tibble(system, stage = c("intended", "recorded", "valid", "retained", "RH-screened"),
-         n = c(sched, rec, nrow(valid), nrow(ret), nrow(scr))) %>%
+  tibble(system, stage = c("intended", "recorded", "computed", "valid", "retained", "RH-screened"),
+         n = c(sched, rec, comp, nrow(valid), nrow(ret), nrow(scr))) %>%
     mutate(pct_of_intended = 100 * n / sched, lost = lag(n) - n, pct_lost_step = 100 * lost / lag(n))
 }
 acc <- bind_rows(acct("fluxbot"), acct("autochamber"))

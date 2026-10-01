@@ -273,7 +273,7 @@ write_numbers <- function(file = NULL) {
 }
 # a number recorded by an earlier script (used by figure scripts for labels)
 get_number <- function(key) {
-  v <- unlist(lapply(list.files(num_dir, full.names = TRUE), function(f) { x <- read.csv(f); x$value[x$key == key] }))
+  v <- unlist(lapply(setdiff(list.files(num_dir, full.names = TRUE), file.path(num_dir, "numbers_all.csv")), function(f) { x <- read.csv(f); x$value[x$key == key] }))
   if (length(v) != 1) stop("get_number(): '", key, "' found ", length(v), " times")
   v
 }

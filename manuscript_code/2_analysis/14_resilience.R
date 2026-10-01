@@ -47,13 +47,13 @@ for (i in seq_len(nrow(res))) for (k in setdiff(names(res), c("method", "stand")
 for (m in c("fluxbot", "autochamber")) record(paste0("unit_success_median_", m), median(unit_rate$success[unit_rate$method == m]), "resilience")
 
 # ---- hourly state of each stand array (Fig. 9d) ---------------------------------------------------
-# >= 3 units retained (replicated), 1-2 units, units measured
-#    but all removed by QC (wet sensor / failures), or no data (down).
-valid_ds <- build_dataset(qc = "valid") %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
-  mutate(stand = as.character(stand), method = as.character(method)) %>% count(method, stand, hour_of_obs, name = "n_valid")
-st_h <- sh %>% left_join(valid_ds, by = c("method", "stand", "hour_of_obs")) %>% mutate(n_valid = coalesce(n_valid, 0L),
+# >= 3 units retained (replicated), 1-2 units, units measured (a flux was computed) but all removed
+# by QC (failed fit or chamber check, spike), or no data (down: no record, or too few records to fit).
+computed_ds <- build_dataset(qc = "computed") %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
+  mutate(stand = as.character(stand), method = as.character(method)) %>% count(method, stand, hour_of_obs, name = "n_computed")
+st_h <- sh %>% left_join(computed_ds, by = c("method", "stand", "hour_of_obs")) %>% mutate(n_computed = coalesce(n_computed, 0L),
   state = case_when(n_ok >= 3 ~ ">= 3 units", n_ok >= 1 ~ "1-2 units",
-                    n_valid >= 1 ~ "measured, removed by QC", TRUE ~ "no data (down)"),
+                    n_computed >= 1 ~ "measured, removed by QC", TRUE ~ "no data (down)"),
   state = factor(state, levels = c(">= 3 units", "1-2 units", "measured, removed by QC", "no data (down)")),
   series = factor(paste(lab_sys[method], stl[stand]), levels = c("Autochamber Stand 1", "Autochamber Stand 2", "Fluxbot 2.0 Stand 1", "Fluxbot 2.0 Stand 2")))
 state_tab <- st_h %>% count(series, state) %>% group_by(series) %>% mutate(pct = 100 * n / sum(n)) %>% ungroup()

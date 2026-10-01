@@ -37,14 +37,14 @@ pm <- bind_rows(rd("agreement_metric_panel.csv") %>% mutate(Dataset = "As deploy
 w(pm, "TableS_agreement_metrics.csv")
 
 # S-sensitivity: processing and QC choices
-sens <- rd("sensitivity_table.csv") %>%
+sens <- rd("sensitivity_table.csv") %>% filter(!grepl("HF293", scenario)) %>%
   transmute(Scenario = scenario, `Fluxbot closures` = n_fluxbot, `Method effect (GAM, umol m-2 s-1; 95% CI)` = sprintf("%.2f (%.2f to %.2f)", gam_method, gam_method_lo, gam_method_hi),
             `Paired bias, 3-h array means (umol m-2 s-1; block-bootstrap 95% CI)` = sprintf("%.2f (%.2f to %.2f)", paired_bias, paired_bias_lo, paired_bias_hi),
             `r (3-h array means)` = r2(r), `CCC (3-h array means)` = r2(ccc), `Q10 autochamber` = r2(q10_ac), `Q10 Fluxbot` = r2(q10_fb))
 w(sens, "TableS_sensitivity.csv")
 
 # S-fluxmodel: flux-model pairings (as deployed)
-fm <- rd("flux_model_matrix.csv") %>% transmute(`Fluxbot model` = fluxbot, `Autochamber model` = autochamber, `Compared hours` = n_hours,
+fm <- rd("flux_model_matrix.csv") %>% filter(autochamber != "HF293") %>% transmute(`Fluxbot model` = fluxbot, `Autochamber model` = autochamber, `Compared hours` = n_hours,
                                                  `Mean, Fluxbot` = r2(mean_fb), `Mean, autochamber` = r2(mean_ac), `Offset (%)` = r2(offset_pct, 1), r = r2(r))
 w(fm, "TableS_flux_models.csv")
 

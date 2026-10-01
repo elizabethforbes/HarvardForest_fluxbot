@@ -47,26 +47,25 @@ for (i in seq_len(nrow(res))) for (k in setdiff(names(res), c("method", "stand")
 for (m in c("fluxbot", "autochamber")) record(paste0("unit_success_median_", m), median(unit_rate$success[unit_rate$method == m]), "resilience")
 
 # ---- figure ------------------------------------------------------------------------------------
-pal <- c(autochamber = "#3B8F63", fluxbot = "#8C8C8C")
-lab_sys <- c(autochamber = "Autochamber", fluxbot = "Fluxbot 2.0")
+source("afm_revision/fig_style.R")
+pal <- pal_sys
 stl <- c(healthy = "Stand 1", unhealthy = "Stand 2")
 pa <- ggplot(unit_rate, aes(lab_sys[method], 100 * success, colour = method)) +
   geom_jitter(width = 0.12, height = 0, size = 1.4, alpha = 0.8) +
   stat_summary(fun = median, geom = "crossbar", width = 0.4, colour = "black", linewidth = 0.3) +
   scale_colour_manual(values = pal, guide = "none") + labs(x = NULL, y = "Hours with a retained\nmeasurement (% per unit)") +
-  theme_classic(base_size = 8)
+  theme_afm()
 pb <- ggplot(curves %>% mutate(stand = stl[stand]), aes(k, 100 * observed, colour = method)) +
   geom_line(aes(y = 100 * independent), linetype = "22", linewidth = 0.4) + geom_line(linewidth = 0.6) + geom_point(size = 1) +
   facet_wrap(~stand) + scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_x_continuous(breaks = 1:8) + labs(x = "Units reporting (at least k)", y = "Stand-hours (%)") +
-  theme_classic(base_size = 8) + theme(legend.position = "bottom", strip.background = element_blank())
+  theme_afm() + theme(legend.position = "bottom", strip.background = element_blank())
 pc <- ggplot(sh %>% mutate(row = paste(lab_sys[method], stl[stand]), frac = n_ok / n_units),
              aes(hour_of_obs, row, fill = n_ok)) + geom_tile() +
   scale_fill_viridis_c(name = "Units\nreporting", option = "D") + labs(x = NULL, y = NULL) +
-  scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + theme_classic(base_size = 8)
-fig <- (pa + pb + plot_layout(widths = c(1, 2.2))) / pc + plot_layout(heights = c(1.3, 1)) + plot_annotation(tag_levels = "a")
-ggsave(file.path(out_dir, "figures", "FigS_resilience.pdf"), fig, width = 190, height = 120, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "FigS_resilience.png"), fig, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
+  scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + theme_afm()
+fig <- (pa + pb + plot_layout(widths = c(1, 2.2))) / pc + plot_layout(heights = c(1.3, 1)) + tags_afm()
+save_afm(fig, "FigS_resilience", 190, 120, tif = FALSE)
 write_numbers("numbers_resilience.csv")
 
 # ---- Fig. 10: measurement success and array coverage ------------------------------------------------
@@ -89,21 +88,21 @@ for (i in seq_len(nrow(state_tab))) record(sprintf("state_%s_%s", gsub(" ", "_",
 # dark shade + solid = stand 1, light shade + dashed = stand 2
 ser_pal <- c("Autochamber Stand 1" = "#1F6E43", "Autochamber Stand 2" = "#7FBF96", "Fluxbot 2.0 Stand 1" = "#4D4D4D", "Fluxbot 2.0 Stand 2" = "#A6A6A6")
 ser_lty <- c("Autochamber Stand 1" = "solid", "Autochamber Stand 2" = "22", "Fluxbot 2.0 Stand 1" = "solid", "Fluxbot 2.0 Stand 2" = "22")
-ur <- unit_rate %>% mutate(unit = reorder(sub("autochamber", "AC ", sub("fluxbot", "FB ", id)), success))
+ur <- unit_rate %>% mutate(unit = reorder(sub("^(autochamber|fluxbot|fluxes_bot)", "", id), success))
 pa <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width = 0.8) +
   facet_grid(~ lab_sys[method], scales = "free_x", space = "free_x") + scale_fill_manual(values = pal, guide = "none") +
-  labs(x = NULL, y = "Measurement success\n(% of scheduled hours)") + scale_y_continuous(limits = c(0, 100)) + theme_classic(base_size = 8) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6), strip.background = element_blank())
-pb <- ggplot(ur, aes(lab_sys[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = 0.7) +
+  labs(x = "Chamber or unit", y = "Measurement success\n(% of intended closures)") + scale_y_continuous(limits = c(0, 100)) + theme_afm() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6))
+pb <- ggplot(ur, aes(c(autochamber = "Auto-\nchamber", fluxbot = "Fluxbot\n2.0")[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = 0.7) +
   geom_jitter(width = 0.1, size = 0.8, alpha = 0.7) + scale_fill_manual(values = pal, guide = "none") +
-  scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_classic(base_size = 8)
+  scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_afm()
 daily <- st_h %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(series, day) %>%
   summarise(share = 100 * mean(n_ok / n_units), .groups = "drop")
 pc <- ggplot(daily, aes(day, share, colour = series, linetype = series)) + geom_line(linewidth = 0.7) +
   scale_colour_manual(values = ser_pal, name = NULL) + scale_linetype_manual(values = ser_lty, name = NULL) +
   scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b", expand = c(0, 0)) +
   labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)") +
-  theme_classic(base_size = 8) + theme(legend.position = "top", legend.key.width = unit(8, "mm"))
+  theme_afm() + theme(legend.position = "top", legend.key.width = unit(8, "mm"))
 # timeline: the same state colours for both systems, from good (blue, >= 3 units) to bad
 # (red, no data)
 st_h <- st_h %>% mutate(fill_key = as.character(state))
@@ -117,9 +116,7 @@ pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series))) +
   scale_fill_manual(values = fill_pal, breaks = names(fill_pal), name = NULL) +
   guides(fill = guide_legend(nrow = 1, override.aes = list(colour = "grey60", linewidth = 0.3))) +
   scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + labs(x = NULL, y = NULL) +
-  theme_classic(base_size = 8) + theme(legend.position = "bottom", axis.line.y = element_blank(), axis.ticks.y = element_blank())
-fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc / pd) + plot_layout(heights = c(1, 0.9, 0.55)) + plot_annotation(tag_levels = "a")
-ggsave(file.path(out_dir, "figures", "Fig9_uptime_coverage.pdf"), fig, width = 190, height = 175, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "Fig9_uptime_coverage.tif"), fig, width = 190, height = 175, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
-ggsave(file.path(out_dir, "figures", "Fig9_uptime_coverage.png"), fig, width = 190, height = 175, units = "mm", dpi = 300, device = ragg::agg_png)
+  theme_afm() + theme(legend.position = "bottom", axis.line.y = element_blank(), axis.ticks.y = element_blank())
+fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc / pd) + plot_layout(heights = c(1, 0.9, 0.55)) + tags_afm()
+save_afm(fig, "Fig9_uptime_coverage", 190, 175)
 write_numbers("numbers_resilience.csv")

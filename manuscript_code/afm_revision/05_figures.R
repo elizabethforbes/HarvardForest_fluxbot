@@ -14,18 +14,11 @@ suppressPackageStartupMessages({
 })
 
 fig_dir <- file.path(out_dir, "figures"); dir.create(fig_dir, showWarnings = FALSE)
-pal <- c(autochamber = "#3B8F63", fluxbot = "#8C8C8C")
-lab_sys <- c(autochamber = "Autochamber", fluxbot = "Fluxbot 2.0")
+source("afm_revision/fig_style.R")
+pal <- pal_sys
 flux_lab <- expression(CO[2] ~ flux ~ (mu * mol ~ m^-2 ~ s^-1))
-theme_set(theme_classic(base_size = 8) +
-            theme(strip.background = element_blank(), strip.text = element_text(face = "bold"),
-                  legend.key.size = unit(3, "mm")))
-save_fig <- function(p, name, width_mm, height_mm) {
-  ggsave(file.path(fig_dir, paste0(name, ".pdf")), p, width = width_mm, height = height_mm,
-         units = "mm", device = cairo_pdf)
-  ggsave(file.path(fig_dir, paste0(name, ".tif")), p, width = width_mm, height = height_mm,
-         units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
-}
+fig_dir <- file.path(out_dir, "figures"); dir.create(fig_dir, showWarnings = FALSE)
+save_fig <- function(p, name, width_mm, height_mm) save_afm(p, name, width_mm, height_mm)
 
 d <- readRDS(file.path(out_dir, "dataset_main.rds")) %>%
   mutate(stand_label = factor(if_else(stand == "healthy", "Stand 1", "Stand 2")),
@@ -53,7 +46,7 @@ wet_h <- load_fluxbot() %>% filter(!lid_fail) %>% group_by(stand, hour_of_obs) %
   mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"), method_label = factor(lab_sys["fluxbot"], levels = lab_sys))
 xs2 <- scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b", date_breaks = "1 week", expand = c(0.01, 0))
 p2a <- ggplot(dd2, aes(hour_of_obs, fluxL_umolm2sec)) +
-  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = "#4575B4", alpha = 0.7, length = unit(2, "mm")) +
+  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = col_wet, alpha = 0.7, length = unit(2, "mm")) +
   geom_point(aes(colour = method), size = 0.55, alpha = 0.45, stroke = 0) +
   geom_line(data = other, aes(y = r), colour = "grey20", linewidth = 0.35, linetype = "22", na.rm = TRUE) +
   geom_line(data = own, aes(y = r), colour = "black", linewidth = 0.8, na.rm = TRUE) +
@@ -62,7 +55,7 @@ p2a <- ggplot(dd2, aes(hour_of_obs, fluxL_umolm2sec)) +
 metp <- met %>% mutate(hr = floor_date(with_tz(Time, "America/New_York"), "hour")) %>% group_by(hr) %>%
   summarise(s10t = mean(s10t), prec = sum(prec), .groups = "drop") %>% filter(hr >= p0, hr < p1)
 sc <- max(metp$prec, na.rm = TRUE) / 20
-p2b <- ggplot(metp, aes(hr)) + geom_col(aes(y = prec / sc), fill = "#4575B4", alpha = 0.6, width = 3600) +
+p2b <- ggplot(metp, aes(hr)) + geom_col(aes(y = prec / sc), fill = col_wet, alpha = 0.6, width = 3600) +
   geom_line(aes(y = s10t), linewidth = 0.4) +
   scale_y_continuous(name = expression(Soil ~ T ~ (degree * C)), sec.axis = sec_axis(~ . * sc, name = expression(Rain ~ (mm ~ h^-1)))) +
   xs2 + labs(x = NULL)
@@ -97,7 +90,7 @@ p2c <- ggplot(cum, aes(hour_of_obs, cum, colour = series, fill = series, linetyp
   scale_linetype_manual(values = c("Autochamber" = "solid", "Fluxbot 2.0, as deployed" = "solid", "Fluxbot 2.0, RH-screened" = "22"), name = NULL) +
   xs2 + labs(x = NULL, y = expression("Cumulative C (g m"^-2*")")) +
   theme(legend.position = c(0.22, 0.78), legend.key.height = unit(3, "mm"))
-save_fig(p2a / p2b / p2c + plot_layout(heights = c(3.4, 0.7, 1.2)) + plot_annotation(tag_levels = "a"),
+save_fig(p2a / p2b / p2c + plot_layout(heights = c(3.4, 0.7, 1.2)) + tags_afm(),
          "Fig2_timeseries", 190, 210)
 
 # ---- Fig 3: chamber-level distributions ----------------------------------------------
@@ -161,7 +154,7 @@ dimnames(tabd) <- list(c("Hourly, as deployed", "Hourly, RH-screened", "Daily, a
 tg <- gridExtra::tableGrob(tabd, theme = gridExtra::ttheme_minimal(base_size = 6.5, padding = unit(c(3, 1.6), "mm"),
         core = list(fg_params = list(hjust = 1, x = 0.9)), rowhead = list(fg_params = list(hjust = 0, x = 0.05, fontface = "plain")),
         colhead = list(fg_params = list(fontface = "bold"))))
-cols4 <- c("Hourly, dry sensors" = "grey45", "Hourly, wet sensors" = "#4575B4")
+cols4 <- c("Hourly, dry sensors" = "grey45", "Hourly, wet sensors" = col_wet)
 sma_b <- sign(cor(hd$autochamber, hd$fluxbot)) * sd(hd$fluxbot) / sd(hd$autochamber); sma_a <- mean(hd$fluxbot) - sma_b * mean(hd$autochamber)
 lim <- c(0.8, 5)
 lgd <- theme(legend.position = c(0.02, 0.98), legend.justification = c(0, 1), legend.title = element_blank(),
@@ -216,7 +209,7 @@ qlab <- data.frame(method_label = factor(lab_sys, levels = lab_sys),
                    lab = c(sprintf("Q[10] == %.2f ~ (%.2f-%.2f)", num("q10_autochamber_q10"), num("q10_autochamber_lo"), num("q10_autochamber_hi")),
                            sprintf("Q[10] == %.2f ~ (%.2f-%.2f)", num("q10_fluxbot_q10"), num("q10_fluxbot_lo"), num("q10_fluxbot_hi"))))
 p8 <- ggplot(dq, aes(s10t, fluxL_umolm2sec)) +
-  geom_point(aes(colour = method), size = 0.5, alpha = 0.3, stroke = 0) +
+  geom_point(aes(colour = method), size = 0.6, alpha = 0.45, stroke = 0) +
   geom_ribbon(data = pred, aes(y = f, ymin = f - 1.96 * se, ymax = f + 1.96 * se), alpha = 0.3) +
   geom_line(data = pred, aes(y = f), linewidth = 0.6) +
   geom_text(data = qlab, aes(x = -Inf, y = Inf, label = lab), parse = TRUE, hjust = -0.05, vjust = 1.3, size = 2.5) +
@@ -239,16 +232,16 @@ p9a <- ggplot(lz, aes(p, L, colour = method)) +
   labs(x = "Cumulative share of chambers", y = "Cumulative share of flux")
 eff <- read.csv(file.path(out_dir, "sampling_effort.csv")) %>%
   mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"))
-p9b <- ggplot(eff %>% filter(n >= 2), aes(n, 100 * analytic, colour = method, linetype = stand_label)) +
+p9b <- ggplot(eff %>% filter(n >= 3), aes(n, 100 * analytic, colour = method, linetype = stand_label)) +
   geom_hline(yintercept = c(10, 20), colour = "grey70", linewidth = 0.3) +
   geom_line(linewidth = 0.5) +
   geom_point(data = eff %>% filter(n == n_chambers), size = 1.2) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_linetype_manual(values = c("solid", "22"), name = NULL) +
-  scale_y_continuous(limits = c(0, 60), oob = squish) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
   labs(x = "Number of chambers", y = "95% CI half-width of stand mean (% of mean)") +
   theme(legend.position = c(0.72, 0.78), legend.spacing.y = unit(0, "mm"))
-save_fig(p9a + p9b + plot_annotation(tag_levels = "a"), "Fig7_heterogeneity_effort", 190, 85)
+save_fig(p9a + p9b + tags_afm(), "Fig7_heterogeneity_effort", 190, 85)
 
 # Fig 8 (measurement flow) is drawn by 11_filter_flow.R and Fig 9 (uptime and coverage) by 17_resilience.R
 

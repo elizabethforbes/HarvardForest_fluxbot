@@ -196,7 +196,6 @@ p10b <- ggplot(cov, aes(date, 100 * cov, colour = method)) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_x_date(date_labels = "%d %b") +
   labs(x = NULL, y = "Hours with \u22653 chambers\nreporting (% of day)") + theme(legend.position = "bottom")
-save_fig(p10a / p10b + plot_layout(heights = c(2.2, 1)) + plot_annotation(tag_levels = "a"),
-         "Fig10_uptime_coverage", 190, 170)
+# Fig 10 is drawn by 17_resilience.R
 
 cat("Figures written to", fig_dir, "\n")

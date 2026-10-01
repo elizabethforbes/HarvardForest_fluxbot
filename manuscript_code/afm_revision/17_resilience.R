@@ -65,45 +65,49 @@ pc <- ggplot(sh %>% mutate(row = paste(lab_sys[method], stl[stand]), frac = n_ok
   scale_fill_viridis_c(name = "Units\nreporting", option = "D") + labs(x = NULL, y = NULL) +
   scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + theme_classic(base_size = 8)
 fig <- (pa + pb + plot_layout(widths = c(1, 2.2))) / pc + plot_layout(heights = c(1.3, 1)) + plot_annotation(tag_levels = "a")
-ggsave(file.path(out_dir, "figures", "Fig_resilience.pdf"), fig, width = 190, height = 120, units = "mm", device = cairo_pdf)
-ggsave(file.path(out_dir, "figures", "Fig_resilience.png"), fig, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
+ggsave(file.path(out_dir, "figures", "FigS_resilience.pdf"), fig, width = 190, height = 120, units = "mm", device = cairo_pdf)
+ggsave(file.path(out_dir, "figures", "FigS_resilience.png"), fig, width = 190, height = 120, units = "mm", dpi = 300, device = ragg::agg_png)
 write_numbers("numbers_resilience.csv")
 
-# ---- Draft: the submitted Fig. 9 layout with schedule-based definitions -----------------------------
-# top: measurement success per unit (share of scheduled hours with a measurement) and by system;
-# bottom: daily share of each stand's units reporting, one line per system x stand.
-# Built twice: "valid" (hardware and chamber working; wet-sensor closures count as collected)
-# and "retained" (after the wet-sensor flag and spike screen, i.e. the analysed data).
-make_fig9 <- function(dset, tag, ylab) {
-  dd <- dset %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
-    mutate(id = as.character(id), stand = as.character(stand), method = as.character(method)) %>% distinct(method, stand, id, hour_of_obs)
-  g <- roster %>% tidyr::crossing(hour_of_obs = hours) %>%
-    left_join(dd %>% mutate(ok = TRUE), by = c("method", "stand", "id", "hour_of_obs")) %>% mutate(ok = coalesce(ok, FALSE))
-  ur <- g %>% group_by(method, stand, id) %>% summarise(success = mean(ok), .groups = "drop") %>%
-    mutate(unit = reorder(sub("autochamber", "AC ", sub("fluxbot", "FB ", id)), success))
-  s2 <- g %>% group_by(method, stand, hour_of_obs) %>% summarise(n_ok = sum(ok), n_units = n(), .groups = "drop")
-  st <- s2 %>% group_by(method, stand) %>% summarise(cov3 = mean(n_ok >= 3), out = {
-    r <- rle(n_ok[order(hour_of_obs)] == 0); if (any(r$values)) max(r$lengths[r$values]) else 0L }, .groups = "drop")
-  write.csv(st, file.path(out_dir, paste0("fig10_", tag, "_stats.csv")), row.names = FALSE)
-  cap <- paste(sprintf("%s %s: >= 3 units in %.0f%% of hours, longest outage %d h", lab_sys[st$method], stl[st$stand], 100 * st$cov3, st$out),
-               collapse = "\n")
-  pa <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width = 0.8) +
-    facet_grid(~ lab_sys[method], scales = "free_x", space = "free_x") + scale_fill_manual(values = pal, guide = "none") +
-    labs(x = NULL, y = ylab) + scale_y_continuous(limits = c(0, 100)) + theme_classic(base_size = 8) +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6), strip.background = element_blank())
-  pb <- ggplot(ur, aes(lab_sys[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = 0.7) +
-    geom_jitter(width = 0.1, size = 0.8, alpha = 0.7) + scale_fill_manual(values = pal, guide = "none") +
-    scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_classic(base_size = 8)
-  daily <- s2 %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(method, stand, day) %>%
-    summarise(share = 100 * mean(n_ok / n_units), .groups = "drop") %>% mutate(stand = stl[stand])
-  pc <- ggplot(daily, aes(day, share, colour = method, linetype = stand)) + geom_line(linewidth = 0.7) +
-    scale_colour_manual(values = pal, labels = lab_sys, name = NULL) + scale_linetype_manual(values = c("solid", "22"), name = NULL) +
-    scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b") +
-    labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)", caption = cap) +
-    theme_classic(base_size = 8) + theme(legend.position = "bottom", plot.caption = element_text(hjust = 0, size = 7))
-  fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc) + plot_layout(heights = c(1, 1.2)) + plot_annotation(tag_levels = "a")
-  ggsave(file.path(out_dir, "figures", paste0("Fig10_uptime_", tag, ".pdf")), fig, width = 190, height = 150, units = "mm", device = cairo_pdf)
-  ggsave(file.path(out_dir, "figures", paste0("Fig10_uptime_", tag, ".png")), fig, width = 190, height = 150, units = "mm", dpi = 300, device = ragg::agg_png)
-}
-make_fig9(build_dataset(qc = "valid"), "valid", "Measurement success, valid\n(% of scheduled hours)")
-make_fig9(readRDS(file.path(out_dir, "dataset_main.rds")), "retained", "Measurement success, retained\n(% of scheduled hours)")
+# ---- Fig. 10: measurement success and array coverage ------------------------------------------------
+# a: per-unit measurement success (share of scheduled hours with a retained measurement);
+# b: by system; c: daily share of each stand's units with a retained measurement;
+# d: hourly state of each stand array: >= 3 units retained (replicated), 1-2 units, units measured
+#    but all removed by QC (wet sensor / failures), or no data (down).
+valid_ds <- build_dataset(qc = "valid") %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
+  mutate(stand = as.character(stand), method = as.character(method)) %>% count(method, stand, hour_of_obs, name = "n_valid")
+st_h <- sh %>% left_join(valid_ds, by = c("method", "stand", "hour_of_obs")) %>% mutate(n_valid = coalesce(n_valid, 0L),
+  state = case_when(n_ok >= 3 ~ ">= 3 units", n_ok >= 1 ~ "1-2 units",
+                    n_valid >= 1 ~ "measured, removed by QC", TRUE ~ "no data (down)"),
+  state = factor(state, levels = c(">= 3 units", "1-2 units", "measured, removed by QC", "no data (down)")),
+  series = factor(paste(lab_sys[method], stl[stand]), levels = c("Autochamber Stand 1", "Autochamber Stand 2", "Fluxbot 2.0 Stand 1", "Fluxbot 2.0 Stand 2")))
+state_tab <- st_h %>% count(series, state) %>% group_by(series) %>% mutate(pct = 100 * n / sum(n)) %>% ungroup()
+write.csv(state_tab, file.path(out_dir, "fig10_state_shares.csv"), row.names = FALSE)
+for (i in seq_len(nrow(state_tab))) record(sprintf("state_%s_%s", gsub(" ", "_", state_tab$series[i]),
+  c("rep3", "u12", "qc", "down")[as.integer(state_tab$state[i])]), state_tab$pct[i], "resilience", "% of stand-hours")
+ser_pal <- c("Autochamber Stand 1" = "#1B7837", "Autochamber Stand 2" = "#7FBF7B", "Fluxbot 2.0 Stand 1" = "#4D4D4D", "Fluxbot 2.0 Stand 2" = "#E08214")
+ser_lty <- c("Autochamber Stand 1" = "solid", "Autochamber Stand 2" = "22", "Fluxbot 2.0 Stand 1" = "solid", "Fluxbot 2.0 Stand 2" = "22")
+ur <- unit_rate %>% mutate(unit = reorder(sub("autochamber", "AC ", sub("fluxbot", "FB ", id)), success))
+pa <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width = 0.8) +
+  facet_grid(~ lab_sys[method], scales = "free_x", space = "free_x") + scale_fill_manual(values = pal, guide = "none") +
+  labs(x = NULL, y = "Measurement success\n(% of scheduled hours)") + scale_y_continuous(limits = c(0, 100)) + theme_classic(base_size = 8) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6), strip.background = element_blank())
+pb <- ggplot(ur, aes(lab_sys[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = 0.7) +
+  geom_jitter(width = 0.1, size = 0.8, alpha = 0.7) + scale_fill_manual(values = pal, guide = "none") +
+  scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_classic(base_size = 8)
+daily <- st_h %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(series, day) %>%
+  summarise(share = 100 * mean(n_ok / n_units), .groups = "drop")
+pc <- ggplot(daily, aes(day, share, colour = series, linetype = series)) + geom_line(linewidth = 0.7) +
+  scale_colour_manual(values = ser_pal, name = NULL) + scale_linetype_manual(values = ser_lty, name = NULL) +
+  scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b", expand = c(0, 0)) +
+  labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)") +
+  theme_classic(base_size = 8) + theme(legend.position = "top", legend.key.width = unit(8, "mm"))
+pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series), fill = state)) + geom_tile(height = 0.85) +
+  scale_fill_manual(values = c("#2166AC", "#92C5DE", "#FDB863", "#D6604D"), name = NULL) +
+  scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + labs(x = NULL, y = NULL) +
+  theme_classic(base_size = 8) + theme(legend.position = "bottom", axis.line.y = element_blank(), axis.ticks.y = element_blank())
+fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc / pd) + plot_layout(heights = c(1, 0.9, 0.55)) + plot_annotation(tag_levels = "a")
+ggsave(file.path(out_dir, "figures", "Fig10_uptime_coverage.pdf"), fig, width = 190, height = 175, units = "mm", device = cairo_pdf)
+ggsave(file.path(out_dir, "figures", "Fig10_uptime_coverage.tif"), fig, width = 190, height = 175, units = "mm", dpi = 600, device = ragg::agg_tiff, compression = "lzw")
+ggsave(file.path(out_dir, "figures", "Fig10_uptime_coverage.png"), fig, width = 190, height = 175, units = "mm", dpi = 300, device = ragg::agg_png)
+write_numbers("numbers_resilience.csv")

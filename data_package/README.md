@@ -45,3 +45,24 @@ Autochamber raw data: Harvard Forest hemlock autochamber network (A. Keiser, M. 
 HF001: Boose & VanScoy (2025), Harvard Forest Data Archive HF001.
 
 HF293: Harvard Forest Data Archive HF293.
+
+## Laboratory test of the K30 PTFE envelope (raw/lab_ptfe_test_2023-09-22/)
+
+A growth chamber test on 22 September 2023: ~90% RH, CO2 setpoint 900 ppm.
+
+| File | Contents |
+|---|---|
+| `co2_coveredPTFE_k30_22Sept2023.txt` | PTFE-covered K30 (`HH:MM:SS, ppm`; 65535 = error) |
+| `co2_uncoveredk30_22Sept2023.txt` | Uncovered K30 (same format) |
+| `lgr_2023-09-22.csv.gz` | LGR analyzer CO2 and H2O, 1 Hz. The LGR clock runs 116 s fast: LGR 17:54:53 = real 17:52:57. |
+
+Event log (lab notes):
+
+| Time | Event |
+|---|---|
+| 13:36 | Door closed; CO2 injection off |
+| 13:45 | CO2 on |
+| 14:00 | Door opened for 1 min |
+| 17:32 | Door opened; covered sensor sprayed with water (water beaded on the PTFE); door left open until CO2 plateaued, then closed for ~3 min |
+| 17:43 | Door opened (CO2 fell to ~670 ppm); breath spike to ~900 ppm; door closed until plateau |
+| 17:49 | SD cards collected |

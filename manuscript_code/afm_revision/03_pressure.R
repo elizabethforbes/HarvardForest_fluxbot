@@ -13,7 +13,7 @@ p <- read_csv(file.path(pkg, "raw", "fluxbot_sensor_records_2023.csv.gz"), col_t
   transmute(bot = unit, stand, pressure = pressure_hpa,
             time = as.POSIXct(unix_time, origin = "1970-01-01", tz = "America/New_York")) %>%
   filter(time >= as.POSIXct("2023-10-01", tz = "America/New_York"),
-         time <  as.POSIXct("2023-11-05", tz = "America/New_York"),
+         time <  analysis_end,
          pressure > 900, pressure < 1100)
 
 # hourly median per bot, then per-stand array median across bots that pass QC

@@ -16,7 +16,7 @@ set.seed(20260930)
 # ================================================================================
 
 # hours used for Figs 4-5: both systems with >= 5 chambers reporting in both stands
-fig5_hours <- function(d) matched_hours(d, k = 5)
+fig5_hours <- function(d) matched_hours(d, k = 3)
 
 # stand-hours in which both systems reported (common window for Q10, diel, effort)
 common_stand_hours <- function(d) {
@@ -35,7 +35,7 @@ fit_gam <- function(d) {
 # (The .qmd's filter let through hours in which one system x stand combination
 # was missing entirely, because all() of an empty vector is TRUE, and its
 # rolling mean ran across gaps.)
-array_agreement <- function(d, k = 5, window = 3) {
+array_agreement <- function(d, k = 3, window = 3) {
   hrs <- matched_hours(d, k)
   pv <- d %>% filter(hour_of_obs %in% hrs) %>%
     group_by(hour_of_obs, stand, method) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
@@ -298,7 +298,7 @@ write.csv(t2, file.path(out_dir, "table2.csv"), row.names = FALSE)
 
 # ---- Diel (Fig 6), common stand-hours ---------------------------------------------
 dc <- d %>% semi_join(common_stand_hours(d), by = c("stand", "hour_of_obs"))
-diel <- dc %>% mutate(day = as.Date(hour_of_obs)) %>%
+diel <- dc %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>%
   group_by(method, day, hour) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
   group_by(method, hour) %>%
   summarise(mean = mean(f), se = sd(f) / sqrt(n()), n_days = n(), .groups = "drop") %>%
@@ -431,8 +431,8 @@ for (nm in c("fluxbot", "autochamber")) {
 # Sensitivity table (A6 QC, A8 linear vs quadratic, timestamps, A7 pressure)
 # ================================================================================
 scen <- list()
-scen[["Main (linear fits, fit-based QC)"]] <- d
-scen[["QC: wet-sensor closures kept"]] <- build_dataset(qc = "fit_nowet")
+scen[["Main: as deployed (all conditions; linear fits)"]] <- d
+scen[["RH-screened: wet-sensor closures removed"]] <- build_dataset(qc = "screened")
 scen[["Flux model: goFlux best model (LM or HM)"]] <- build_dataset(flux_col = "best.flux")
 scen[["Flux model: Hutchinson-Mosier (HM) for all closures"]] <- build_dataset(flux_col = "HM.flux")
 scen[["QC: submitted rule (negatives removed, pooled 1.5 x IQR)"]] <- build_dataset(qc = "iqr")
@@ -452,7 +452,7 @@ write.csv(sens, file.path(out_dir, "sensitivity_table.csv"), row.names = FALSE)
 print(sens %>% select(scenario, n, gam_method, gam_method_lo, gam_method_hi, ccc, paired_bias,
                       q10_ac, q10_fb, gini_ac, gini_fb), digits = 3)
 for (i in seq_len(nrow(sens))) {
-  tag <- c("main", "keepwet", "best", "hm", "qc_iqr", "qc_none", "ac_edt", "pressure_sealevel", "hf293", "submitted")[i]
+  tag <- c("main", "screened", "best", "hm", "qc_iqr", "qc_none", "ac_edt", "pressure_sealevel", "hf293", "submitted")[i]
   for (k in c("gam_method", "gam_method_lo", "gam_method_hi", "ccc", "paired_bias", "q10_ac", "q10_fb",
               "gini_ac", "gini_fb", "max_flux", "n", "gam_intercept"))
     record(paste0("sens_", tag, "_", k), sens[[k]][i], "sensitivity", sens$scenario[i])

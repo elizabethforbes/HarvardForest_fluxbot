@@ -19,7 +19,7 @@ raw <- read_csv(file.path(pkg, "raw", "fluxbot_sensor_records_2023.csv.gz"), col
   mutate(time = as.POSIXct(unix_time, origin = "1970-01-01", tz = "America/New_York"), mm = minute(time) + second(time) / 60,
          rh_pct = if_else(rh_pct >= 0 & rh_pct <= 100.5, rh_pct, NA_real_),
          air_temp_c = if_else(air_temp_c > -10 & air_temp_c < 45, air_temp_c, NA_real_)) %>%
-  filter(mm >= 54, time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < as.POSIXct("2023-11-05", tz = "America/New_York")) %>%
+  filter(mm >= 54, time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < analysis_end) %>%
   mutate(hour_of_obs = floor_date(time, "hour") + 3600) %>% left_join(units %>% select(unit, stand = stand_code), by = "unit")
 cl <- raw %>% group_by(stand, unit, hour_of_obs) %>% filter(sum(mm < 55) >= 3) %>%
   summarise(base = median(co2_ppm[mm < 55]), rh = mean(rh_pct[mm < 55], na.rm = TRUE), tch = mean(air_temp_c[mm < 55], na.rm = TRUE), .groups = "drop") %>%
@@ -40,8 +40,8 @@ by_unit <- hi %>% group_by(unit) %>% summarise(pct_high = 100 * mean(high), n = 
 write.csv(by_unit, file.path(out_dir, "baseline_anomaly_by_unit.csv"), row.names = FALSE); print(by_unit)
 
 # does a high baseline depress the measured flux? (closure flux relative to the stand-hour autochamber mean)
-# diagnostics need the wet-sensor closures, which the main QC removes
-d <- build_dataset(qc = "fit_nowet")
+# diagnostics need the wet-sensor closures (kept in the deployed dataset)
+d <- build_dataset(qc = "deployed")
 ach <- d %>% filter(method == "autochamber") %>% group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>%
   summarise(ac = mean(fluxL_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
 fbx <- d %>% filter(method == "fluxbot", fluxL_umolm2sec > 0.1) %>% mutate(unit = sub("fluxbot", "", as.character(id)), stand = as.character(stand)) %>%

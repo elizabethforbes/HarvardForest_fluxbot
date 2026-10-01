@@ -45,7 +45,7 @@ round_hour <- function(ts) {
 #          (flux_col "fluxL_umolm2sec" or "fluxQ_umolm2sec"); used only to reproduce and
 #          compare with the submitted numbers.
 analysis_start <- as.POSIXct("2023-10-02 00:00:00", tz = "America/New_York")
-analysis_end   <- as.POSIXct("2023-11-05 00:00:00", tz = "America/New_York")
+analysis_end   <- as.POSIXct("2023-11-01 00:00:00", tz = "America/New_York")   # autochamber record ends 31 Oct
 flux_dir <- file.path("outputs", "afm_revision", "fluxes")
 
 load_reprocessed <- function(system, flux_col) {
@@ -70,7 +70,7 @@ load_fluxbot <- function(flux_col = "LM.flux", source = "reprocessed") {
   } else {
     read.csv("HarvardForest_fluxestimates_fall2023_withstartendconcens.csv") %>%
       mutate(hour_of_obs = round_hour(start_timestamp),
-             date = as.Date(hour_of_obs), hour = hour(hour_of_obs),
+             date = as.Date(hour_of_obs, tz = "America/New_York"), hour = hour(hour_of_obs),
              flux = .data[[flux_col]], method = "fluxbot") %>%
       select(id, start_timestamp, hour_of_obs, date, hour, flux, stand, method,
              starting_concen, ending_concen, length_interval)
@@ -86,39 +86,44 @@ load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
       mutate(stand = if_else(autochamber <= 6, "unhealthy", "healthy"),
              id = as.character(autochamber),
              hour_of_obs = round_hour(start_timestamp),
-             date = as.Date(hour_of_obs), hour = hour(hour_of_obs),
+             date = as.Date(hour_of_obs, tz = "America/New_York"), hour = hour(hour_of_obs),
              flux = .data[[flux_col]], method = "autochamber") %>%
       select(id, start_timestamp, hour_of_obs, date, hour, flux, stand, method, length_interval)
   }
 }
 
 # ---- QC ------------------------------------------------------------------------
-# qc = "fit"  : main analysis (reprocessed fluxes). Drop closures goFlux flags as too
-#               short (nb.obs), closures with a statistically significant CO2 decline
-#               (chamber failure) and Fluxbot closures with in-chamber RH >= 99% in the
-#               open-lid minute (wet K30; Pan et al. 2024), then per-chamber robust fences (median +/- 5 MAD) to remove
-#               isolated spikes. Non-significant negative values are kept (noise around zero);
-#               no value-based trimming of the pooled data.
+# Two nested datasets are compared with the autochambers throughout:
+# qc = "deployed" : MAIN ("as deployed", all conditions). Drop closures goFlux flags as too
+#                   short (nb.obs) and chamber failures: a statistically significant CO2 decline,
+#                   or a stuck lid (open-lid CO2 > 500 ppm above the other units through a
+#                   saturated episode; 10_fluxes.R). Then per-chamber robust fences (median +/- 5 MAD)
+#                   remove isolated spikes. Wet-sensor closures are kept. Non-significant negative
+#                   values are kept (noise around zero); no value-based trimming of the pooled data.
+# qc = "screened" : "RH-screened". The deployed dataset minus Fluxbot closures with in-chamber
+#                   RH >= 99% in the open-lid minute (wet K30; Pan et al. 2024). A strict subset.
+# qc = "valid" / "computed": intermediate stages (filtering flow).
 # qc = "iqr"  : submitted QC. Drop negative fluxes, then Tukey 1.5 x IQR fences on the
 #               pooled fluxes of each system.
 # qc = "none" : drop negative fluxes only.
 # qc = "mad"  : drop negatives, then per-chamber median +/- 5 MAD.
-# qc = "computed" / "valid": intermediate stages of the "fit" rule (for the filtering flow).
-apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad", "computed", "valid", "dry", "fit_nowet")) {
+# Old names kept as aliases: "fit_nowet" = "deployed", "fit" = "screened", "dry" = valid minus wet.
+apply_qc <- function(d, qc = c("deployed", "screened", "iqr", "none", "mad", "computed", "valid", "dry", "fit", "fit_nowet")) {
   qc <- match.arg(qc)
+  if (qc == "fit_nowet") qc <- "deployed"
+  if (qc == "fit") qc <- "screened"
   d <- d[!is.na(d$flux), ]
   if (qc == "computed") return(d)                                  # every computable closure
   if (!"lid_fail" %in% names(d)) d$lid_fail <- FALSE
+  if (!"wet" %in% names(d)) d$wet <- FALSE
   if ("decline" %in% names(d)) d$decline <- d$decline | d$lid_fail  # chamber failures: CO2 decline or stuck lid
   if (qc == "valid") return(d[!d$short & !d$decline, ])            # chamber failures removed
-  if (qc == "dry") return(d[!d$short & !d$decline & !d$wet, ])     # + wet-sensor closures removed
-  if (qc == "fit_nowet") {                                          # sensitivity: keep wet-sensor closures
-    d <- d[!d$short & !d$decline, ]
-    return(d %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())
-  }
-  if (qc == "fit") {
-    if ("short" %in% names(d)) d <- d[!d$short & !d$decline & !d$wet, ]
-    return(d %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())
+  if (qc == "dry") return(d[!d$short & !d$decline & !d$wet, ])     # valid minus wet-sensor closures
+  if (qc %in% c("deployed", "screened")) {
+    if ("short" %in% names(d)) d <- d[!d$short & !d$decline, ]
+    d <- d %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup()
+    if (qc == "screened") d <- d[!d$wet, ]
+    return(d)
   }
   d <- d[d$flux >= 0, ]
   if (qc == "iqr") {
@@ -133,7 +138,7 @@ apply_qc <- function(d, qc = c("fit", "iqr", "none", "mad", "computed", "valid",
 # ---- build analysis dataset ----------------------------------------------------
 # Returns the equivalent of `merged_data_with_met` in the .qmd (before the stand
 # relabelling), with column fluxL_umolm2sec holding the chosen flux.
-build_dataset <- function(qc = "fit", flux_col = "LM.flux", source = "reprocessed", met = load_met()) {
+build_dataset <- function(qc = "deployed", flux_col = "LM.flux", source = "reprocessed", met = load_met()) {
   fb <- apply_qc(load_fluxbot(flux_col, source), qc)
   ac <- apply_qc(load_autochamber(flux_col, source), qc)
   assemble_dataset(fb, ac, met)
@@ -150,7 +155,7 @@ load_hf293 <- function() {
     filter(!is.na(flux), hour_of_obs >= analysis_start, hour_of_obs < analysis_end)
 }
 build_dataset_hf293 <- function(met = load_met(), flux_col = "LM.flux") {
-  fb <- apply_qc(load_fluxbot(flux_col), "fit")
+  fb <- apply_qc(load_fluxbot(flux_col), "deployed")
   ac <- load_hf293() %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup()
   assemble_dataset(fb, ac, met)
 }
@@ -185,7 +190,9 @@ assemble_dataset <- function(fb, ac, met) {
 
 # ---- helpers used by several scripts -------------------------------------------
 # hours where both systems have >= k chambers reporting in both stands (Fig 4/5 subset)
-matched_hours <- function(d, k = 5) {
+# compared hours: >= k units of each system reporting in each stand (k = 3 throughout, except the
+# threshold-sensitivity analysis in 07_agreement_metrics.R)
+matched_hours <- function(d, k = 3) {
   d %>% count(hour_of_obs, method, stand) %>%
     complete(hour_of_obs, method, stand, fill = list(n = 0)) %>%
     group_by(hour_of_obs) %>% filter(all(n >= k)) %>% ungroup() %>%

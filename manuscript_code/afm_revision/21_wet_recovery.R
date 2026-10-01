@@ -1,6 +1,6 @@
 # Wet K30 sensors in the field: how long they stay wet, whether and how fast they recover, and how
 # much data loss and bias water causes.
-#  - wet hour: in-chamber RH >= 99% in the open-lid minute (54:00-55:00), the main QC flag.
+#  - wet hour: in-chamber RH >= 99% in the open-lid minute (54:00-55:00), the RH-screening flag (the RH-screened subset removes these closures).
 #  - baseline anomaly: the unit's open-lid CO2 minus the median of the other units in its stand-hour
 #    (16_vent_wet.R); ~0 for a healthy sensor.
 #  - flux ratio: closure flux / stand-hour autochamber mean (log), for closures passing every QC
@@ -25,7 +25,7 @@ grid <- tidyr::expand_grid(unit = units$unit, hour_of_obs = seq(p0, p1 - 3600, b
   left_join(units %>% select(unit, stand = stand_code), by = "unit") %>%
   left_join(uh_raw, by = c("unit", "hour_of_obs")) %>% mutate(recorded = !is.na(err_pct))
 cl <- readRDS(file.path(out_dir, "fluxbot_baseline_anomaly.rds")) %>% select(unit, hour_of_obs, anom)
-d_all <- build_dataset(qc = "fit_nowet")
+d_all <- build_dataset(qc = "deployed")
 ach <- d_all %>% filter(method == "autochamber") %>% group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>%
   summarise(ac = mean(fluxL_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
 fbq <- d_all %>% filter(method == "fluxbot") %>% transmute(unit = gsub("[^0-9]", "", as.character(id)), hour_of_obs, flux = fluxL_umolm2sec)
@@ -98,7 +98,7 @@ ev_all <- ev; ev <- ev %>% filter(type == "wet sensor")   # composites, post-wet
 comp_end <- ev %>% filter(t_end >= -12, t_end <= 48) %>% group_by(t_end) %>%
   summarise(anom_lo = quantile(anom, .25, na.rm = TRUE), anom_hi = quantile(anom, .75, na.rm = TRUE), anom = median(anom, na.rm = TRUE),
             ratio = exp(median(lr, na.rm = TRUE)), n_ratio = sum(!is.na(lr)), wet_share = mean(wet), n = n(), .groups = "drop")
-# anomaly and ratio in the closures right after a wet episode (dry flag, so retained by the main QC)
+# anomaly and ratio in the closures right after a wet episode (not flagged wet, so kept in both datasets)
 for (w in list(c(1, 3), c(4, 12), c(13, 48))) {
   z <- ev %>% filter(!wet, t_end >= w[1], t_end <= w[2])
   record(sprintf("post_%d_%dh_anom_median", w[1], w[2]), median(z$anom, na.rm = TRUE), "wet_recovery")
@@ -150,7 +150,7 @@ fb0 <- load_fluxbot() %>% mutate(unit = gsub("[^0-9]", "", as.character(id))) %>
 qc_in <- apply_qc(fb0 %>% mutate(wet = FALSE, lid = lid_fail, lid_fail = FALSE), "valid")
 record("removed_wet_closures_total", sum(qc_in$wet_orig), "wet_recovery", "valid closures with the wet flag")
 record("removed_wet_closures_lid", sum(qc_in$lid & qc_in$wet_orig), "wet_recovery", "of which inside lid-failure episodes")
-ac0 <- apply_qc(load_autochamber(), "fit"); met <- load_met()
+ac0 <- apply_qc(load_autochamber(), "deployed"); met <- load_met()
 agree <- function(fb) {
   d <- assemble_dataset(fb, ac0, met) %>% filter(hour_of_obs >= p0, hour_of_obs < p1)
   hrs <- matched_hours(d, 3)
@@ -161,11 +161,11 @@ agree <- function(fb) {
          r_hourly = cor(s$autochamber, s$fluxbot), r_daily = cor(dd$a, dd$f), n_days = nrow(dd))
 }
 sc <- bind_rows(
-  agree(apply_qc(fb0 %>% mutate(lid_fail = FALSE), "fit_nowet")) %>% mutate(scenario = "wet closures kept"),
-  agree(apply_qc(fb0, "fit_nowet")) %>% mutate(scenario = "lid-failure episodes removed, wet-sensor closures kept"),
-  agree(apply_qc(fb0, "fit")) %>% mutate(scenario = "wet closures removed (main)"),
-  bind_rows(lapply(c(1, 3, 6, 12, 24), function(k) agree(apply_qc(fb0 %>% mutate(wet = wet | (!is.na(h_since_wet) & h_since_wet >= 1 & h_since_wet <= k)), "fit")) %>%
-    mutate(scenario = paste0("main + ", k, " h after wet removed")))))
+  agree(apply_qc(fb0 %>% mutate(lid_fail = FALSE), "deployed")) %>% mutate(scenario = "stuck lids and wet sensors kept"),
+  agree(apply_qc(fb0, "deployed")) %>% mutate(scenario = "as deployed (main)"),
+  agree(apply_qc(fb0, "screened")) %>% mutate(scenario = "RH-screened"),
+  bind_rows(lapply(c(1, 3, 6, 12, 24), function(k) agree(apply_qc(fb0 %>% mutate(wet = wet | (!is.na(h_since_wet) & h_since_wet >= 1 & h_since_wet <= k)), "screened")) %>%
+    mutate(scenario = paste0("RH-screened + ", k, " h after wet removed")))))
 print(sc, width = 200)
 write.csv(sc, file.path(out_dir, "wet_bias_scenarios.csv"), row.names = FALSE)
 for (i in seq_len(nrow(sc))) { tg <- gsub("[^a-z0-9]+", "_", tolower(sc$scenario[i]))

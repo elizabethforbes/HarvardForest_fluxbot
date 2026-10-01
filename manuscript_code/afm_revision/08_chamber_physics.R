@@ -16,7 +16,7 @@ raw <- readr::read_csv(file.path(pkg, "raw", "fluxbot_sensor_records_2023.csv.gz
   transmute(bot = unit, stand, tc = air_temp_c, co2 = co2_ppm,
             time = as.POSIXct(unix_time, origin = "1970-01-01", tz = "America/New_York"),
             min = minute(time) + second(time) / 60) %>%
-  filter(time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < as.POSIXct("2023-11-05", tz = "America/New_York"),
+  filter(time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < analysis_end,
          tc > -10, tc < 45, co2 > 0, co2 < 10000)
 dt_s <- raw %>% arrange(bot, time) %>% group_by(bot) %>% mutate(dt = as.numeric(difftime(time, lag(time), units = "secs"))) %>%
   filter(dt > 0, dt < 60) %>% pull(dt)

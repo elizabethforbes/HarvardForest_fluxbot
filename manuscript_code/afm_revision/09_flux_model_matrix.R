@@ -8,8 +8,8 @@ source("afm_revision/00_prep.R")
 sh <- function(x) x %>% group_by(stand, id, hour_of_obs) %>% summarise(f = mean(flux), .groups = "drop") %>%
   group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(f), .groups = "drop")
 models <- c(LM = "LM.flux", HM = "HM.flux", best = "best.flux")
-FB <- lapply(models, function(m) sh(apply_qc(load_fluxbot(m), "fit")))
-AC <- c(lapply(models, function(m) sh(apply_qc(load_autochamber(m), "fit"))),
+FB <- lapply(models, function(m) sh(apply_qc(load_fluxbot(m), "deployed")))
+AC <- c(lapply(models, function(m) sh(apply_qc(load_autochamber(m), "deployed"))),
         list(HF293 = sh(load_hf293() %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())))
 res <- bind_rows(lapply(names(FB), function(i) bind_rows(lapply(names(AC), function(j) {
   a <- inner_join(FB[[i]], AC[[j]], by = c("stand", "hour_of_obs"), suffix = c("_fb", "_ac")) %>%

@@ -5,10 +5,10 @@ Number of units: 16
 Deployment period: October 02 - October 31, 2023 ( 30 days)
 Potential measurements: 11,520 
 Collected measurements: 8,333 
-Retained after QC: 6,387 
+Retained after QC: 7,102 
 Collection rate: 72.3 %
-QC retention rate: 76.6 %
-Overall success rate: 55.4 %
+QC retention rate: 85.2 %
+Overall success rate: 61.6 %
 
 =============================================================================
 AUTOCHAMBER SYSTEM STATISTICS (October 2-31, 2023)
@@ -27,7 +27,7 @@ COMPARATIVE SUMMARY (October 2-31, 2023)
 =============================================================================
 System | Units | Days | Potential | Collected | Retained | Collection% | Retention% | Overall%
 -------|-------|------|-----------|-----------|----------|-------------|------------|----------
-Fluxbot| 16    | 30   | 11,520    | 8,333     | 6,387    | 72.3        | 76.6       | 55.4
+Fluxbot| 16    | 30   | 11,520    | 8,333     | 7,102    | 72.3        | 85.2       | 61.6
 AutoCh | 12    | 30   | 17,280    | 14,251    | 13,944   | 82.5        | 97.8       | 80.7
 
 =============================================================================
@@ -39,10 +39,10 @@ Units: 16
 Days: 30 
 Potential: 11520 
 Collected: 8333 
-Retained: 6387 
+Retained: 7102 
 Collection rate: 72.3 
-Retention rate: 76.6 
-Overall success: 55.4 
+Retention rate: 85.2 
+Overall success: 61.6 
 
 AUTOCHAMBER NUMBERS:
 Units: 12 

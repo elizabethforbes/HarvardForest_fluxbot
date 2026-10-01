@@ -1,6 +1,8 @@
 # (A) Agreement as a function of temporal aggregation, benchmarked against the agreement
 #     between independent chamber subsets of the same system at the same scale.
 # (B) Cumulative October CO2-C efflux per stand from each system and flux model.
+# Both for the main "as deployed" dataset (all conditions) and the RH-screened subset (Fluxbot
+# wet-sensor closures removed; the autochamber data are the same in both).
 
 source("afm_revision/00_prep.R")
 suppressPackageStartupMessages({ library(mgcv); library(epiR); library(ggplot2); library(patchwork) })
@@ -41,7 +43,8 @@ scale_table <- function(d) {
   list(cross = cross, bench = bench)
 }
 
-res <- list(LM = scale_table(build_dataset(flux_col = "LM.flux")), best = scale_table(build_dataset(flux_col = "best.flux")))
+res <- list(LM = scale_table(build_dataset(flux_col = "LM.flux")), best = scale_table(build_dataset(flux_col = "best.flux")),
+            LMscreened = scale_table(build_dataset(qc = "screened", flux_col = "LM.flux")))
 for (m in names(res)) {
   write.csv(res[[m]]$cross, file.path(out_dir, paste0("scale_agreement_", m, ".csv")), row.names = FALSE)
   bs <- res[[m]]$bench %>% group_by(pair, L) %>% summarise(across(c(r, nrmse, offset_pct), list(med = median,
@@ -92,26 +95,36 @@ chamber_boot <- function(x, B = 200) {
     sum(budget(xb)$gC_m2) / 2
   })
 }
-bud <- list()
-for (m in c("LM.flux", "best.flux")) {
-  d <- build_dataset(flux_col = m)
+bud <- list(); boots <- list()
+for (cfg in list(c("LM.flux", "deployed"), c("best.flux", "deployed"), c("LM.flux", "screened"))) {
+  m <- cfg[1]; q <- cfg[2]
+  d <- build_dataset(qc = q, flux_col = m)
   for (sys in c("autochamber", "fluxbot")) {
+    if (q == "screened" && sys == "autochamber") next     # identical to the deployed autochamber data
     x <- d %>% filter(method == sys)
-    b <- budget(x); bt <- chamber_boot(x)
-    bud[[paste(m, sys)]] <- b %>% mutate(model = m, system = sys, mean_stands_gC = mean(b$gC_m2),
-                                         lo = quantile(bt, 0.025), hi = quantile(bt, 0.975))
+    b <- budget(x); bt <- chamber_boot(x); boots[[paste(m, q, sys)]] <- bt
+    bud[[paste(m, q, sys)]] <- b %>% mutate(model = m, dataset = q, system = sys, mean_stands_gC = mean(b$gC_m2),
+                                            lo = quantile(bt, 0.025), hi = quantile(bt, 0.975))
   }
 }
+# Fluxbot / autochamber budget ratio with a bootstrap CI (chambers resampled independently per system)
+for (cfg in list(c("LM.flux", "deployed"), c("best.flux", "deployed"), c("LM.flux", "screened"))) {
+  fbb <- boots[[paste(cfg[1], cfg[2], "fluxbot")]]; acb <- boots[[paste(cfg[1], "deployed", "autochamber")]]
+  fbm <- bud[[paste(cfg[1], cfg[2], "fluxbot")]]$mean_stands_gC[1]; acm <- bud[[paste(cfg[1], "deployed", "autochamber")]]$mean_stands_gC[1]
+  tag <- sprintf("budget_ratio_%s_%s", sub(".flux", "", cfg[1]), cfg[2])
+  record(tag, fbm / acm, "budget", "Fluxbot / autochamber, gap-filled 2-31 Oct")
+  record(paste0(tag, "_lo"), quantile(fbb / acb, 0.025), "budget"); record(paste0(tag, "_hi"), quantile(fbb / acb, 0.975), "budget")
+}
 x <- build_dataset_hf293() %>% filter(method == "autochamber")
-b <- budget(x); bud[["HF293"]] <- b %>% mutate(model = "HF293 published", system = "autochamber", mean_stands_gC = mean(b$gC_m2), lo = NA, hi = NA)
+b <- budget(x); bud[["HF293"]] <- b %>% mutate(model = "HF293 published", dataset = "deployed", system = "autochamber", mean_stands_gC = mean(b$gC_m2), lo = NA, hi = NA)
 bud <- bind_rows(bud)
 write.csv(bud, file.path(out_dir, "october_budget.csv"), row.names = FALSE)
 print(bud, digits = 3)
-for (i in seq_len(nrow(bud))) record(sprintf("budget_%s_%s_%s", sub(".flux", "", bud$model[i]), bud$system[i], bud$stand[i]),
+for (i in seq_len(nrow(bud))) record(sprintf("budget_%s%s_%s_%s", sub(".flux", "", bud$model[i]), if_else(bud$dataset[i] == "screened", "screened", ""), bud$system[i], bud$stand[i]),
                                      bud$gC_m2[i], "budget", "g C m-2, 2-31 Oct, gap-filled")
-bm <- bud %>% distinct(model, system, mean_stands_gC, lo, hi)
+bm <- bud %>% distinct(model, dataset, system, mean_stands_gC, lo, hi)
 for (i in seq_len(nrow(bm))) {
-  tag <- sprintf("budget_%s_%s_mean", sub(".flux", "", bm$model[i]), bm$system[i])
+  tag <- sprintf("budget_%s%s_%s_mean", sub(".flux", "", bm$model[i]), if_else(bm$dataset[i] == "screened", "screened", ""), bm$system[i])
   record(tag, bm$mean_stands_gC[i], "budget"); record(paste0(tag, "_lo"), bm$lo[i], "budget"); record(paste0(tag, "_hi"), bm$hi[i], "budget")
 }
 write_numbers("numbers_scales_budget.csv")

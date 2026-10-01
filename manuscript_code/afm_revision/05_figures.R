@@ -86,7 +86,7 @@ p4 <- ggplot(d, aes(fitted, fluxL_umolm2sec)) +
 save_fig(p4, "Fig4_gam_fit", 90, 90)
 
 # ---- Fig 5: distributions in matched hours ----------------------------------------------
-hrs <- matched_hours(d, 5)
+hrs <- matched_hours(d, 3)
 d5 <- d %>% filter(hour_of_obs %in% hrs)
 m5 <- d5 %>% group_by(method) %>% summarise(m = mean(fluxL_umolm2sec))
 p5 <- ggplot(d5, aes(fluxL_umolm2sec, fill = method, colour = method)) +
@@ -176,7 +176,7 @@ save_fig(p9a + p9b + plot_annotation(tag_levels = "a"), "Fig9_heterogeneity_effo
 fb_raw <- load_fluxbot(); ac_raw <- load_autochamber()
 per_day <- c(fluxbot = 24, autochamber = 48)
 days <- seq(as.Date("2023-10-02"), as.Date("2023-10-31"), by = "day")
-coll <- bind_rows(fb_raw, ac_raw) %>% mutate(date = as.Date(hour_of_obs)) %>%
+coll <- bind_rows(fb_raw, ac_raw) %>% mutate(date = as.Date(hour_of_obs, tz = "America/New_York")) %>%
   filter(date %in% days) %>% count(method, stand, id, date) %>%
   complete(nesting(method, stand, id), date = days, fill = list(n = 0)) %>%
   mutate(rate = pmin(1, n / per_day[method]),
@@ -187,8 +187,8 @@ p10a <- ggplot(coll, aes(date, unit, fill = 100 * rate)) +
   scale_fill_viridis_c(name = "Measurements\ncollected (%)", option = "D") +
   scale_x_date(date_labels = "%d %b", expand = c(0, 0)) + labs(x = NULL, y = NULL) +
   theme(axis.text.y = element_text(size = 5))
-cov <- d %>% filter(as.Date(hour_of_obs) %in% days) %>% count(method, stand_label, hour_of_obs) %>%
-  mutate(date = as.Date(hour_of_obs)) %>% group_by(method, stand_label, date) %>%
+cov <- d %>% filter(as.Date(hour_of_obs, tz = "America/New_York") %in% days) %>% count(method, stand_label, hour_of_obs) %>%
+  mutate(date = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(method, stand_label, date) %>%
   summarise(cov = sum(n >= 3) / 24, .groups = "drop") %>%
   complete(nesting(method, stand_label), date = days, fill = list(cov = 0))
 p10b <- ggplot(cov, aes(date, 100 * cov, colour = method)) +

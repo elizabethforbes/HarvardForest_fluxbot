@@ -1,20 +1,22 @@
 # Measurement accounting and filtering flow, with agreement between systems at each stage.
 #
-# Definitions (per closure = one scheduled chamber measurement), 2-31 October 2023, when
+# Definitions (per closure = one intended chamber measurement), 2-31 October 2023, when
 # both systems were deployed:
-#   scheduled  : closures the system was programmed to make (Fluxbot: 1 per unit-hour;
-#                autochamber: 2 per chamber-hour)
+#   intended   : closures at each system's programmed interval for every installed unit
+#                (Fluxbot: 1 per unit-hour; autochamber: 2 per chamber-hour). Units that stopped
+#                before 31 October count as downtime.
 #   recorded   : scheduled closures with any raw CO2 data in the closure window
 #   valid      : recorded closures with enough data to fit a flux (Fluxbot >= 75% of the 180-s
 #                window; autochamber >= 120 s of the 220-s window) that are not chamber
 #                failures (no statistically significant CO2 decline; no stuck lid, i.e. open-lid CO2
 #                > 500 ppm above the other units through a saturated episode)
-#   dry sensor : valid closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
-#                open-lid minute; condensation on the K30 optics, Pan et al. 2024)
-#   retained   : dry-sensor closures that pass the per-chamber spike screen (median +/- 5 MAD);
-#                these are analysed
-# Derived rates: uptime = recorded / scheduled; downtime = 1 - uptime;
-#   measurement success = retained / scheduled; QC retention = retained / computable;
+#   retained   : valid closures that pass the per-chamber spike screen (median +/- 5 MAD). This is
+#                the main, "as deployed" dataset (all conditions, wet sensors included).
+#   RH-screened: retained closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
+#                open-lid minute; condensation on the K30, Pan et al. 2024). A strict subset,
+#                compared alongside the main dataset.
+# Derived rates: uptime = recorded / intended; downtime = 1 - uptime;
+#   measurement success = retained / intended; QC retention = retained / recorded;
 #   measurement density = retained closures per unit per day; replicated coverage = share of
 #   hours with >= 3 retained chambers of a system in a stand.
 
@@ -51,21 +53,22 @@ acct <- function(system) {
   rec <- if (system == "fluxbot") nrow(fbr) else nrow(acr)
   comp <- nrow(flx)
   valid <- flx %>% filter(!decline)
-  dry <- valid %>% filter(!wet)
-  ret <- dry %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
-  tibble(system, stage = c("scheduled", "recorded", "valid", "dry sensor", "retained"),
-         n = c(sched, rec, nrow(valid), nrow(dry), nrow(ret))) %>%
-    mutate(pct_of_scheduled = 100 * n / sched, lost = lag(n) - n, pct_lost_step = 100 * lost / lag(n))
+  ret <- valid %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
+  scr <- ret %>% filter(!wet)
+  tibble(system, stage = c("intended", "recorded", "valid", "retained", "RH-screened"),
+         n = c(sched, rec, nrow(valid), nrow(ret), nrow(scr))) %>%
+    mutate(pct_of_intended = 100 * n / sched, lost = lag(n) - n, pct_lost_step = 100 * lost / lag(n))
 }
 acc <- bind_rows(acct("fluxbot"), acct("autochamber"))
 write.csv(acc, file.path(out_dir, "measurement_accounting.csv"), row.names = FALSE)
 print(acc, n = 20)
 for (i in seq_len(nrow(acc))) record(paste0("acct_", acc$system[i], "_", acc$stage[i]), acc$n[i], "accounting",
-                                      sprintf("%.1f%% of scheduled", acc$pct_of_scheduled[i]))
+                                      sprintf("%.1f%% of intended", acc$pct_of_intended[i]))
 for (s in c("fluxbot", "autochamber")) {
   a <- acc %>% filter(system == s); g <- function(st) a$n[a$stage == st]
-  record(paste0("uptime_pct_", s), 100 * g("recorded") / g("scheduled"), "accounting")
-  record(paste0("success_pct_", s), 100 * g("retained") / g("scheduled"), "accounting")
+  record(paste0("uptime_pct_", s), 100 * g("recorded") / g("intended"), "accounting")
+  record(paste0("success_pct_", s), 100 * g("retained") / g("intended"), "accounting", "as deployed")
+  record(paste0("success_screened_pct_", s), 100 * g("RH-screened") / g("intended"), "accounting", "RH-screened")
   record(paste0("qc_retention_pct_", s), 100 * g("retained") / g("recorded"), "accounting")
   record(paste0("density_per_unit_day_", s), g("retained") / (ifelse(s == "fluxbot", nrow(units), nrow(chambers)) * n_days), "accounting")
 }
@@ -83,8 +86,8 @@ stage_agree <- function(qc) {
          offset_pct = 100 * (mean(s$fluxbot) / mean(s$autochamber) - 1),
          r_hourly = cor(s$autochamber, s$fluxbot), r_daily = cor(dd$a, dd$f), n_days = nrow(dd))
 }
-ag <- bind_rows(lapply(c("valid", "dry", "fit"), stage_agree)) %>%
-  mutate(stage = c("valid", "dry sensor", "retained"))
+ag <- bind_rows(lapply(c("valid", "deployed", "screened"), stage_agree)) %>%
+  mutate(stage = c("valid", "retained", "RH-screened"))
 write.csv(ag, file.path(out_dir, "agreement_by_stage.csv"), row.names = FALSE)
 print(ag)
 for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
@@ -92,17 +95,17 @@ for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
 
 # ---- flow diagram ---------------------------------------------------------------------------------
 lab_step <- c(recorded = "no data transmitted / logger or power down",
-              valid = "too few records, or chamber failure (significant CO2 decline)",
-              `dry sensor` = "wet sensor (in-chamber RH >= 99% before closure)",
-              retained = "spike (> 5 MAD from chamber median)")
-fd <- acc %>% mutate(stage = factor(stage, levels = c("scheduled", "recorded", "valid", "dry sensor", "retained")),
+              valid = "too few records, or chamber failure (CO2 decline or stuck lid)",
+              retained = "spike (> 5 MAD from chamber median)",
+              `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)")
+fd <- acc %>% mutate(stage = factor(stage, levels = c("intended", "recorded", "valid", "retained", "RH-screened")),
                      y = 5 - as.integer(stage), x = if_else(system == "fluxbot", 1, 3.2),
-                     label = sprintf("%s\n%s (%.1f%%)", tools::toTitleCase(as.character(stage)), format(n, big.mark = ","), pct_of_scheduled))
+                     label = sprintf("%s\n%s (%.1f%%)", c(intended = "Intended", recorded = "Recorded", valid = "Valid", retained = "Retained: as deployed", `RH-screened` = "RH-screened subset")[as.character(stage)], format(n, big.mark = ","), pct_of_intended))
 fl <- fd %>% filter(!is.na(lost)) %>% mutate(dl = sprintf("-%s: %s", format(lost, big.mark = ","), lab_step[as.character(stage)]))
 agl <- ag %>% mutate(y = 5 - match(stage, levels(fd$stage)),
                      label = sprintf("offset %+.0f%%\nr hourly %.2f\nr daily %.2f", offset_pct, r_hourly, r_daily))
 pflow <- ggplot() +
-  geom_segment(data = fd %>% filter(stage != "retained"), aes(x = x, xend = x, y = y - 0.18, yend = y - 0.82),
+  geom_segment(data = fd %>% filter(stage != "RH-screened"), aes(x = x, xend = x, y = y - 0.18, yend = y - 0.82),
                arrow = arrow(length = unit(1.5, "mm")), linewidth = 0.3) +
   geom_label(data = fd, aes(x, y, label = label), size = 2.3, label.size = 0.25, lineheight = 0.9) +
   geom_text(data = fl, aes(x = x + 0.08, y = y + 0.5, label = dl), hjust = 0, size = 1.9, colour = "grey30") +

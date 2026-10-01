@@ -37,7 +37,7 @@ metrics <- function(x, y) {  # x = reference (autochamber), y = Fluxbot
 }
 
 # ---- 1. array means at several time scales ------------------------------------------------
-array_series <- function(d, k = 5) {
+array_series <- function(d, k = 3) {
   hrs <- matched_hours(d, k)
   d %>% filter(hour_of_obs %in% hrs) %>%
     group_by(hour_of_obs, stand, method) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
@@ -50,7 +50,7 @@ grid <- data.frame(hour_of_obs = seq(min(hr$hour_of_obs), max(hr$hour_of_obs), b
   mutate(ac3 = rollapply(autochamber, 3, mean, fill = NA, align = "right"),
          fb3 = rollapply(fluxbot, 3, mean, fill = NA, align = "right"))
 # daily: days with >= 12 matched hours
-dy <- hr %>% mutate(day = as.Date(hour_of_obs)) %>% group_by(day) %>%
+dy <- hr %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>%
   filter(n() >= 12) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot))
 panel <- bind_rows(
   cbind(scale = "hourly", metrics(hr$autochamber, hr$fluxbot)),
@@ -58,6 +58,19 @@ panel <- bind_rows(
   cbind(scale = "daily", metrics(dy$ac, dy$fb)))
 write.csv(panel, file.path(out_dir, "agreement_metric_panel.csv"), row.names = FALSE)
 print(panel %>% mutate(across(where(is.numeric), ~ round(., 3))))
+# the same panel for the RH-screened subset (Fluxbot wet-sensor closures removed)
+panel_for <- function(dd) { h <- array_series(dd)
+  g3 <- data.frame(hour_of_obs = seq(min(h$hour_of_obs), max(h$hour_of_obs), by = "hour")) %>% left_join(h, by = "hour_of_obs") %>%
+    mutate(ac3 = rollapply(autochamber, 3, mean, fill = NA, align = "right"), fb3 = rollapply(fluxbot, 3, mean, fill = NA, align = "right"))
+  dd2 <- h %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot))
+  bind_rows(cbind(scale = "hourly", metrics(h$autochamber, h$fluxbot)), cbind(scale = "3-h rolling", metrics(g3$ac3, g3$fb3)),
+            cbind(scale = "daily", metrics(dd2$ac, dd2$fb))) }
+panel_scr <- panel_for(build_dataset(qc = "screened"))
+write.csv(panel_scr, file.path(out_dir, "agreement_metric_panel_screened.csv"), row.names = FALSE)
+for (ds in c("deployed", "screened")) { pn <- if (ds == "deployed") panel else panel_scr
+  for (i in seq_len(nrow(pn))) for (k in c("n", "r", "bias", "bias_pct", "rmse", "nrmse_pct", "ccc", "sma_slope", "loa_lo", "loa_hi"))
+    record(sprintf("panel_%s_%s_%s", ds, gsub("[^a-z0-9]", "", pn$scale[i]), k), pn[[k]][i], "agreement_panel",
+           "array means; compared hours = >= 3 units per system per stand") }
 
 # threshold sensitivity (minimum chambers per system x stand)
 thr <- bind_rows(lapply(1:6, function(k) {
@@ -84,7 +97,7 @@ draw <- function(sys_a, sys_b) {
   a <- pick(sys_a); b <- pick(sys_b, exclude = if (sys_a == sys_b) a$id else NULL)
   s <- inner_join(subset_series(a), subset_series(b), by = "hour_of_obs", suffix = c("_a", "_b"))
   if (nrow(s) < 50) return(NULL)
-  sd_ <- s %>% mutate(day = as.Date(hour_of_obs)) %>% group_by(day) %>% filter(n() >= 12) %>%
+  sd_ <- s %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>%
     summarise(a = mean(f_a), b = mean(f_b))
   h <- metrics(s$f_a, s$f_b); dd <- metrics(sd_$a, sd_$b)
   data.frame(abs_bias = abs(h$bias) / mean(c(h$mean_ref, h$mean_fb)), r_hourly = h$r, ccc_hourly = h$ccc,

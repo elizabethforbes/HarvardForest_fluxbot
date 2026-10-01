@@ -70,7 +70,7 @@ fbr <- read_csv(file.path(pkg, "raw", "fluxbot_sensor_records_2023.csv.gz"), col
   filter(!co2_ppm %in% c(65535, 65533), co2_ppm > 0, co2_ppm < 10000) %>%
   mutate(time = as.POSIXct(unix_time, origin = "1970-01-01", tz = "America/New_York"), mm = minute(time) + second(time) / 60,
          rh_pct = if_else(rh_pct >= 0 & rh_pct <= 100.5, rh_pct, NA_real_)) %>%
-  filter(mm >= 54, time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < as.POSIXct("2023-11-05", tz = "America/New_York")) %>%
+  filter(mm >= 54, time >= as.POSIXct("2023-10-02", tz = "America/New_York"), time < analysis_end) %>%
   mutate(hour_of_obs = floor_date(time, "hour") + 3600)
 cl <- fbr %>% group_by(unit, hour_of_obs) %>% filter(sum(mm < 55) >= 3, sum(mm >= 55) >= 20) %>%
   summarise(base = median(co2_ppm[mm < 55]), noise = mad(co2_ppm[mm < 55]),

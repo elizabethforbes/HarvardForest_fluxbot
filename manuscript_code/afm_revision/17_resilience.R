@@ -104,23 +104,17 @@ pc <- ggplot(daily, aes(day, share, colour = series, linetype = series)) + geom_
   scale_y_continuous(limits = c(0, 100)) + scale_x_date(date_labels = "%d %b", expand = c(0, 0)) +
   labs(x = NULL, y = "Units reporting\n(% of stand's units, daily)") +
   theme_classic(base_size = 8) + theme(legend.position = "top", legend.key.width = unit(8, "mm"))
-# timeline: each row in its system's colour (dark = >= 3 units, light = 1-2 units); amber = measured
-# but removed by QC; blank = no data
-st_h <- st_h %>% mutate(fill_key = case_when(
-  state == ">= 3 units" ~ paste(lab_sys[method], ">= 3 units"),
-  state == "1-2 units" ~ paste(lab_sys[method], "1-2 units"),
-  state == "measured, removed by QC" ~ "Measured, removed by QC",
-  TRUE ~ "No data (down)"))
-fill_pal <- c("Autochamber >= 3 units" = "#2E7D4F", "Autochamber 1-2 units" = "#A9D3B9",
-              "Fluxbot 2.0 >= 3 units" = "#5E5E5E", "Fluxbot 2.0 1-2 units" = "#C8C8C8",
-              "Measured, removed by QC" = "#E6A532", "No data (down)" = "white")
+# timeline: the same state colours for both systems (dark = >= 3 units, light = 1-2 units,
+# amber = measured but removed by QC, blank = no data)
+st_h <- st_h %>% mutate(fill_key = as.character(state))
+fill_pal <- c(">= 3 units" = "#3B5B7A", "1-2 units" = "#A9C1D9", "measured, removed by QC" = "#E6A532", "no data (down)" = "white")
 rows <- tibble(series = factor(levels(st_h$series), levels = levels(st_h$series)))
 pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series))) +
   geom_tile(aes(fill = fill_key), height = 0.8) +
   geom_tile(data = rows, aes(x = p0 + (p1 - p0) / 2, y = forcats::fct_rev(series)), width = as.numeric(difftime(p1, p0, units = "secs")),
             height = 0.8, fill = NA, colour = "grey60", linewidth = 0.3, inherit.aes = FALSE) +
   scale_fill_manual(values = fill_pal, breaks = names(fill_pal), name = NULL) +
-  guides(fill = guide_legend(nrow = 2, override.aes = list(colour = "grey60", linewidth = 0.3))) +
+  guides(fill = guide_legend(nrow = 1, override.aes = list(colour = "grey60", linewidth = 0.3))) +
   scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + labs(x = NULL, y = NULL) +
   theme_classic(base_size = 8) + theme(legend.position = "bottom", axis.line.y = element_blank(), axis.ticks.y = element_blank())
 fig <- ((pa + pb + plot_layout(widths = c(4, 1))) / pc / pd) + plot_layout(heights = c(1, 0.9, 0.55)) + plot_annotation(tag_levels = "a")

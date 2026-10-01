@@ -46,16 +46,16 @@ wet_h <- load_fluxbot() %>% filter(!lid_fail) %>% group_by(stand, hour_of_obs) %
   mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"), method_label = factor(lab_sys["fluxbot"], levels = lab_sys))
 xs2 <- scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b", date_breaks = "1 week", expand = c(0.01, 0))
 p2a <- ggplot(dd2, aes(hour_of_obs, fluxL_umolm2sec)) +
-  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = col_wet, alpha = 0.7, length = unit(2, "mm")) +
-  geom_point(aes(colour = method), size = 0.55, alpha = 0.45, stroke = 0) +
-  geom_line(data = other, aes(y = r), colour = "grey20", linewidth = 0.35, linetype = "22", na.rm = TRUE) +
-  geom_line(data = own, aes(y = r), colour = "black", linewidth = 0.8, na.rm = TRUE) +
+  geom_rug(data = wet_h, aes(x = hour_of_obs), inherit.aes = FALSE, sides = "b", colour = col_wet, alpha = a_mean, length = unit(2, "mm")) +
+  geom_point(aes(colour = method), size = pt_dense, alpha = a_dense, stroke = 0) +
+  geom_line(data = other, aes(y = r), colour = "grey20", linewidth = lw_thin, linetype = "22", na.rm = TRUE) +
+  geom_line(data = own, aes(y = r), colour = col_fit, linewidth = 0.8, na.rm = TRUE) +
   facet_grid(method_label ~ stand_label) + scale_colour_manual(values = pal, guide = "none") +
   coord_cartesian(ylim = c(0, 7)) + xs2 + labs(x = NULL, y = flux_lab)
 metp <- met %>% mutate(hr = floor_date(with_tz(Time, "America/New_York"), "hour")) %>% group_by(hr) %>%
   summarise(s10t = mean(s10t), prec = sum(prec), .groups = "drop") %>% filter(hr >= p0, hr < p1)
 sc <- max(metp$prec, na.rm = TRUE) / 20
-p2b <- ggplot(metp, aes(hr)) + geom_col(aes(y = prec / sc), fill = col_wet, alpha = 0.6, width = 3600) +
+p2b <- ggplot(metp, aes(hr)) + geom_col(aes(y = prec / sc), fill = col_wet, alpha = a_mean, width = 3600) +
   geom_line(aes(y = s10t), linewidth = 0.4) +
   scale_y_continuous(name = expression(Soil ~ T ~ (degree * C)), sec.axis = sec_axis(~ . * sc, name = expression(Rain ~ (mm ~ h^-1)))) +
   xs2 + labs(x = NULL)
@@ -83,9 +83,9 @@ cum <- bind_rows(
   bind_cols(gf_series(d %>% filter(method == "autochamber")), boot_cum(d %>% filter(method == "autochamber"))) %>% mutate(series = "Autochamber"),
   bind_cols(gf_series(d %>% filter(method == "fluxbot")), boot_cum(d %>% filter(method == "fluxbot"))) %>% mutate(series = "Fluxbot 2.0, as deployed"),
   gf_series(d_scr %>% filter(method == "fluxbot")) %>% mutate(lo = NA_real_, hi = NA_real_, series = "Fluxbot 2.0, RH-screened"))
-cpal <- c("Autochamber" = unname(pal["autochamber"]), "Fluxbot 2.0, as deployed" = "#4D4D4D", "Fluxbot 2.0, RH-screened" = "#4D4D4D")
+cpal <- c("Autochamber" = unname(pal["autochamber"]), "Fluxbot 2.0, as deployed" = unname(pal["fluxbot"]), "Fluxbot 2.0, RH-screened" = unname(pal["fluxbot"]))
 p2c <- ggplot(cum, aes(hour_of_obs, cum, colour = series, fill = series, linetype = series)) +
-  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, colour = NA, na.rm = TRUE) + geom_line(linewidth = 0.6) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = a_band, colour = NA, na.rm = TRUE) + geom_line(linewidth = lw_main) +
   scale_colour_manual(values = cpal, name = NULL) + scale_fill_manual(values = cpal, name = NULL) +
   scale_linetype_manual(values = c("Autochamber" = "solid", "Fluxbot 2.0, as deployed" = "solid", "Fluxbot 2.0, RH-screened" = "22"), name = NULL) +
   xs2 + labs(x = NULL, y = expression("Cumulative C (g m"^-2*")")) +
@@ -101,7 +101,7 @@ d3 <- d %>% mutate(array = factor(paste0(lab_sys[as.character(method)], ", ", st
 ord <- d3 %>% group_by(array, unit) %>% summarise(m = mean(fluxL_umolm2sec), .groups = "drop") %>% arrange(array, m) %>% mutate(key = paste(array, unit))
 d3 <- d3 %>% mutate(key = factor(paste(array, unit), levels = ord$key))
 p3 <- ggplot(d3, aes(fluxL_umolm2sec, key)) +
-  geom_jitter(aes(colour = method), height = 0.2, size = 0.25, alpha = 0.25, stroke = 0) +
+  geom_jitter(aes(colour = method), height = 0.2, size = pt_dense, alpha = a_dense, stroke = 0) +
   geom_boxplot(outliers = FALSE, fill = NA, linewidth = 0.3, width = 0.6) +
   facet_wrap(~ array, scales = "free_y", ncol = 2) +
   scale_y_discrete(labels = function(k) sub(".* ", "", k)) +
@@ -114,11 +114,11 @@ g <- readRDS(file.path(out_dir, "gam_re.rds"))
 d$fitted <- fitted(g)
 fit_of <- lm(fluxL_umolm2sec ~ fitted, data = d)
 p4 <- ggplot(d, aes(fitted, fluxL_umolm2sec)) +
-  geom_point(aes(colour = method), size = 0.3, alpha = 0.2, stroke = 0) +
+  geom_point(aes(colour = method), size = pt_dense, alpha = a_dense, stroke = 0) +
   geom_abline(linetype = "dashed") +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   guides(colour = guide_legend(override.aes = list(size = 1.5, alpha = 1))) +
-  annotate("text", x = -Inf, y = Inf, hjust = -0.05, vjust = 1.3, size = 2.6,
+  annotate("text", x = -Inf, y = Inf, hjust = -0.05, vjust = 1.3, size = txt,
            label = sprintf("Adj. R\u00b2 = %.2f", num("gam_r2adj"))) +
   labs(x = expression(GAM ~ fitted ~ flux ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Observed ~ flux ~ (mu * mol ~ m^-2 ~ s^-1))) +
   coord_equal() + theme(legend.position = c(0.8, 0.12))
@@ -129,7 +129,7 @@ hrs <- matched_hours(d, 3)
 d5 <- d %>% filter(hour_of_obs %in% hrs)
 m5 <- d5 %>% group_by(method) %>% summarise(m = mean(fluxL_umolm2sec))
 p5 <- ggplot(d5, aes(fluxL_umolm2sec, fill = method, colour = method)) +
-  geom_density(alpha = 0.5, linewidth = 0.3) +
+  geom_density(alpha = 0.4, linewidth = lw_thin) +
   geom_vline(data = m5, aes(xintercept = m, colour = method), linetype = "dashed", linewidth = 0.4) +
   scale_fill_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
@@ -154,18 +154,18 @@ dimnames(tabd) <- list(c("Hourly, as deployed", "Hourly, RH-screened", "Daily, a
 tg <- gridExtra::tableGrob(tabd, theme = gridExtra::ttheme_minimal(base_size = 6.5, padding = unit(c(3, 1.6), "mm"),
         core = list(fg_params = list(hjust = 1, x = 0.9)), rowhead = list(fg_params = list(hjust = 0, x = 0.05, fontface = "plain")),
         colhead = list(fg_params = list(fontface = "bold"))))
-cols4 <- c("Hourly, dry sensors" = "grey45", "Hourly, wet sensors" = col_wet)
+cols4 <- c("Hourly, dry sensors" = unname(pal["fluxbot"]), "Hourly, wet sensors" = col_wet)
 sma_b <- sign(cor(hd$autochamber, hd$fluxbot)) * sd(hd$fluxbot) / sd(hd$autochamber); sma_a <- mean(hd$fluxbot) - sma_b * mean(hd$autochamber)
 lim <- c(0.8, 5)
 lgd <- theme(legend.position = c(0.02, 0.98), legend.justification = c(0, 1), legend.title = element_blank(),
              legend.background = element_rect(fill = alpha("white", 0.8), colour = NA), legend.key.size = unit(3, "mm"),
              legend.spacing.y = unit(0, "mm"), legend.margin = margin(1, 2, 1, 2))
 p4a <- ggplot(hd, aes(autochamber, fluxbot)) +
-  geom_abline(aes(intercept = 0, slope = 1, linetype = "1:1"), colour = "grey30", linewidth = 0.4) +
+  geom_abline(aes(intercept = 0, slope = 1, linetype = "1:1"), colour = col_ref, linewidth = 0.4) +
   geom_abline(aes(intercept = sma_a, slope = sma_b, linetype = "SMA fit"), colour = "black", linewidth = 0.5) +
-  geom_point(aes(colour = subset), size = 0.9, alpha = 0.6, stroke = 0) +
-  geom_point(data = dy, aes(fill = "Daily means"), shape = 21, size = 2.1, colour = "black", stroke = 0.35) +
-  scale_colour_manual(values = cols4) + scale_fill_manual(values = c("Daily means" = "#F4A582")) +
+  geom_point(aes(colour = subset), size = pt_mean, alpha = a_mean, stroke = 0) +
+  geom_point(data = dy, aes(fill = "Daily means"), shape = 21, size = pt_big, colour = "black", stroke = 0.35) +
+  scale_colour_manual(values = cols4) + scale_fill_manual(values = c("Daily means" = col_accent)) +
   scale_linetype_manual(values = c("1:1" = "22", "SMA fit" = "solid")) +
   guides(colour = guide_legend(order = 1, override.aes = list(size = 2, alpha = 1)), fill = guide_legend(order = 2), linetype = guide_legend(order = 3)) +
   coord_equal(xlim = lim, ylim = lim, expand = FALSE) + lgd +
@@ -174,10 +174,10 @@ p4a <- ggplot(hd, aes(autochamber, fluxbot)) +
 ba <- hd %>% mutate(m = (autochamber + fluxbot) / 2, df = fluxbot - autochamber)
 mu <- mean(ba$df); lo <- mu - 1.96 * sd(ba$df); hi <- mu + 1.96 * sd(ba$df)
 p4b <- ggplot(ba, aes(m, df)) + geom_hline(yintercept = 0, colour = "grey75") +
-  geom_point(aes(colour = subset), size = 0.9, alpha = 0.6, stroke = 0) +
+  geom_point(aes(colour = subset), size = pt_mean, alpha = a_mean, stroke = 0) +
   geom_hline(aes(yintercept = mu, linetype = "Mean difference"), linewidth = 0.5) +
   geom_hline(aes(yintercept = lo, linetype = "95% limits of agreement"), linewidth = 0.4) + geom_hline(aes(yintercept = hi, linetype = "95% limits of agreement"), linewidth = 0.4) +
-  annotate("text", x = 4.6, y = c(mu, lo, hi), label = sprintf("%.2f", c(mu, lo, hi)), hjust = 1, vjust = -0.4, size = 2.3) +
+  annotate("text", x = 4.6, y = c(mu, lo, hi), label = sprintf("%.2f", c(mu, lo, hi)), hjust = 1, vjust = -0.4, size = txt) +
   scale_colour_manual(values = cols4) + scale_linetype_manual(values = c("Mean difference" = "solid", "95% limits of agreement" = "22"), breaks = c("Mean difference", "95% limits of agreement")) +
   guides(colour = guide_legend(order = 1, override.aes = list(size = 2, alpha = 1)), linetype = guide_legend(order = 2)) +
   coord_cartesian(xlim = c(1, 4.6), ylim = c(-2.1, 2.3)) + lgd +
@@ -187,8 +187,8 @@ save_fig((p4a | p4b), "Fig4_array_agreement", 190, 100)
 # ---- Fig 5: diel pattern (common stand-hours) --------------------------------------------
 diel <- read.csv(file.path(out_dir, "diel_common_window.csv"))
 p7 <- ggplot(diel, aes(hour, mean, colour = method, fill = method)) +
-  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.2, colour = NA) +
-  geom_line(linewidth = 0.5) + geom_point(size = 0.8) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = a_band, colour = NA) +
+  geom_line(linewidth = lw_main) + geom_point(size = pt_mean) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_fill_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_x_continuous(breaks = seq(0, 24, 4)) +
@@ -209,8 +209,8 @@ qlab <- data.frame(method_label = factor(lab_sys, levels = lab_sys),
                    lab = c(sprintf("Q[10] == %.2f ~ (%.2f-%.2f)", num("q10_autochamber_q10"), num("q10_autochamber_lo"), num("q10_autochamber_hi")),
                            sprintf("Q[10] == %.2f ~ (%.2f-%.2f)", num("q10_fluxbot_q10"), num("q10_fluxbot_lo"), num("q10_fluxbot_hi"))))
 p8 <- ggplot(dq, aes(s10t, fluxL_umolm2sec)) +
-  geom_point(aes(colour = method), size = 0.6, alpha = 0.45, stroke = 0) +
-  geom_ribbon(data = pred, aes(y = f, ymin = f - 1.96 * se, ymax = f + 1.96 * se), alpha = 0.3) +
+  geom_point(aes(colour = method), size = pt_dense, alpha = a_dense, stroke = 0) +
+  geom_ribbon(data = pred, aes(y = f, ymin = f - 1.96 * se, ymax = f + 1.96 * se), alpha = 0.3, fill = col_fit) +
   geom_line(data = pred, aes(y = f), linewidth = 0.6) +
   geom_text(data = qlab, aes(x = -Inf, y = Inf, label = lab), parse = TRUE, hjust = -0.05, vjust = 1.3, size = 2.5) +
   facet_wrap(~method_label) + scale_colour_manual(values = pal, guide = "none") +
@@ -226,7 +226,7 @@ lz <- d %>% group_by(hour_of_obs) %>%
 glab <- lz %>% distinct(method, gini) %>%
   mutate(lab = sprintf("%s: Gini = %.2f", lab_sys[as.character(method)], gini), y = c(0.95, 0.87))
 p9a <- ggplot(lz, aes(p, L, colour = method)) +
-  geom_abline(linetype = "dashed") + geom_line(linewidth = 0.5) + geom_point(size = 0.8) +
+  geom_abline(linetype = "dashed", colour = col_ref) + geom_line(linewidth = lw_main) + geom_point(size = pt_mean) +
   geom_text(data = glab, aes(x = 0.02, y = y, label = lab), hjust = 0, size = 2.5, show.legend = FALSE) +
   scale_colour_manual(values = pal, guide = "none") + coord_equal() +
   labs(x = "Cumulative share of chambers", y = "Cumulative share of flux")
@@ -235,7 +235,7 @@ eff <- read.csv(file.path(out_dir, "sampling_effort.csv")) %>%
 p9b <- ggplot(eff %>% filter(n >= 3), aes(n, 100 * analytic, colour = method, linetype = stand_label)) +
   geom_hline(yintercept = c(10, 20), colour = "grey70", linewidth = 0.3) +
   geom_line(linewidth = 0.5) +
-  geom_point(data = eff %>% filter(n == n_chambers), size = 1.2) +
+  geom_point(data = eff %>% filter(n == n_chambers), size = pt_big - 0.6) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_linetype_manual(values = c("solid", "22"), name = NULL) +
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +

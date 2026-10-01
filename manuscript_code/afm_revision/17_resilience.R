@@ -86,15 +86,15 @@ for (i in seq_len(nrow(state_tab))) record(sprintf("state_%s_%s", gsub(" ", "_",
   c("rep3", "u12", "qc", "down")[as.integer(state_tab$state[i])]), state_tab$pct[i], "resilience", "% of stand-hours")
 # colours follow the system palette used in all figures (autochamber green, Fluxbot grey):
 # dark shade + solid = stand 1, light shade + dashed = stand 2
-ser_pal <- c("Autochamber Stand 1" = "#1F6E43", "Autochamber Stand 2" = "#7FBF96", "Fluxbot 2.0 Stand 1" = "#4D4D4D", "Fluxbot 2.0 Stand 2" = "#A6A6A6")
+ser_pal <- pal_stand
 ser_lty <- c("Autochamber Stand 1" = "solid", "Autochamber Stand 2" = "22", "Fluxbot 2.0 Stand 1" = "solid", "Fluxbot 2.0 Stand 2" = "22")
 ur <- unit_rate %>% mutate(unit = reorder(sub("^(autochamber|fluxbot|fluxes_bot)", "", id), success))
 pa <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width = 0.8) +
   facet_grid(~ lab_sys[method], scales = "free_x", space = "free_x") + scale_fill_manual(values = pal, guide = "none") +
   labs(x = "Chamber or unit", y = "Measurement success\n(% of intended closures)") + scale_y_continuous(limits = c(0, 100)) + theme_afm() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6))
-pb <- ggplot(ur, aes(c(autochamber = "Auto-\nchamber", fluxbot = "Fluxbot\n2.0")[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = 0.7) +
-  geom_jitter(width = 0.1, size = 0.8, alpha = 0.7) + scale_fill_manual(values = pal, guide = "none") +
+pb <- ggplot(ur, aes(c(autochamber = "Auto-\nchamber", fluxbot = "Fluxbot\n2.0")[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = a_mean) +
+  geom_jitter(width = 0.1, size = pt_mean, alpha = a_mean) + scale_fill_manual(values = pal, guide = "none") +
   scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_afm()
 daily <- st_h %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(series, day) %>%
   summarise(share = 100 * mean(n_ok / n_units), .groups = "drop")
@@ -107,7 +107,7 @@ pc <- ggplot(daily, aes(day, share, colour = series, linetype = series)) + geom_
 # (red, no data)
 st_h <- st_h %>% mutate(fill_key = as.character(state))
 # good-to-bad diverging scale (ColorBrewer RdYlBu, colourblind-safe; avoids the system greens/greys)
-fill_pal <- c(">= 3 units" = "#2C7BB6", "1-2 units" = "#ABD9E9", "measured, removed by QC" = "#FDAE61", "no data (down)" = "#D7191C")
+fill_pal <- pal_state
 rows <- tibble(series = factor(levels(st_h$series), levels = levels(st_h$series)))
 pd <- ggplot(st_h, aes(hour_of_obs, forcats::fct_rev(series))) +
   geom_tile(aes(fill = fill_key), height = 0.8) +

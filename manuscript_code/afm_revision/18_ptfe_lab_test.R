@@ -13,6 +13,7 @@
 # a is the offset.
 
 source("afm_revision/00_prep.R")
+source("afm_revision/fig_style.R")
 suppressPackageStartupMessages({ library(readr); library(ggplot2) })
 dd <- file.path(pkg, "raw", "lab_ptfe_test_2023-09-22")
 day <- "2023-09-22"
@@ -69,7 +70,7 @@ ev <- tibble(time = as.POSIXct(paste(day, c("13:36:00", "13:45:00", "14:00:00", 
              lab = c("door closed", "CO2 on", "door 1 min", "covered sensor wetted", "door opened", "breath"),
              vj = c(-0.4, 1.3, -0.4, -0.4, -0.4, 1.3))
 pd <- bind_rows(k30 %>% select(time, co2, sensor), grid %>% filter(!is.na(co2)) %>% transmute(time, co2, sensor = "LGR (reference)"))
-pal3 <- c("LGR (reference)" = "black", "Uncovered K30" = "#E08214", "PTFE-covered K30" = "#2C7BB6")
+pal3 <- c("LGR (reference)" = "black", "Uncovered K30" = unname(pal_lab["uncovered"]), "PTFE-covered K30" = unname(pal_lab["covered"]))
 mk <- function(t0, t1, evs = ev, zoom = NULL) ggplot(pd %>% filter(time >= t0, time <= t1), aes(time, co2, colour = sensor)) +
   { if (!is.null(zoom)) annotate("rect", xmin = zoom[1], xmax = zoom[2], ymin = -Inf, ymax = Inf, fill = "grey90") } +
   geom_line(data = ~ filter(.x, sensor == "LGR (reference)"), linewidth = 0.4) +
@@ -78,7 +79,7 @@ mk <- function(t0, t1, evs = ev, zoom = NULL) ggplot(pd %>% filter(time >= t0, t
   geom_text(data = evs %>% filter(time >= t0, time <= t1), aes(x = time, y = Inf, label = lab, vjust = vj), inherit.aes = FALSE,
             angle = 90, hjust = 1.1, size = 2.2, colour = "grey30") +
   scale_colour_manual(values = pal3, name = NULL) + labs(x = NULL, y = expression(CO[2] ~ (ppm))) +
-  scale_y_continuous(expand = expansion(mult = c(0.03, 0.3))) + theme_classic(base_size = 8) + theme(legend.position = "bottom")
+  scale_y_continuous(expand = expansion(mult = c(0.03, 0.3))) + theme_afm() + theme(legend.position = "bottom")
 library(patchwork)
 t_all <- range(k30$time)
 zw <- c(wet_t - 900, as.POSIXct("2023-09-22 17:50:00", tz = "America/New_York"))

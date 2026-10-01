@@ -14,6 +14,7 @@
 # The covered - uncovered difference needs no reference and is reported directly.
 
 source("afm_revision/00_prep.R")
+source("afm_revision/fig_style.R")
 suppressPackageStartupMessages({ library(readr); library(ggplot2); library(patchwork) })
 dd <- file.path(pkg, "raw", "lab_cover_test_2023-12-13")
 tz <- "America/New_York"; at <- function(x) as.POSIXct(paste("2023-12-13", x), tz = tz)
@@ -89,7 +90,7 @@ sens_pal <- c(c1 = "#B35806", c2 = "#F1A340", c3 = "#FDB863", t1 = "#2166AC", t2
 sens_lab <- c(c1 = "c1 uncovered", c2 = "c2 uncovered", c3 = "c3 uncovered", t1 = "t1 covered", t2 = "t2 covered")
 win <- at(c("15:35:00", "18:32:00"))
 xs <- scale_x_datetime(date_breaks = "15 min", date_labels = "%H:%M", limits = win, expand = c(0, 0))
-th <- theme_classic(base_size = 8)
+th <- theme_afm()
 ref <- geom_line(data = grid %>% filter(!is.na(co2)), aes(time, co2), inherit.aes = FALSE, linewidth = 0.3, colour = "black")
 pa <- ggplot(k, aes(time, co2, colour = sensor)) + shade() + fill_ph + ref +
   annotate("rect", xmin = win[1], xmax = win[2], ymin = -Inf, ymax = Inf, fill = NA, colour = "grey40", linetype = "22") +

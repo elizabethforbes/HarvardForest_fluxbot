@@ -105,8 +105,9 @@ sig <- function(x0, x1, ya0, ya1, yb0, yb1, n = 40) {   # ribbon from [ya0,ya1] 
 }
 reason <- c(recorded = "No data (logger, power or transmission)", valid = "Chamber failure or too few records",
             retained = "Spike", `RH-screened` = "Wet sensor (RH-screened subset only)")
-rcol <- c("No data (logger, power or transmission)" = "#BDBDBD", "Chamber failure or too few records" = "#F4A582",
-          "Spike" = "#B2ABD2", "Wet sensor (RH-screened subset only)" = "#92C5DE")
+rcol <- c("No data (logger, power or transmission)" = unname(pal_state["no data (down)"]),
+          "Chamber failure or too few records" = unname(pal_state["measured, removed by QC"]),
+          "Spike" = "#FEE090", "Wet sensor (RH-screened subset only)" = col_wet)
 sys_lab <- c(fluxbot = "Fluxbot 2.0 (16 units)", autochamber = "Autochamber (12 chambers)")
 stage_lab <- c(intended = "Intended", recorded = "Recorded", valid = "Valid", retained = "Retained\n(as deployed)", `RH-screened` = "RH-screened")
 w <- 0.12

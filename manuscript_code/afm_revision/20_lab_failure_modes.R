@@ -10,6 +10,7 @@
 # LGR on its own dry period; wet periods are then compared with that calibration.
 
 source("afm_revision/00_prep.R")
+source("afm_revision/fig_style.R")
 suppressPackageStartupMessages({ library(readr); library(purrr); library(ggplot2); library(patchwork) })
 tz <- "America/New_York"
 
@@ -170,7 +171,7 @@ for (i in seq_len(nrow(rs))) { record(paste0("lab_ramp_", tag(rs$test[i]), "_", 
 #      (d) error-code share --------------------------------------------------------------------------
 lvl <- c("Sep: Dry", "Sep: Covered sensor wetted", "Dec: Dry", "Dec: Wet PTFE", "Dec: Dry bracket", "Dec: Wet bracket", "Dec: Bare K30s sprayed")
 lab_ph <- function(t, p) factor(paste0(substr(t, 4, 6), ": ", p), levels = lvl)
-gcol <- c(covered = "#2C7BB6", uncovered = "#E08214")
+gcol <- c(covered = unname(pal_lab["covered"]), uncovered = unname(pal_lab["uncovered"]))
 ppl <- pp %>% mutate(ph = lab_ph(test, phase), slab = if_else(test == "13 Dec", sensor, ""), noisy = sensor == "c2")
 p_a <- ggplot(rp %>% filter(group == "covered") %>% mutate(ph = lab_ph(test, phase)), aes(ph, rel_unc, colour = group)) + geom_hline(yintercept = 1, colour = "grey50") +
   geom_point(position = position_jitter(width = 0.12, height = 0), size = 0.8, alpha = 0.6, show.legend = FALSE) +
@@ -188,7 +189,7 @@ p_d <- ggplot(ppl, aes(ph, err_pct, colour = group, label = slab, shape = noisy)
   scale_shape_manual(values = c(`FALSE` = 16, `TRUE` = 1), labels = "c2 (noisy all day)", breaks = "TRUE", name = NULL) +
   scale_colour_manual(values = gcol, name = NULL) + labs(x = NULL, y = "Error codes (%)", title = "Error codes (electronics)")
 pfig <- (p_a / p_b / p_c / p_d) + plot_layout(guides = "collect") + plot_annotation(tag_levels = "a") &
-  theme_classic(base_size = 8) & theme(legend.position = "bottom", plot.title = element_text(size = 8), axis.text.x = element_text(angle = 25, hjust = 1))
+  theme_afm() & theme(legend.position = "bottom", plot.title = element_text(size = 8), axis.text.x = element_text(angle = 25, hjust = 1))
 ggsave(file.path(out_dir, "figures", "FigS_lab_failure_modes.pdf"), pfig, width = 140, height = 230, units = "mm", device = cairo_pdf)
 ggsave(file.path(out_dir, "figures", "FigS_lab_failure_modes.png"), pfig, width = 140, height = 230, units = "mm", dpi = 300, device = ragg::agg_png)
 write_numbers("numbers_lab_failure.csv")

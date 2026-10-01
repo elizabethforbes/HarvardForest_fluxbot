@@ -10,6 +10,7 @@
 #     sensitivity of array agreement to the minimum-chamber threshold.
 
 source("afm_revision/00_prep.R")
+source("afm_revision/fig_style.R")
 suppressPackageStartupMessages({ library(zoo); library(epiR); library(lme4) })
 set.seed(20260930)
 
@@ -205,12 +206,12 @@ write_numbers("numbers_agreement.csv")
 
 # ---- Fig S6: spatial-null benchmark ----------------------------------------------------------
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
-pal3 <- c("autochamber vs autochamber" = "#3B8F63", "Fluxbot vs Fluxbot" = "#8C8C8C", "autochamber vs Fluxbot" = "#2F5D9E")
+pal3 <- c("autochamber vs autochamber" = unname(pal_sys["autochamber"]), "Fluxbot vs Fluxbot" = unname(pal_sys["fluxbot"]), "autochamber vs Fluxbot" = col_cross)
 nl <- null %>% mutate(pair = factor(pair, levels = names(pal3)), abs_bias = 100 * abs_bias)
 pan <- function(v, lab) ggplot(nl, aes(pair, .data[[v]], fill = pair)) +
   geom_violin(colour = NA, alpha = 0.6) + geom_boxplot(width = 0.15, outliers = FALSE, fill = "white", linewidth = 0.3) +
   scale_fill_manual(values = pal3, guide = "none") + labs(x = NULL, y = lab) +
-  scale_x_discrete(labels = c("AC vs AC", "FB vs FB", "AC vs FB")) + theme_classic(base_size = 8)
+  scale_x_discrete(labels = c("AC vs AC", "FB vs FB", "AC vs FB")) + theme_afm()
 pS6 <- pan("abs_bias", "Offset between subsets\n(% of mean flux)") + pan("nrmse_daily", "Daily RMSE\n(% of mean flux)") +
   pan("r_hourly", "Hourly correlation (r)") + pan("ccc_daily", "Daily CCC") + plot_layout(ncol = 4) +
   plot_annotation(tag_levels = "a")

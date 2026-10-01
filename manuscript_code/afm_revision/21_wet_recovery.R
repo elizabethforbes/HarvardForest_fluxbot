@@ -9,6 +9,7 @@
 # Recovery is tracked from the last wet hour of each episode (t = 0).
 
 source("afm_revision/00_prep.R")
+source("afm_revision/fig_style.R")
 suppressPackageStartupMessages({ library(readr); library(ggplot2); library(patchwork); library(lme4) })
 p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-11-01", tz = "America/New_York")
 units <- read_csv(file.path(pkg, "metadata", "fluxbot_units.csv"), col_types = cols(unit = col_character()))
@@ -172,18 +173,18 @@ for (i in seq_len(nrow(sc))) { tg <- gsub("[^a-z0-9]+", "_", tolower(sc$scenario
   for (v in c("fb_closures", "n_hours", "offset_pct", "r_hourly", "r_daily")) record(paste0("wetbias_", tg, "_", v), sc[[v]][i], "wet_recovery") }
 
 # ---- figure ---------------------------------------------------------------------------------------
-th <- theme_classic(base_size = 8)
+th <- theme_afm()
 ep_len <- ggplot(episodes, aes(length_h, fill = type)) + geom_histogram(binwidth = 6, boundary = 0, colour = "white") +
-  scale_fill_manual(values = c("wet sensor" = "#4575B4", "lid failure" = "#D73027"), name = NULL) +
+  scale_fill_manual(values = c("wet sensor" = col_wet, "lid failure" = unname(pal_state["no data (down)"])), name = NULL) +
   labs(x = "Episode length (h, RH >= 99%)", y = "Episodes") + th + theme(legend.position = c(0.7, 0.8))
-pa <- ggplot(comp_end, aes(t_end, anom)) + annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = "#4575B4", alpha = 0.12) +
+pa <- ggplot(comp_end, aes(t_end, anom)) + annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = col_wet, alpha = 0.12) +
   geom_hline(yintercept = c(0, thr), linetype = c("solid", "22"), colour = "grey50") +
   geom_ribbon(aes(ymin = anom_lo, ymax = anom_hi), fill = "grey80") + geom_line() + geom_point(size = 0.6) +
   labs(x = "Hours since last wet hour (wet-sensor episodes)", y = "Open-lid CO2 anomaly (ppm)\nmedian, IQR") + th
-pb <- ggplot(comp_end %>% filter(n_ratio >= 10), aes(t_end, ratio)) + annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = "#4575B4", alpha = 0.12) +
+pb <- ggplot(comp_end %>% filter(n_ratio >= 10), aes(t_end, ratio)) + annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = col_wet, alpha = 0.12) +
   geom_hline(yintercept = c(1, exp(median(ref$lr, na.rm = TRUE))), linetype = c("solid", "22"), colour = "grey50") + geom_line() + geom_point(size = 0.6) +
   labs(x = "Hours since last wet hour (wet-sensor episodes)", y = "Fluxbot / autochamber\n(median; dashed = dry reference)") + th
-pc <- ggplot(hi %>% filter(!is.na(rec_h)), aes(factor(rec_h, levels = 1:6))) + geom_bar(fill = "#4575B4") + scale_x_discrete(drop = FALSE) +
+pc <- ggplot(hi %>% filter(!is.na(rec_h)), aes(factor(rec_h, levels = 1:6))) + geom_bar(fill = col_wet) + scale_x_discrete(drop = FALSE) +
   labs(x = paste0("Hours after drying until open-lid\nanomaly <= ", thr, " ppm (episodes ending > 100 ppm)"), y = "Wet-sensor episodes") + th
 pfig <- (ep_len | pc) / pa / pb + plot_annotation(tag_levels = "a")
 ggsave(file.path(out_dir, "figures", "FigS_wet_recovery.pdf"), pfig, width = 160, height = 170, units = "mm", device = cairo_pdf)

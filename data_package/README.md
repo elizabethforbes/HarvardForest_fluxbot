@@ -66,3 +66,24 @@ Event log (lab notes):
 | 17:32 | Door opened; covered sensor sprayed with water (water beaded on the PTFE); door left open until CO2 plateaued, then closed for ~3 min |
 | 17:43 | Door opened (CO2 fell to ~670 ppm); breath spike to ~900 ppm; door closed until plateau |
 | 17:49 | SD cards collected |
+
+## Laboratory test of K30 covers (raw/lab_cover_test_2023-12-13/)
+
+A test in a CO2 rig (Raymond lab, Yale) on 13 December 2023. Three uncovered K30s (controls c1–c3) and two covered K30s (t1, t2) logged every ~6 s in one chamber next to an LGR analyzer. CO2 was varied with breath pulses and door openings.
+
+| File | Contents |
+|---|---|
+| `k30_control_c1.txt`, `k30_control_c2.txt`, `k30_control_c3.txt` | Uncovered K30s (`HH:MM:SS, ppm`; 65535 = error). Originally `group1_control/co2 2.txt`, `co2 3.txt`, `co2.txt`. |
+| `k30_test_t1.txt`, `k30_test_t2.txt` | Covered K30s. Originally `group2_test/co2 2.txt`, `co2.txt`. |
+| `lgr_2023-12-13.csv.gz` | LGR CO2 (wet and dry) and H2O, 1 Hz, from `LGR3_raw/2023-12-13/micro_2023-12-13_f0000/f0001.txt` |
+
+Each K30 file holds several logging sessions, each starting with `EXPERIMENT BEGIN`. Only the last session belongs to this run; it starts at 11:12:11 on all loggers. The LGR clock is 130 s ahead of the K30 loggers, and the lag is constant over the day.
+
+Sequence, from J. Gewirtzman's messages of 13 Dec 2023:
+1. dry PTFE envelope
+2. wet PTFE envelope
+3. dry 3D-printed bracket
+4. wet 3D-printed bracket
+5. bare K30s sprayed with water (they became erratic and stopped recording)
+
+The notes give no times. In `19_cover_test_dec.R` the phase boundaries are set from the LGR H2O record (wetting at 16:40 and 17:43) and from the covered sensors stopping (18:06).

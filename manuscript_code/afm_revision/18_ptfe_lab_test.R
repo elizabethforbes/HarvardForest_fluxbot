@@ -65,21 +65,24 @@ for (s in unique(k30$sensor)) {
 }
 
 # figure
-ev <- tibble(time = as.POSIXct(paste(day, c("13:36:00", "13:45:00", "14:00:00", "17:32:00", "17:43:00")), tz = "America/New_York"),
-             lab = c("door closed", "CO2 on", "door 1 min", "covered sensor wetted", "door opened"))
+ev <- tibble(time = as.POSIXct(paste(day, c("13:36:00", "13:45:00", "14:00:00", "17:32:00", "17:43:00", "17:44:30")), tz = "America/New_York"),
+             lab = c("door closed", "CO2 on", "door 1 min", "covered sensor wetted", "door opened", "breath"),
+             vj = c(-0.4, 1.3, -0.4, -0.4, -0.4, 1.3))
 pd <- bind_rows(k30 %>% select(time, co2, sensor), grid %>% filter(!is.na(co2)) %>% transmute(time, co2, sensor = "LGR (reference)"))
 pal3 <- c("LGR (reference)" = "black", "Uncovered K30" = "#E08214", "PTFE-covered K30" = "#2C7BB6")
-mk <- function(t0, t1) ggplot(pd %>% filter(time >= t0, time <= t1), aes(time, co2, colour = sensor)) +
+mk <- function(t0, t1, evs = ev, zoom = NULL) ggplot(pd %>% filter(time >= t0, time <= t1), aes(time, co2, colour = sensor)) +
+  { if (!is.null(zoom)) annotate("rect", xmin = zoom[1], xmax = zoom[2], ymin = -Inf, ymax = Inf, fill = "grey90") } +
   geom_line(data = ~ filter(.x, sensor == "LGR (reference)"), linewidth = 0.4) +
   geom_point(data = ~ filter(.x, sensor != "LGR (reference)"), size = 0.5, alpha = 0.7) +
-  geom_vline(data = ev %>% filter(time >= t0, time <= t1), aes(xintercept = time), linetype = "22", colour = "grey50") +
-  geom_text(data = ev %>% filter(time >= t0, time <= t1), aes(x = time, y = Inf, label = lab), inherit.aes = FALSE,
-            angle = 90, hjust = 1.1, vjust = -0.4, size = 2.2, colour = "grey30") +
+  geom_vline(data = evs %>% filter(time >= t0, time <= t1), aes(xintercept = time), linetype = "22", colour = "grey50") +
+  geom_text(data = evs %>% filter(time >= t0, time <= t1), aes(x = time, y = Inf, label = lab, vjust = vj), inherit.aes = FALSE,
+            angle = 90, hjust = 1.1, size = 2.2, colour = "grey30") +
   scale_colour_manual(values = pal3, name = NULL) + labs(x = NULL, y = expression(CO[2] ~ (ppm))) +
-  theme_classic(base_size = 8) + theme(legend.position = "bottom")
+  scale_y_continuous(expand = expansion(mult = c(0.03, 0.3))) + theme_classic(base_size = 8) + theme(legend.position = "bottom")
 library(patchwork)
 t_all <- range(k30$time)
-pfig <- mk(t_all[1], t_all[2]) / mk(wet_t - 900, as.POSIXct("2023-09-22 17:50:00", tz = "America/New_York")) +
+zw <- c(wet_t - 900, as.POSIXct("2023-09-22 17:50:00", tz = "America/New_York"))
+pfig <- mk(t_all[1], t_all[2], evs = ev[1:3, ], zoom = zw) / mk(wet_t - 900, as.POSIXct("2023-09-22 17:50:00", tz = "America/New_York")) +
   plot_layout(guides = "collect") + plot_annotation(tag_levels = "a") & theme(legend.position = "bottom")
 ggsave(file.path(out_dir, "figures", "FigS_ptfe_lab_test.pdf"), pfig, width = 190, height = 140, units = "mm", device = cairo_pdf)
 ggsave(file.path(out_dir, "figures", "FigS_ptfe_lab_test.png"), pfig, width = 190, height = 140, units = "mm", dpi = 300, device = ragg::agg_png)

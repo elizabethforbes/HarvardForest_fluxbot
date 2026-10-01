@@ -1,0 +1,7 @@
+"key","value","section","note"
+"win_ratio56_57_median",1.0358,"fit_window","closure-level LM flux, 56:00 / 57:00 window, dry closures"
+"win_ratio56_57_t0_0_30",1.1589,"fit_window","n = 1588"
+"win_ratio56_57_t0_31_60",1.0583,"fit_window","n = 2215"
+"win_ratio56_57_t0_61_120",0.93886,"fit_window","n = 2112"
+"win_ratio56_57_t0_121_180",0.84842,"fit_window","n = 125"
+"t0_pct_gt120",4.7132,"fit_window","% closures whose rise starts after 57:00"

@@ -1,0 +1,5 @@
+"key","value","section","note"
+"fm_hm_selected_pct_autochamber",79.82,"flux_model","goFlux best.flux chose HM"
+"fm_best_lm_ratio_median_autochamber",1.0167,"flux_model","closure-level best / LM"
+"fm_hm_selected_pct_fluxbot",85.38,"flux_model","goFlux best.flux chose HM"
+"fm_best_lm_ratio_median_fluxbot",1.1469,"flux_model","closure-level best / LM"

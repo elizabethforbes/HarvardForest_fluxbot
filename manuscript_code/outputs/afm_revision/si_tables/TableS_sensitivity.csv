@@ -1,0 +1,11 @@
+"Scenario","Fluxbot closures","Method effect (GAM, umol m-2 s-1; 95% CI)","Paired bias, 3-h array means (umol m-2 s-1; block-bootstrap 95% CI)","r (3-h array means)","CCC (3-h array means)","Q10 autochamber","Q10 Fluxbot"
+"Main: as deployed (all conditions; linear fits)",7131,"-0.25 (-0.73 to 0.23)","-0.19 (-0.42 to 0.06)",0.44,0.43,2.93,3.26
+"RH-screened: wet-sensor closures removed",6418,"-0.20 (-0.68 to 0.28)","-0.08 (-0.31 to 0.16)",0.51,0.51,3.09,3.54
+"Flux model: goFlux best model (LM or HM)",7117,"0.02 (-0.58 to 0.61)","0.10 (-0.22 to 0.46)",0.38,0.36,2.82,3.44
+"Flux model: Hutchinson-Mosier (HM) for all closures",7046,"0.26 (-0.37 to 0.88)","0.42 (0.11 to 0.74)",0.47,0.38,2.82,2.69
+"QC: submitted rule (negatives removed, pooled 1.5 x IQR)",7438,"-0.36 (-0.79 to 0.07)","-0.35 (-0.50 to -0.18)",0.62,0.51,2.28,3.33
+"QC: negatives removed only",7524,"-0.35 (-0.83 to 0.13)","-0.27 (-0.49 to -0.04)",0.5,0.45,3.01,3.69
+"Autochamber clock read as EDT (as submitted)",7131,"-0.25 (-0.72 to 0.23)","-0.18 (-0.40 to 0.06)",0.44,0.43,2.88,3.25
+"Pressure: HF001 sea-level (as submitted)",7131,"-0.26 (-0.76 to 0.24)","-0.19 (-0.44 to 0.05)",0.44,0.43,2.93,3.26
+"Autochamber: HF-published fluxes (HF293)",7131,"-1.36 (-1.95 to -0.78)","-1.32 (-1.48 to -1.18)",0.79,0.26,2.83,3.23
+"Submitted flux files and QC",6865,"-0.33 (-0.82 to 0.16)","-0.34 (-0.45 to -0.21)",0.8,0.66,2.28,2.86

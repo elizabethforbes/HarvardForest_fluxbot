@@ -30,7 +30,7 @@ for (s in c("fluxbot", "autochamber")) {
   record(paste0("curvature_median_", s), median(x$curvature), "flux_model", "HM/LM initial slope")
   record(paste0("share_HM_", s), mean(x$model == "HM"), "flux_model", "best.flux chose HM")
 }
-# closure level: goFlux best / linear flux, and how often the HM model was chosen (as deployed; Fig. S2a)
+# closure level: goFlux best / linear flux, and how often the HM model was chosen (as deployed; Fig. S3a)
 cl <- bind_rows(apply_qc(load_fluxbot("LM.flux"), "deployed") %>% mutate(system = "Fluxbot 2.0"),
                 apply_qc(load_autochamber("LM.flux"), "deployed") %>% mutate(system = "Autochamber")) %>%
   filter(LM.flux > 0.3) %>% mutate(ratio = best.flux / LM.flux, hm = model == "HM")

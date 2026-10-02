@@ -1,4 +1,4 @@
-# Fig. S10. Unit-level reliability vs array-level resilience: per-unit success, coverage by number of units
+# Fig. S11. Unit-level reliability vs array-level resilience: per-unit success, coverage by number of units
 # reporting (observed vs independent failures), and units reporting through time. Tables from
 # 2_analysis/14_resilience.R.
 source("R/setup.R")
@@ -31,5 +31,5 @@ pc <- ggplot(st_h %>% mutate(row = paste(lab_sys[method], stl[stand]), frac = n_
   scale_fill_viridis_c(name = "Units\nreporting", option = "D") + labs(x = NULL, y = NULL) +
   scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) + theme_afm()
 fig <- (pa + pb + plot_layout(widths = c(1, 2.2))) / pc + plot_layout(heights = c(1.3, 1)) + tags_afm()
-save_afm(fig, "FigS10_resilience", 190, 120, tif = FALSE)
+save_afm(fig, "FigS11_resilience", 190, 120, tif = FALSE)
 

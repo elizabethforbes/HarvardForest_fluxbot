@@ -171,7 +171,7 @@ write.csv(sc, file.path(out_dir, "wet_bias_scenarios.csv"), row.names = FALSE)
 for (i in seq_len(nrow(sc))) { tg <- gsub("[^a-z0-9]+", "_", tolower(sc$scenario[i]))
   for (v in c("fb_closures", "n_hours", "offset_pct", "r_hourly", "r_daily")) record(paste0("wetbias_", tg, "_", v), sc[[v]][i], "wet_recovery") }
 
-# data for Fig. S9 (4_figures/figS09_wet_recovery.R)
+# data for Fig. S10 (4_figures/figS10_wet_recovery.R)
 saveRDS(list(episodes = episodes, comp_end = comp_end, hi = hi, thr = thr, ref_ratio = exp(median(ref$lr, na.rm = TRUE))),
         file.path(out_dir, "wet_recovery_plotdata.rds"))
 print(write_numbers() %>% select(key, value), row.names = FALSE)

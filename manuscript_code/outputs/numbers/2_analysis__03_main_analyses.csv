@@ -349,3 +349,7 @@
 "sens_submitted_max_flux",5.9405,"sensitivity","Submitted flux files and QC","2_analysis/03_main_analyses.R"
 "sens_submitted_n",13591,"sensitivity","Submitted flux files and QC","2_analysis/03_main_analyses.R"
 "sens_submitted_gam_intercept",2.6863,"sensitivity","Submitted flux files and QC","2_analysis/03_main_analyses.R"
+"standmean_compared_autochamber_healthy",2.73,"stands","mean of hourly stand means, compared hours","2_analysis/03_main_analyses.R"
+"standmean_compared_autochamber_unhealthy",2.4811,"stands","mean of hourly stand means, compared hours","2_analysis/03_main_analyses.R"
+"standmean_compared_fluxbot_healthy",2.2544,"stands","mean of hourly stand means, compared hours","2_analysis/03_main_analyses.R"
+"standmean_compared_fluxbot_unhealthy",2.4389,"stands","mean of hourly stand means, compared hours","2_analysis/03_main_analyses.R"

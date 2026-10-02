@@ -1,4 +1,4 @@
-# Fig. S2. Flux model. Main analysis uses linear fits (LM) for both systems; the goFlux "best"
+# Fig. S3. Flux model. Main analysis uses linear fits (LM) for both systems; the goFlux "best"
 # selection (LM or Hutchinson-Mosier, HM) is the alternative.
 #  (a) closure-level best / LM flux ratio by system (where goFlux chose HM, the ratio > 1)
 #  (b) array offset and hourly r for each Fluxbot x autochamber model pairing (as-deployed data)
@@ -33,4 +33,4 @@ pc <- ggplot(bud, aes(model, mean_stands_gC, colour = system)) +
   scale_colour_manual(values = sys_col, name = NULL) + expand_limits(y = 0) +
   labs(x = NULL, y = expression("CO"[2]*"-C, 2-31 Oct (g C m"^-2*")")) + theme_afm() + theme(legend.position = "bottom")
 pfig <- (pa | pb | pc) + plot_layout(widths = c(1.1, 1, 0.8)) + plot_annotation(tag_levels = "a")
-save_afm(pfig, "FigS02_flux_model", 190, 85, tif = FALSE)
+save_afm(pfig, "FigS03_flux_model", 190, 85, tif = FALSE)

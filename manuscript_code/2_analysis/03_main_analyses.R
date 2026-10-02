@@ -456,4 +456,9 @@ for (i in seq_len(nrow(sens))) {
     record(paste0("sens_", tag, "_", k), sens[[k]][i], "sensitivity", sens$scenario[i])
 }
 
+# stand means of each system over compared hours (>= 3 units of each system in each stand)
+smc <- d %>% filter(hour_of_obs %in% matched_hours(d, 3)) %>% group_by(method, stand, hour_of_obs) %>%
+  summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% group_by(method, stand) %>% summarise(m = mean(f), .groups = "drop")
+for (i in seq_len(nrow(smc))) record(paste0("standmean_compared_", smc$method[i], "_", smc$stand[i]), smc$m[i], "stands",
+                                     "mean of hourly stand means, compared hours")
 tab <- write_numbers()

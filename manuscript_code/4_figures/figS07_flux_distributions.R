@@ -1,4 +1,4 @@
-# Fig. S6. Distributions of individual fluxes in compared hours, as deployed.
+# Fig. S7. Distributions of individual fluxes in compared hours, as deployed.
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
@@ -20,4 +20,4 @@ p5 <- ggplot(d5, aes(fluxL_umolm2sec, fill = method, colour = method)) +
   scale_fill_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   labs(x = flux_lab, y = "Density") + theme(legend.position = c(0.8, 0.8))
-save_fig(p5, "FigS06_flux_distributions", 90, 70)
+save_fig(p5, "FigS07_flux_distributions", 90, 70)

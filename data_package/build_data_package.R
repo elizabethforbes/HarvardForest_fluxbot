@@ -33,7 +33,8 @@ gps <- read_csv(file.path(drive, "Harvard Forest 2023/fluxbot locations/Harvard 
 units <- gps %>% transmute(unit, stand_code, stand = if_else(stand_code == "healthy", "stand 1", "stand 2"),
                            site_name = if_else(stand_code == "healthy", "Bigelow Brook", "Hemlock tower"),
                            latitude = round(Latitude, 6), longitude = round(Longitude, 6),
-                           gps_date = as.Date(Date), chamber_volume_cm3 = 768, collar_area_cm2 = 81,
+                           gps_date = as.Date(Date), gps_horizontal_accuracy_m = as.numeric(str_match(Notes, "Horizontal Accuracy: \u00b1 ([0-9.]+) m")[, 2]),
+                           chamber_volume_cm3 = 768, collar_area_cm2 = 81,
                            collar_inner_diameter_cm = 10.2, collar_insertion_cm = 4, co2_sensor = "Senseair K30",
                            notes = if_else(unit == "112", "pressure sensor faulty; excluded from submitted analysis", NA_character_)) %>%
   arrange(stand_code, as.integer(unit))

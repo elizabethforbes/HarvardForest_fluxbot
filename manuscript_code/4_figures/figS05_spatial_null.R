@@ -1,4 +1,4 @@
-# Fig. S4. Spatial-null benchmark: offset, daily RMSE, hourly r and daily CCC between disjoint subsets of
+# Fig. S5. Spatial-null benchmark: offset, daily RMSE, hourly r and daily CCC between disjoint subsets of
 # chambers of the same system and of different systems (2_analysis/05_agreement_metrics.R).
 source("R/setup.R")
 source("R/fig_style.R")
@@ -13,4 +13,4 @@ pan <- function(v, lab) ggplot(nl, aes(pair, .data[[v]], fill = pair)) +
 pS6 <- pan("abs_bias", "Offset between subsets\n(% of mean flux)") + pan("nrmse_daily", "Daily RMSE\n(% of mean flux)") +
   pan("r_hourly", "Hourly correlation (r)") + pan("ccc_daily", "Daily CCC") + plot_layout(ncol = 4) +
   plot_annotation(tag_levels = "a")
-save_afm(pS6, "FigS04_spatial_null", 190, 60, tif = FALSE)
+save_afm(pS6, "FigS05_spatial_null", 190, 60, tif = FALSE)

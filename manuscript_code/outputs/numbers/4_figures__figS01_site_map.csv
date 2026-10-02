@@ -1,0 +1,6 @@
+"key","value","section","note","script"
+"map_stand_separation_m",420.38,"site","distance between Fluxbot stand centroids","4_figures/figS01_site_map.R"
+"map_hf001_to_stand1_m",1548,"site","HF001 to Fluxbot stand centroid","4_figures/figS01_site_map.R"
+"map_hf001_to_stand2_m",1127.8,"site","HF001 to Fluxbot stand centroid","4_figures/figS01_site_map.R"
+"map_gps_accuracy_min_m",4,"site","reported GPS horizontal accuracy","4_figures/figS01_site_map.R"
+"map_gps_accuracy_max_m",8,"site","reported GPS horizontal accuracy","4_figures/figS01_site_map.R"

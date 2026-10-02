@@ -1,4 +1,4 @@
-# Fig. S8. Failure-mode diagnostics from the two laboratory tests, per sensor and phase: response to CO2
+# Fig. S9. Failure-mode diagnostics from the two laboratory tests, per sensor and phase: response to CO2
 # ramps, offset and scatter against each sensor's own dry calibration, and error codes
 # (3_lab_tests/03_failure_modes.R).
 source("R/setup.R")
@@ -30,4 +30,4 @@ p_d <- ggplot(ppl, aes(ph, err_pct, colour = group, label = slab, shape = noisy)
   scale_colour_manual(values = gcol, name = NULL) + labs(x = NULL, y = "Error codes (%)", title = "Error codes (electronics)")
 pfig <- (p_a / p_b / p_c / p_d) + plot_layout(guides = "collect") + plot_annotation(tag_levels = "a") &
   theme_afm() & theme(legend.position = "bottom", plot.title = element_text(size = 8), axis.text.x = element_text(angle = 25, hjust = 1))
-save_afm(pfig, "FigS08_lab_failure_modes", 140, 230, tif = FALSE)
+save_afm(pfig, "FigS09_lab_failure_modes", 140, 230, tif = FALSE)

@@ -1,4 +1,4 @@
-# Fig. S3. Agreement between systems (r, RMSE) as a function of averaging block, with the within- and
+# Fig. S4. Agreement between systems (r, RMSE) as a function of averaging block, with the within- and
 # cross-system subset benchmark (2_analysis/09_scales_budget.R).
 source("R/setup.R")
 source("R/fig_style.R")
@@ -15,4 +15,4 @@ pp <- function(v, lab) ggplot(bs, aes(L, .data[[paste0(v, "_med")]], colour = pa
   scale_x_log10(breaks = blocks) + scale_colour_manual(values = pal, name = NULL) + scale_fill_manual(values = pal, name = NULL) +
   labs(x = "Averaging block (h)", y = lab) + theme_afm()
 pscale <- pp("r", "Correlation (r)") + pp("nrmse", "RMSE (% of mean)") + plot_layout(guides = "collect") & theme(legend.position = "bottom")
-save_afm(pscale, "FigS03_scale_agreement", 190, 80, tif = FALSE)
+save_afm(pscale, "FigS04_scale_agreement", 190, 80, tif = FALSE)

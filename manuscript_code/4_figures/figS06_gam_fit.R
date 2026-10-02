@@ -1,4 +1,4 @@
-# Fig. S5. Observed vs fitted fluxes from the GAM (2_analysis/03_main_analyses.R), as deployed.
+# Fig. S6. Observed vs fitted fluxes from the GAM (2_analysis/03_main_analyses.R), as deployed.
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork); library(mgcv) })
@@ -23,4 +23,4 @@ p4 <- ggplot(d, aes(fitted, fluxL_umolm2sec)) +
            label = sprintf("Adj. R\u00b2 = %.2f", num("gam_r2adj"))) +
   labs(x = expression(GAM ~ fitted ~ flux ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Observed ~ flux ~ (mu * mol ~ m^-2 ~ s^-1))) +
   coord_equal() + theme(legend.position = c(0.8, 0.12))
-save_fig(p4, "FigS05_gam_fit", 90, 90)
+save_fig(p4, "FigS06_gam_fit", 90, 90)

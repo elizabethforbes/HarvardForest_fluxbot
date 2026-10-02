@@ -11,7 +11,8 @@ raw/autochamber_co2_1hz_oct2023.csv.gz,chamber,Autochamber number (1-6 Hemlock t
 raw/autochamber_co2_1hz_oct2023.csv.gz,co2_ppm,Analyzer CO2 (LI-840 at stand 2; LI-800 at stand 1),ppm
 metadata/fluxbot_units.csv,unit,Fluxbot unit ID,
 metadata/fluxbot_units.csv,stand_code,healthy = stand 1 (Bigelow Brook); unhealthy = stand 2 (Hemlock tower),
-metadata/fluxbot_units.csv,latitude/longitude,GPS position recorded 17 Nov 2023 (horizontal accuracy 4-6 m),decimal degrees
+metadata/fluxbot_units.csv,latitude/longitude,GPS position recorded 17 Nov 2023 (horizontal accuracy 4-8 m; see gps_horizontal_accuracy_m),decimal degrees
+metadata/fluxbot_units.csv,gps_horizontal_accuracy_m,Horizontal accuracy reported by the GPS for each position,m
 metadata/fluxbot_units.csv,chamber_volume_cm3,Chamber headspace volume,cm3
 metadata/fluxbot_units.csv,collar_area_cm2,Soil area inside collar,cm2
 metadata/autochamber_chambers.csv,collar_height_cm,Collar height above soil,cm

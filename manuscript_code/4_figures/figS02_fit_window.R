@@ -1,4 +1,4 @@
-# Fig. S1. The Fluxbot fit window. The lid closes at 55:00; CO2 starts to rise only after the gas
+# Fig. S2. The Fluxbot fit window. The lid closes at 55:00; CO2 starts to rise only after the gas
 # has diffused through the PTFE envelope into the K30 (breakpoint delay t0, 2_analysis/11_q10_moisture.R).
 # Main window 57:00-60:00; sensitivity 56:00-60:00 (as submitted).
 #  (a) an example closure, with linear fits over both windows
@@ -61,4 +61,4 @@ tg <- gridExtra::tableGrob(tab, theme = gridExtra::ttheme_minimal(base_size = 7,
 tg$vp <- grid::viewport(y = 0.95, just = "top", height = sum(tg$heights))
 pd <- wrap_elements(full = tg)
 pfig <- (pa | pb) / (pc | pd) + plot_annotation(tag_levels = "a")
-save_afm(pfig, "FigS01_fit_window", 190, 130, tif = FALSE)
+save_afm(pfig, "FigS02_fit_window", 190, 130, tif = FALSE)

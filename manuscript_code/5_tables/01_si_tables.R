@@ -56,7 +56,8 @@ fm <- rd("flux_model_matrix.csv") %>% filter(autochamber != "HF293") %>% transmu
 w(fm, "TableS_flux_models.csv")
 
 # S-q10: chamber-level Q10 (as deployed)
-q <- rd("q10_by_chamber.csv") %>% transmute(System = method, Stand = stand, Chamber = sub("^(autochamber|fluxbot)", "", id), Q10 = r2(q10), n) %>% arrange(System, Stand, Chamber)
+stand_lab <- c(healthy = "Stand 1", unhealthy = "Stand 2")
+q <- rd("q10_by_chamber.csv") %>% transmute(System = unname(lab_sys[method]), Stand = unname(stand_lab[stand]), Chamber = sub("^(autochamber|fluxbot)", "", id), Q10 = r2(q10), n) %>% arrange(System, Stand, Chamber)
 w(q, "TableS_q10_by_chamber.csv")
 
 # S-srate: sampling-rate emulation
@@ -78,7 +79,7 @@ wb <- rd("wet_bias_scenarios.csv") %>% transmute(Scenario = scenario, `Fluxbot c
 w(wb, "TableS_wet_scenarios.csv")
 
 # S-resilience: coverage and outages by stand and system (as deployed)
-rs <- rd("resilience_summary.csv") %>% transmute(System = method, Stand = stand, Units = n_units, `Mean unit success (%)` = r2(100 * mean_unit_success, 1),
+rs <- rd("resilience_summary.csv") %>% transmute(System = unname(lab_sys[method]), Stand = unname(stand_lab[stand]), Units = n_units, `Mean unit success (%)` = r2(100 * mean_unit_success, 1),
                                                   `Hours with >= 1 unit (%)` = r2(100 * cov1, 1), `Hours with >= 3 units (%)` = r2(100 * cov3, 1),
                                                   `Longest outage (h)` = longest_outage_h,
                                                   `Hours < 3 units, observed (%)` = r2(100 * obs_lt3_frac, 1), `... expected if independent (%)` = r2(100 * exp_lt3_frac, 1))

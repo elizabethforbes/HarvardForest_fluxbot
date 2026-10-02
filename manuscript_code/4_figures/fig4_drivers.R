@@ -1,5 +1,5 @@
 # Fig. 4. Responses to meteorological drivers over stand-hours in which both systems reported (as deployed).
-#  (a) diel cycle of each array (system x stand): hourly means over days
+#  (a) diel cycle of each system: hourly means over days with 95% confidence intervals across days
 #  (b) temperature response of each system: exponential fits; bands = 95% intervals from resampling
 #      chambers within stands; dashed line = the other system's fit
 source("R/setup.R")
@@ -12,17 +12,16 @@ d <- load_chamber_hours("deployed") %>%
 num <- get_number
 set.seed(20260930)
 
-# ---- (a) diel cycle by array ------------------------------------------------------------------------
+# ---- (a) diel cycle by system ------------------------------------------------------------------------
+# hourly means over days with 95% confidence intervals across days (2_analysis/03_main_analyses.R)
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
-dh <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York"),
-  array = factor(paste(lab_sys[as.character(method)], stand_label), levels = names(pal_stand))) %>%
-  group_by(array, day, hour) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop")
-mn <- dh %>% group_by(array, hour) %>% summarise(m = mean(f), .groups = "drop")
-lt <- c("Autochamber Stand 1" = "solid", "Autochamber Stand 2" = "22", "Fluxbot 2.0 Stand 1" = "solid", "Fluxbot 2.0 Stand 2" = "22")
-pa <- ggplot(mn, aes(hour, m, colour = array, linetype = array)) + geom_line(linewidth = lw_main) + geom_point(size = pt_mean) +
-  scale_colour_manual(values = pal_stand, name = NULL) + scale_linetype_manual(values = lt, name = NULL) +
+diel <- read.csv(file.path(out_dir, "diel_common_window.csv"))
+pa <- ggplot(diel, aes(hour, mean, colour = method, fill = method)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = a_band, colour = NA) +
+  geom_line(linewidth = lw_main) + geom_point(size = pt_mean) +
+  scale_colour_manual(values = pal, labels = lab_sys, name = NULL) + scale_fill_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_x_continuous(breaks = seq(0, 24, 4)) + labs(x = "Hour of day (EDT)", y = flux_lab) +
-  theme(legend.position = "bottom", legend.key.width = unit(6, "mm")) + guides(colour = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2))
+  theme(legend.position = c(0.25, 0.92))
 
 # ---- (b) temperature response by system ----------------------------------------------------------
 dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), fluxL_umolm2sec > 0)

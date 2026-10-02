@@ -1,4 +1,4 @@
-# Fig. S1. Site map: Fluxbot GPS positions (17 Nov 2023) in the two stands, with the Fisher meteorological
+# Fig. S1. Site map: Fluxbot GPS positions (17 Nov 2023) in the two stands (points; boxes = inset extents), with the Fisher meteorological
 # station (HF001) and the EMS and HEM eddy-covariance towers (Harvard Forest Data Archive coordinates:
 # HF001 42.53311 N 72.18968 W; EMS tower, HF004, 42.537755 N 72.171478 W; HEM tower, HF103, 42.539 N 72.180 W,
 # given to 0.001 degrees, about +/- 100 m). Autochamber positions were not surveyed; the autochambers are in
@@ -27,12 +27,13 @@ boxes <- bind_rows(lapply(names(stand_pal), function(st) st_sf(stand_lab = st, g
 boxes$tag <- c("b", "c")
 ov_ext <- box(c(st_geometry(fb), st_geometry(sites)), 180)
 ov <- ggplot() + geom_spatraster_rgb(data = get_tiles(ov_ext, provider = "Esri.WorldTopoMap", zoom = 16, crop = TRUE)) +
+  geom_sf(data = fb, aes(fill = stand_lab), shape = 21, colour = "white", stroke = 0.2, size = 1.1, show.legend = FALSE) +
   geom_sf(data = boxes, aes(colour = stand_lab), fill = NA, linewidth = 0.7) +
   geom_sf_text(data = boxes, aes(label = tag), nudge_y = 0.0004, fontface = "bold", size = txt + 0.5) +
   geom_sf(data = sites, aes(shape = name), size = 2.4, fill = "white", stroke = 0.6) +
   geom_text_repel(data = sites, aes(label = name, geometry = geometry), stat = "sf_coordinates", size = txt - 0.2,
                   min.segment.length = 0, box.padding = 0.5, seed = 1) +
-  scale_colour_manual(values = stand_pal, name = NULL) + scale_shape_manual(values = c(24, 21, 22), guide = "none") +
+  scale_colour_manual(values = stand_pal, name = NULL) + scale_fill_manual(values = stand_pal, guide = "none") + scale_shape_manual(values = c(24, 21, 22), guide = "none") +
   annotation_scale(location = "bl", height = unit(1.5, "mm"), text_cex = 0.6) +
   coord_sf(expand = FALSE) + theme_void(base_size = 8) +
   theme(legend.position = "bottom", plot.background = element_rect(fill = "white", colour = NA))

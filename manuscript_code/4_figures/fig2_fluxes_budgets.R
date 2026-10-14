@@ -9,6 +9,7 @@ source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork); library(mgcv); library(zoo); library(ggridges) })
 pal <- pal_sys
+gap_mm <- as.numeric(Sys.getenv("GAP_MM", "16"))
 save_fig <- function(p, name, width_mm, height_mm) save_afm(p, name, width_mm, height_mm)
 d <- load_chamber_hours("deployed") %>%
   mutate(stand_label = factor(if_else(stand == "healthy", "Stand 1", "Stand 2")),
@@ -52,7 +53,8 @@ p2a <- ggplot(dd2, aes(hour_of_obs, fluxL_umolm2sec)) +
   geom_line(data = own, aes(y = r), colour = "grey60", linewidth = 0.8, na.rm = TRUE) +
   geom_line(data = own %>% mutate(r = if_else(fillshare > 0.5, NA_real_, r)), aes(y = r), colour = col_fit, linewidth = 0.8, na.rm = TRUE) +
   facet_grid(method_label ~ stand_label) + scale_colour_manual(values = pal, guide = "none") +
-  coord_cartesian(ylim = c(0, 7)) + xs2 + labs(x = NULL, y = flux_lab)
+  coord_cartesian(ylim = c(0, 7)) + xs2 + labs(x = NULL, y = flux_lab) +
+  theme(panel.spacing.x = unit(gap_mm, "mm"))   # gap = gutter between the columns below, so b and c align with Stand 1
 # (d) observed vs fitted hourly stand means
 fitd <- gfa %>% filter(!filled) %>% mutate(array = factor(paste(lab_sys[as.character(method)], stand_label), levels = names(pal_stand)))
 rlab <- fitd %>% group_by(array) %>% summarise(r = cor(f, fit), .groups = "drop") %>%
@@ -62,6 +64,7 @@ p2d <- ggplot(fitd, aes(fit, f, colour = array)) + geom_abline(linetype = "22", 
   geom_point(data = rlab, aes(x = 0.25, y = y), size = 1.6, show.legend = FALSE) +
   geom_text(data = rlab, aes(x = 0.55, y = y, label = lab), hjust = 0, size = txt - 0.3, colour = "black", show.legend = FALSE) +
   scale_colour_manual(values = pal_stand, guide = "none") + coord_equal(xlim = c(0, 7), ylim = c(0, 7)) +
+  scale_y_continuous(position = "right") +
   labs(x = expression(Gap*"-"*filling ~ model ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Observed ~ stand ~ mean ~ (mu * mol ~ m^-2 ~ s^-1)))
 gf_series <- function(x) {   # x: chamber-level rows of one system; hourly gap-filled flux, mean of stands
   s <- x %>% group_by(stand, hour_of_obs, id) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
@@ -105,6 +108,7 @@ p2e <- ggplot(d3, aes(fluxL_umolm2sec, key, fill = method, colour = method)) +
   facet_wrap(~ array, scales = "free_y", nrow = 1) + scale_y_discrete(labels = function(k) sub(".* ", "", k)) +
   scale_fill_manual(values = pal, guide = "none") + scale_colour_manual(values = pal, guide = "none") +
   coord_cartesian(xlim = c(0, 7)) + labs(x = flux_lab, y = "Chamber or unit")
-row3 <- (p2c | p2d) + plot_layout(widths = c(1.9, 1))
-save_fig(p2a / p2b / row3 / p2e + plot_layout(heights = c(3.2, 0.6, 1.5, 1.6)) + tags_afm(),
-         "Fig2_fluxes_budgets", 190, 255)
+# layout: a full width; b (weather) over c (budgets) in the left column, under Stand 1 and on the same dates; d right; e full width
+fig2 <- wrap_plots(A = p2a, B = p2b, C = p2c, D = p2d, E = p2e, design = "AA\nBD\nCD\nEE") +
+  plot_layout(heights = c(3.2, 0.7, 1.6, 1.6)) + tags_afm()
+save_fig(fig2, "Fig2_fluxes_budgets", 190, 255)

@@ -1,8 +1,8 @@
 # Fig. 6. Data flow and coverage, 2-31 October 2023.
 #  (a) Sankey of closures (intended, recorded, flux computed, valid, retained = as deployed, RH-screened) for each
-#      system, with losses at each step (2_analysis/08_measurement_accounting.R)
+#      system, with losses at each step (2_analysis/07_measurement_accounting.R)
 #  (b) measurement success of each unit (retained / intended closures), (c) by system
-#  (d) daily share of each stand's units with a retained measurement (2_analysis/14_resilience.R)
+#  (d) daily share of each stand's units with a retained measurement (2_analysis/13_resilience.R)
 # The agreement of array means at each stage is in the SI (Table S-stages).
 source("R/setup.R")
 source("R/fig_style.R")

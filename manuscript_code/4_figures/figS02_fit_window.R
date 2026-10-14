@@ -1,11 +1,11 @@
 # Fig. S2. The Fluxbot fit window. The lid closes at 55:00; CO2 starts to rise only after the gas
-# has diffused through the PTFE envelope into the K30 (breakpoint delay t0, 2_analysis/11_q10_moisture.R).
-# Main window 57:00-60:00; sensitivity 56:00-60:00 (as submitted).
+# has diffused through the PTFE envelope into the K30 (breakpoint delay t0, 2_analysis/10_q10_moisture.R).
+# Main window 57:00-60:00; sensitivity 56:00-60:00.
 #  (a) an example closure, with linear fits over both windows
 #  (b) distribution of t0
 #  (c) closure-level flux ratio, 56:00 vs 57:00 window, by t0
 #  (d) agreement with the autochambers under each window (as-deployed dataset)
-# Closure-level ratios and numbers: 2_analysis/12_window_sensitivity.R.
+# Closure-level ratios and numbers: 2_analysis/11_window_sensitivity.R.
 
 source("R/setup.R")
 source("R/fig_style.R")

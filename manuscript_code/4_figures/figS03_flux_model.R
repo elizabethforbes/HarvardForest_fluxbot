@@ -3,7 +3,7 @@
 #  (a) closure-level best / LM flux ratio by system (where goFlux chose HM, the ratio > 1)
 #  (b) array offset and hourly r for each Fluxbot x autochamber model pairing (as-deployed data)
 #  (c) gap-filled October budgets by model, with chamber-bootstrap 95% CIs
-# Closure-level ratios and numbers: 2_analysis/07_flux_model_matrix.R; budgets: 2_analysis/09_scales_budget.R.
+# Closure-level ratios and numbers: 2_analysis/06_flux_model_matrix.R; budgets: 2_analysis/08_scales_budget.R.
 
 source("R/setup.R")
 source("R/fig_style.R")

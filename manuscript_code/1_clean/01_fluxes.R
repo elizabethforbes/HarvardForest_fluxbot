@@ -16,9 +16,9 @@
 #  - No water-vapour correction for either system (autochamber raw records carry no H2O).
 #  - Windows: Fluxbot lid closes at 55:00 (firmware). The K30 senses the headspace by diffusion
 #    through its PTFE envelope; the CO2 rise reaches the sensor a median ~48 s after closure
-#    (35% of closures > 60 s; 2_analysis/11_q10_moisture.R) and Pan et al. (2024) report ~1 min to a
+#    (35% of closures > 60 s; 2_analysis/10_q10_moisture.R) and Pan et al. (2024) report ~1 min to a
 #    steady accumulation curve in a shared-headspace LGR test. 57:00-60:00 is therefore used
-#    (120 s dead band, 180 s fit); 56:00-60:00 (as submitted) is a sensitivity analysis. Autochamber lid closes 45 s into each 5-min slot
+#    (120 s dead band, 180 s fit); 56:00-60:00 is a sensitivity analysis. Autochamber lid closes 45 s into each 5-min slot
 #    and the CO2 rise reaches the analyzer at ~63 s; 75-295 s into the slot is used.
 #  - Instrument precision (for MDF and the HM curvature limit) is estimated empirically for
 #    each system as the median robust residual SD of the linear fits.

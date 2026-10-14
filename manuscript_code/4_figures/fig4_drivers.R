@@ -13,7 +13,7 @@ num <- get_number
 set.seed(20260930)
 
 # ---- (a) diel cycle by system ------------------------------------------------------------------------
-# hourly means over days with 95% confidence intervals across days (2_analysis/03_main_analyses.R)
+# hourly means over days with 95% confidence intervals across days (2_analysis/02_main_analyses.R)
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
 diel <- read.csv(file.path(out_dir, "diel_common_window.csv"))
 pa <- ggplot(diel, aes(hour, mean, colour = method, fill = method)) +

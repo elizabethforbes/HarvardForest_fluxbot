@@ -154,10 +154,10 @@ record("gam_edf_hour", sg$s.table["s(hour)", "edf"], "A1")
 record("gam_edf_s10t", sg$s.table["s(s10t)", "edf"], "A1")
 record("gam_p_hour", sg$s.table["s(hour)", "p-value"], "A1")
 record("gam_p_s10t", sg$s.table["s(s10t)", "p-value"], "A1")
-# old random-effect specification, for the record
+# alternative random-effect specification
 g_fs <- gam(fluxL_umolm2sec ~ stand + s(hour) + method + s(id, bs = "fs") + s(s10t),
             data = d, method = "REML")
-record("gam_fs_method", summary(g_fs)$p.table["methodfluxbot", 1], "A1", "bs='fs' as submitted, EST join")
+record("gam_fs_method", summary(g_fs)$p.table["methodfluxbot", 1], "A1", "alternative specification: bs='fs' chamber smooths")
 record("gam_fs_method_se", summary(g_fs)$p.table["methodfluxbot", 2], "A1")
 
 vc <- gam.vcomp(g, rescale = FALSE)
@@ -214,8 +214,10 @@ for (pct in c(10, 20, 30)) {
 record("tost_min_equiv_bound", abs(est) + 1.645 * se, "A2")
 record("tost_min_equiv_bound_pct", 100 * (abs(est) + 1.645 * se) / ac_mean, "A2")
 
-# chamber-cluster bootstrap of the method difference (resample chambers within
-# system x stand), a check on the GAM SE that makes no distributional assumptions
+# chamber-cluster bootstrap of the difference in chamber-mean fluxes (resample chambers within
+# system x stand). A check on the GAM SE that makes no distributional assumptions; its point estimate
+# differs from the GAM effect because chamber means are not adjusted for hour, temperature or the
+# hours in which each chamber reported.
 cm <- d %>% group_by(method, stand, id) %>% summarise(m = mean(fluxL_umolm2sec), .groups = "drop")
 bt <- replicate(5000, {
   b <- cm %>% group_by(method, stand) %>% slice_sample(prop = 1, replace = TRUE) %>%
@@ -270,8 +272,6 @@ for (st in c("healthy", "unhealthy")) {
   record(paste0("ccc_stand_", st, "_bias"), mean(pvs$fb3 - pvs$ac3), "agreement")
   record(paste0("ccc_stand_", st, "_n"), nrow(pvs), "agreement")
 }
-# the submitted pipeline's CCC (hour filter as coded, autochamber > 1, gaps bridged)
-record("ccc_as_submitted_logic", 0.70464, "agreement", "from 2_analysis/01_submitted_baseline.R fig5_ccc (NY-parsed met; met-independent)")
 
 # temporal agreement once each system's own mean is removed (hourly anomalies)
 an <- ag$data %>% mutate(a = ac3 - mean(ac3), f = fb3 - mean(fb3))
@@ -316,7 +316,7 @@ record("diel_r_between_systems", cor(diel$mean[diel$method == "autochamber"],
 
 # ---- A4: Q10 on the common window --------------------------------------------------
 # All filters dropped except flux > 0 (required by the log/exponential model).
-# The submitted analysis additionally required flux > 0.5; reported as sensitivity.
+# A stricter flux > 0.5 filter is reported as a sensitivity analysis.
 dq <- d %>% semi_join(common_stand_hours(d), by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t))
 record("q10_common_tmin", min(dq$s10t), "A4"); record("q10_common_tmax", max(dq$s10t), "A4")
 for (thr in c(0, 0.5)) {
@@ -328,7 +328,7 @@ for (thr in c(0, 0.5)) {
                                            "log-linear mixed model, chamber random intercept")
   }
 }
-# full-record fits (each system's own temperature range), for comparison with the submitted text
+# full-record fits (each system's own temperature range), for comparison
 dall <- d %>% filter(!is.na(s10t), fluxL_umolm2sec > 0)
 for (m in c("autochamber", "fluxbot")) {
   q <- q10_nls(dall[dall$method == m, ])
@@ -426,31 +426,24 @@ for (nm in c("fluxbot", "autochamber")) {
 }
 
 # ================================================================================
-# Sensitivity table (A6 QC, A8 linear vs quadratic, timestamps, A7 pressure)
+# Sensitivity table (QC, flux model, pressure)
 # ================================================================================
 scen <- list()
 scen[["Main: as deployed (all conditions; linear fits)"]] <- d
 scen[["RH-screened: wet-sensor closures removed"]] <- build_dataset(qc = "screened")
 scen[["Flux model: goFlux best model (LM or HM)"]] <- build_dataset(flux_col = "best.flux")
 scen[["Flux model: Hutchinson-Mosier (HM) for all closures"]] <- build_dataset(flux_col = "HM.flux")
-scen[["QC: submitted rule (negatives removed, pooled 1.5 x IQR)"]] <- build_dataset(qc = "iqr")
+scen[["QC: negatives removed, then pooled 1.5 x IQR screen"]] <- build_dataset(qc = "iqr")
 scen[["QC: negatives removed only"]] <- build_dataset(qc = "none")
-# autochamber logger clock read as EDT, as in the submitted analysis (1 h early)
-d_shift <- d %>% select(-s10t, -bar, -air_t, -precip) %>%
-  mutate(hour_of_obs = if_else(method == "autochamber", hour_of_obs - 3600, hour_of_obs), hour = hour(hour_of_obs)) %>%
-  difference_left_join(load_met(), by = c("hour_of_obs" = "Time"), max_dist = as.difftime(60, units = "mins")) %>%
-  reframe(s10t = mean(s10t), .by = c(id, hour_of_obs, stand, method, day_of_year, hour, fluxL_umolm2sec, stand_label))
-scen[["Autochamber clock read as EDT (as submitted)"]] <- d_shift
 p_ratio <- as.numeric(read.csv(file.path(flux_dir, "flux_run_metadata.csv")) %>% filter(key == "pressure_ratio_local_hf001") %>% pull(value))
-scen[["Pressure: HF001 sea-level (as submitted)"]] <- d %>% mutate(fluxL_umolm2sec = fluxL_umolm2sec / p_ratio)
+scen[["Pressure: HF001 sea-level-reduced"]] <- d %>% mutate(fluxL_umolm2sec = fluxL_umolm2sec / p_ratio)
 scen[["Autochamber: HF-published fluxes (HF293)"]] <- build_dataset_hf293()
-scen[["Submitted flux files and QC"]] <- build_dataset(qc = "iqr", flux_col = "fluxL_umolm2sec", source = "submitted")
 sens <- bind_rows(lapply(names(scen), function(k) key_stats(scen[[k]], k)))
 write.csv(sens, file.path(out_dir, "sensitivity_table.csv"), row.names = FALSE)
 print(sens %>% select(scenario, n, gam_method, gam_method_lo, gam_method_hi, ccc, paired_bias,
                       q10_ac, q10_fb, gini_ac, gini_fb), digits = 3)
 for (i in seq_len(nrow(sens))) {
-  tag <- c("main", "screened", "best", "hm", "qc_iqr", "qc_none", "ac_edt", "pressure_sealevel", "hf293", "submitted")[i]
+  tag <- c("main", "screened", "best", "hm", "qc_iqr", "qc_none", "pressure_sealevel", "hf293")[i]
   for (k in c("gam_method", "gam_method_lo", "gam_method_hi", "ccc", "paired_bias", "q10_ac", "q10_fb",
               "gini_ac", "gini_fb", "max_flux", "n", "gam_intercept"))
     record(paste0("sens_", tag, "_", k), sens[[k]][i], "sensitivity", sens$scenario[i])

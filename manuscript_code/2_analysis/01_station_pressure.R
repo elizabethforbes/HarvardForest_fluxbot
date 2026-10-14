@@ -1,7 +1,6 @@
-# A7: pressure used in the ideal-gas conversion. The submitted fluxes used HF001 `bar`,
-# which is reduced to sea level (Oct 2023 median ~1016 hPa); the LPS22 sensors in the
+# Pressure used in the ideal-gas conversion. HF001 `bar` is reduced to sea level (Oct 2023 median ~1016 hPa); the LPS22 sensors in the
 # Fluxbot chambers record station pressure at the stands (~977 hPa). Flux scales linearly
-# with pressure, so P_local / P_HF001 is the size of the bias in the submitted fluxes.
+# with pressure, so P_local / P_HF001 is the bias from using HF001 pressure.
 # The reprocessed fluxes (1_clean/01_fluxes.R) use station pressure.
 
 source("R/setup.R")

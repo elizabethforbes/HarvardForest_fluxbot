@@ -1,5 +1,5 @@
 # Fig. S5. Spatial-null benchmark: offset, daily RMSE, hourly r and daily CCC between disjoint subsets of
-# chambers of the same system and of different systems (2_analysis/05_agreement_metrics.R).
+# chambers of the same system and of different systems (2_analysis/04_agreement_metrics.R).
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })

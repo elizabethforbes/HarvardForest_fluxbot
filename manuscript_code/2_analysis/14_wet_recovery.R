@@ -2,7 +2,7 @@
 # much data loss and bias water causes.
 #  - wet hour: in-chamber RH >= 99% in the open-lid minute (54:00-55:00), the RH-screening flag (the RH-screened subset removes these closures).
 #  - baseline anomaly: the unit's open-lid CO2 minus the median of the other units in its stand-hour
-#    (2_analysis/13_vent_wet.R); ~0 for a healthy sensor.
+#    (2_analysis/12_vent_wet.R); ~0 for a healthy sensor.
 #  - flux ratio: closure flux / stand-hour autochamber mean (log), for closures passing every QC
 #    step except the wet flag.
 # Episodes are runs of wet hours per unit (gaps of up to 3 h without a record are bridged).

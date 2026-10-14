@@ -20,7 +20,6 @@ source("R/filter_iqr.R")
 pkg <- file.path("..", "data_package")                          # raw inputs
 clean_dir <- file.path("..", "data_clean")                      # cleaned datasets (1_clean/)
 flux_dir <- file.path(clean_dir, "fluxes")                      # per-closure fluxes, all closures
-submitted_dir <- file.path("..", "legacy", "submitted_analysis", "submitted_fluxes")   # originally submitted flux files
 out_dir <- file.path("outputs", "results")                      # analysis results (tables, model objects)
 fig_dir <- file.path("outputs", "figures")                      # manuscript and SI figures
 diag_dir <- file.path("outputs", "diagnostics")                 # figures not in the paper
@@ -30,8 +29,7 @@ for (d in c(out_dir, fig_dir, diag_dir, num_dir, si_dir)) dir.create(d, showWarn
 
 # ---- met data (Fisher station, HF001) ----------------------------------------
 # data_package/ancillary holds the 2023 extract of HF001 (15-min). HF001 timestamps
-# are Eastern Standard Time year-round. The submitted .qmd parsed them in the
-# machine's local time zone (America/New_York reproduces the submitted numbers).
+# are Eastern Standard Time year-round (tz = "Etc/GMT+5").
 load_met <- function(doy_range = c(273, 308), tz = "Etc/GMT+5") {
   read.csv(file.path(pkg, "ancillary", "hf001-10-15min-m_2023.csv")) %>%
     mutate(doy = yday(datetime), year = year(datetime)) %>%
@@ -46,13 +44,9 @@ round_hour <- function(ts) {
 }
 
 # ---- flux estimates -------------------------------------------------------------
-# source = "reprocessed" (default): fluxes recomputed for both systems from the raw
-#          records in data_package/ by 1_clean/01_fluxes.R (goFlux).
-#          flux_col: "LM.flux" (linear fit; main analysis), "best.flux" (goFlux LM/HM
-#          model selection; SI), "HM.flux".
-# source = "submitted": the flux files behind the submitted manuscript
-#          (flux_col "fluxL_umolm2sec" or "fluxQ_umolm2sec"); used only to reproduce and
-#          compare with the submitted numbers.
+# Fluxes recomputed for both systems from the raw records in data_package/ by
+# 1_clean/01_fluxes.R (goFlux). flux_col: "LM.flux" (linear fit; main analysis),
+# "best.flux" (goFlux LM/HM model selection; SI), "HM.flux".
 lab_sys <- c(autochamber = "Autochamber", fluxbot = "Fluxbot 2.0")   # system labels used in tables and figures
 analysis_start <- as.POSIXct("2023-10-02 00:00:00", tz = "America/New_York")
 analysis_end   <- as.POSIXct("2023-11-01 00:00:00", tz = "America/New_York")   # autochamber record ends 31 Oct
@@ -99,32 +93,12 @@ read_clean <- function(file, col_types) {
   x
 }
 
-load_fluxbot <- function(flux_col = "LM.flux", source = "reprocessed") {
-  if (source == "reprocessed") {
-    load_reprocessed("fluxbot", flux_col) %>% mutate(id = paste0("fluxes_bot", id))
-  } else {
-    read.csv(file.path(submitted_dir, "HarvardForest_fluxestimates_fall2023_withstartendconcens.csv")) %>%
-      mutate(hour_of_obs = round_hour(start_timestamp),
-             date = as.Date(hour_of_obs, tz = "America/New_York"), hour = hour(hour_of_obs),
-             flux = .data[[flux_col]], method = "fluxbot") %>%
-      select(id, start_timestamp, hour_of_obs, date, hour, flux, stand, method,
-             starting_concen, ending_concen, length_interval)
-  }
+load_fluxbot <- function(flux_col = "LM.flux") {
+  load_reprocessed("fluxbot", flux_col) %>% mutate(id = paste0("fluxes_bot", id))
 }
 
-load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
-  if (source == "reprocessed") {
-    load_reprocessed("autochamber", flux_col)
-  } else {
-    read.csv(file.path(submitted_dir, "HFarray_fluxes_calculatedusingfluxbotcode.csv")) %>%
-      # chambers 1-6 = Hemlock tower ("unhealthy", stand 2); 7-12 = Bigelow Brook ("healthy", stand 1)
-      mutate(stand = if_else(autochamber <= 6, "unhealthy", "healthy"),
-             id = as.character(autochamber),
-             hour_of_obs = round_hour(start_timestamp),
-             date = as.Date(hour_of_obs, tz = "America/New_York"), hour = hour(hour_of_obs),
-             flux = .data[[flux_col]], method = "autochamber") %>%
-      select(id, start_timestamp, hour_of_obs, date, hour, flux, stand, method, length_interval)
-  }
+load_autochamber <- function(flux_col = "LM.flux") {
+  load_reprocessed("autochamber", flux_col)
 }
 
 # ---- QC ------------------------------------------------------------------------
@@ -138,7 +112,7 @@ load_autochamber <- function(flux_col = "LM.flux", source = "reprocessed") {
 # qc = "screened" : "RH-screened". The deployed dataset minus Fluxbot closures with in-chamber
 #                   RH >= 99% in the open-lid minute (wet K30; Pan et al. 2024). A strict subset.
 # qc = "valid" / "computed": intermediate stages (filtering flow).
-# qc = "iqr"  : submitted QC. Drop negative fluxes, then Tukey 1.5 x IQR fences on the
+# qc = "iqr"  : alternative QC. Drop negative fluxes, then Tukey 1.5 x IQR fences on the
 #               pooled fluxes of each system.
 # qc = "none" : drop negative fluxes only.
 # qc = "mad"  : drop negatives, then per-chamber median +/- 5 MAD.
@@ -178,11 +152,11 @@ apply_qc <- function(d, qc = c("deployed", "screened", "iqr", "none", "mad", "co
 # The two main datasets (as deployed, RH-screened; linear fluxes) are read from data_clean/, where
 # 1_clean/03_clean_datasets.R wrote them with this same function (from_clean = FALSE). Every other
 # combination (sensitivity analyses) is built on the fly from the cleaned closure tables.
-build_dataset <- function(qc = "deployed", flux_col = "LM.flux", source = "reprocessed", met = load_met(), from_clean = TRUE) {
-  if (from_clean && qc %in% c("deployed", "screened") && flux_col == "LM.flux" && source == "reprocessed" && missing(met) &&
+build_dataset <- function(qc = "deployed", flux_col = "LM.flux", met = load_met(), from_clean = TRUE) {
+  if (from_clean && qc %in% c("deployed", "screened") && flux_col == "LM.flux" && missing(met) &&
       getOption("afm.fluxbot_file", "fluxbot_fluxes.csv") == "fluxbot_fluxes.csv") return(load_chamber_hours(qc))
-  fb <- apply_qc(load_fluxbot(flux_col, source), qc)
-  ac <- apply_qc(load_autochamber(flux_col, source), qc)
+  fb <- apply_qc(load_fluxbot(flux_col), qc)
+  ac <- apply_qc(load_autochamber(flux_col), qc)
   assemble_dataset(fb, ac, met)
 }
 
@@ -243,7 +217,7 @@ assemble_dataset <- function(fb, ac, met) {
 # ---- helpers used by several scripts -------------------------------------------
 # hours where both systems have >= k chambers reporting in both stands (Fig 4/5 subset)
 # compared hours: >= k units of each system reporting in each stand (k = 3 throughout, except the
-# threshold-sensitivity analysis in 2_analysis/05_agreement_metrics.R)
+# threshold-sensitivity analysis in 2_analysis/04_agreement_metrics.R)
 matched_hours <- function(d, k = 3) {
   d %>% count(hour_of_obs, method, stand) %>%
     complete(hour_of_obs, method, stand, fill = list(n = 0)) %>%
@@ -251,7 +225,7 @@ matched_hours <- function(d, k = 3) {
     distinct(hour_of_obs) %>% pull(hour_of_obs)
 }
 
-script_name <- function() {   # path of the running script, e.g. "2_analysis/03_main_analyses.R"
+script_name <- function() {   # path of the running script, e.g. "2_analysis/02_main_analyses.R"
   a <- grep("^--file=", commandArgs(FALSE), value = TRUE)
   if (length(a)) sub("^--file=", "", a[1]) else "interactive"
 }
@@ -264,7 +238,7 @@ record <- function(key, value, section = "", note = "") {
     data.frame(key = key, value = signif(value, 5), section = section, note = note, script = script_name())
   invisible(value)
 }
-# one numbers file per script, named after it (e.g. outputs/numbers/2_analysis__03_main_analyses.csv)
+# one numbers file per script, named after it (e.g. outputs/numbers/2_analysis__02_main_analyses.csv)
 write_numbers <- function(file = NULL) {
   tab <- do.call(rbind, numbers$rows)
   if (is.null(file)) file <- paste0(sub("\\.R$", "", gsub("/", "__", script_name())), ".csv")

@@ -1,5 +1,5 @@
 # Fig. S4. Agreement between systems (r, RMSE) as a function of averaging block, with the within- and
-# cross-system subset benchmark (2_analysis/09_scales_budget.R).
+# cross-system subset benchmark (2_analysis/08_scales_budget.R).
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })

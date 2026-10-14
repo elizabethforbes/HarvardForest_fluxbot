@@ -1,5 +1,5 @@
 # Fig. S9. Array-level resilience: coverage by number of units reporting, observed and expected under independent failures (per-unit success and units reporting over time are in main Fig. 6)
-# Curves from 2_analysis/14_resilience.R.
+# Curves from 2_analysis/13_resilience.R.
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2) })

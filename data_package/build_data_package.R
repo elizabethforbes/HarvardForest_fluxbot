@@ -36,7 +36,7 @@ units <- gps %>% transmute(unit, stand_code, stand = if_else(stand_code == "heal
                            gps_date = as.Date(Date), gps_horizontal_accuracy_m = as.numeric(str_match(Notes, "Horizontal Accuracy: \u00b1 ([0-9.]+) m")[, 2]),
                            chamber_volume_cm3 = 768, collar_area_cm2 = 81,
                            collar_inner_diameter_cm = 10.2, collar_insertion_cm = 4, co2_sensor = "Senseair K30",
-                           notes = if_else(unit == "112", "pressure sensor faulty; excluded from submitted analysis", NA_character_)) %>%
+                           notes = if_else(unit == "112", "pressure sensor faulty", NA_character_)) %>%
   arrange(stand_code, as.integer(unit))
 write_csv(units, file.path(pkg, "metadata", "fluxbot_units.csv"))
 

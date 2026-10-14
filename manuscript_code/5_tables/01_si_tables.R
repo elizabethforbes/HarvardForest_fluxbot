@@ -38,12 +38,8 @@ pm <- bind_rows(rd("agreement_metric_panel.csv") %>% mutate(Dataset = "As deploy
 w(pm, "TableS_agreement_metrics.csv")
 
 # S-sensitivity: processing and QC choices
-# alternative QC and pressure choices kept; the clock and original-flux-file scenarios check the earlier analysis only
-# (numbers_all.csv) and are not printed in the SI
-relabel <- function(x) x %>% sub("QC: submitted rule \\(negatives removed, pooled 1.5 x IQR\\)", "QC: negatives removed, then pooled 1.5 x IQR screen", .) %>%
-  sub("Pressure: HF001 sea-level \\(as submitted\\)", "Pressure: HF001 sea-level-reduced", .)
-sens <- rd("sensitivity_table.csv") %>% filter(!grepl("HF293|EDT|Submitted flux files", scenario)) %>%
-  transmute(Scenario = relabel(scenario), `Fluxbot closures` = n_fluxbot, `Method effect (GAM, umol m-2 s-1; 95% CI)` = sprintf("%.2f (%.2f to %.2f)", gam_method, gam_method_lo, gam_method_hi),
+sens <- rd("sensitivity_table.csv") %>% filter(!grepl("HF293", scenario)) %>%
+  transmute(Scenario = scenario, `Fluxbot closures` = n_fluxbot, `Method effect (GAM, umol m-2 s-1; 95% CI)` = sprintf("%.2f (%.2f to %.2f)", gam_method, gam_method_lo, gam_method_hi),
             `Paired bias, 3-h array means (umol m-2 s-1; block-bootstrap 95% CI)` = sprintf("%.2f (%.2f to %.2f)", paired_bias, paired_bias_lo, paired_bias_hi),
             `r (3-h array means)` = r2(r), `CCC (3-h array means)` = r2(ccc), `Q10 autochamber` = r2(q10_ac), `Q10 Fluxbot` = r2(q10_fb))
 w(sens, "TableS_sensitivity.csv")

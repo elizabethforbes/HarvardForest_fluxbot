@@ -21,7 +21,7 @@ met <- load_met()
 # ---- Fig 2: time series and cumulative budgets ---------------------------------------------
 # (b) air temperature (HF001) and hourly precipitation
 # (c) cumulative CO2-C from 2 Oct, gap-filled per stand (s10t + time-of-day GAM, as in
-#     2_analysis/09_scales_budget.R), mean of the two stands; bands = chamber-bootstrap 95% intervals
+#     2_analysis/08_scales_budget.R), mean of the two stands; bands = chamber-bootstrap 95% intervals
 p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-11-01", tz = "America/New_York")
 dd2 <- d %>% filter(hour_of_obs >= p0, hour_of_obs < p1)
 xs2 <- scale_x_datetime(limits = c(p0, p1), date_labels = "%d %b", date_breaks = "1 week", expand = c(0.01, 0))

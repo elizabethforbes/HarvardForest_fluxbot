@@ -1,5 +1,5 @@
 # Fig. S8. Wet sensors in the field: episode lengths, recovery time, open-lid CO2 anomaly and flux ratio
-# around the end of wet-sensor episodes (2_analysis/15_wet_recovery.R).
+# around the end of wet-sensor episodes (2_analysis/14_wet_recovery.R).
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })

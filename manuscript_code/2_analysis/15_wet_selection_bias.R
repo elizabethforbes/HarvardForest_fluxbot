@@ -4,7 +4,7 @@
 #      raw and relative to a temperature + time-of-day model fitted to all autochamber hours;
 #  (b) autochamber mean over all hours vs over the hours used for the system comparison;
 #  (c) autochamber October budget from all hours vs from only the stand-hours in which the Fluxbot
-#      array has retained data, gap-filled the same way as the Fluxbot budget (2_analysis/09_scales_budget.R).
+#      array has retained data, gap-filled the same way as the Fluxbot budget (2_analysis/08_scales_budget.R).
 #      The difference is the bias the Fluxbot sampling pattern alone would put into its budget.
 
 source("R/setup.R")

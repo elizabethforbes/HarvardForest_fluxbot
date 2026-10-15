@@ -1,6 +1,6 @@
 library(ggplot2)
 
-setwd("/Users/jongewirtzman/Google Drive/Research/Envirobotics/fluxbot_lgr_test")
+setwd("fluxbot_lgr_test")
 fluxbot<-read.csv("fluxbot_co2 - fluxbot_20.csv")
 fluxbot_co2 <- unlist(strsplit(gsub("\\[|\\]", "", fluxbot$co2), ","), use.names = FALSE)
 fluxbot_co2 <- as.numeric(fluxbot_co2)

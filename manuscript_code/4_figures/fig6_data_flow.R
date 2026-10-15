@@ -3,7 +3,7 @@
 #      system, with losses at each step (2_analysis/07_measurement_accounting.R)
 #  (b) measurement success of each unit (retained / intended closures), (c) by system
 #  (d) daily share of each stand's units with a retained measurement (2_analysis/13_resilience.R)
-# The agreement of array means at each stage is in the SI (Table S-stages).
+# The agreement of array means at each stage is in SI Table S3.
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
@@ -16,10 +16,10 @@ p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-
 acc <- read.csv(file.path(out_dir, "measurement_accounting.csv"))
 ag <- read.csv(file.path(out_dir, "agreement_by_stage.csv"))
 
-# ---- Fig 8: Sankey diagram of closures, and agreement at each stage -------------------------------
+# ---- Fig. 6a: Sankey diagram of closures at each stage -------------------------------
 # Main stream (top-aligned) narrows at each stage; each loss peels off downward as a ribbon to a labelled
 # terminal, coloured by reason. Heights are % of intended closures, so the two systems are comparable.
-# Loss colours match the hourly states in Fig. 9: reds = no data (down), oranges = measured but removed by QC,
+# Loss colours: reds = no data (down), oranges = measured but removed by QC,
 # blue = wet sensor (RH-screened subset only). Loss ribbons are drawn at least 1% of intended wide so that
 # small steps stay visible; labels give the true counts.
 sig <- function(x0, x1, ya0, ya1, yb0, yb1, n = 40) {   # ribbon from [ya0,ya1] at x0 to [yb0,yb1] at x1

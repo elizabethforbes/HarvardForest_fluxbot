@@ -36,3 +36,7 @@ Closures that pass every rule are **retained**. The RH-screened subset also remo
 - `start_local` is local time (America/New_York).
 - `start_utc` and `hour_of_obs` are UTC (ISO 8601).
 - The analysis period and day boundaries use local time.
+
+## License
+
+CC BY 4.0. Cite the Zenodo archive (https://doi.org/10.5281/zenodo.15660442) and the paper.

@@ -34,6 +34,6 @@ files <- files[file.exists(files)]
 all <- do.call(rbind, lapply(files, read.csv))
 if (anyDuplicated(all$key)) warning("duplicated number keys: ", paste(unique(all$key[duplicated(all$key)]), collapse = ", "))
 write.csv(all, file.path(num_dir, "numbers_all.csv"), row.names = FALSE)
-writeLines(capture.output(sessionInfo()), file.path("outputs", "logs", "sessionInfo.txt"))
+system2("Rscript", file.path("R", "session_info.R"))   # session with every package the pipeline loads
 message("Done in ", round(as.numeric(difftime(Sys.time(), t_start, units = "mins")), 1), " min: ", nrow(all),
         " numbers in outputs/numbers/numbers_all.csv")

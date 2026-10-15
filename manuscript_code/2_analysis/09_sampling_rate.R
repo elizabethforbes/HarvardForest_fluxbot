@@ -5,6 +5,7 @@
 
 source("R/setup.R")
 suppressPackageStartupMessages({ library(readr); library(goFlux) })
+if (packageVersion("goFlux") != "0.4.0") stop("goFlux 0.4.0 is required (renv.lock); found ", packageVersion("goFlux"))
 set.seed(20260930)
 cores <- max(1, parallel::detectCores() - 2)
 meta <- read.csv(file.path(flux_dir, "flux_run_metadata.csv"))

@@ -27,6 +27,7 @@
 # 25 Sep-5 Nov 2023, before QC) and flux_run_metadata.csv. 1_clean/03_clean_datasets.R applies the QC.
 
 suppressPackageStartupMessages({ library(dplyr); library(tidyr); library(readr); library(lubridate); library(goFlux) })
+if (packageVersion("goFlux") != "0.4.0") stop("goFlux 0.4.0 is required (renv.lock); found ", packageVersion("goFlux"))
 pkg <- file.path("..", "data_package")
 out_dir <- file.path("..", "data_clean", "fluxes"); dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 cores <- max(1, parallel::detectCores() - 2)

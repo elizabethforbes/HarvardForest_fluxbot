@@ -1,23 +1,24 @@
-.Rproj.user
-.Rhistory
-.RData
-.Ruserdata
-calculated_data/
-*.RData
-*.RData
-*.Rproj
+# R session files
 .Rproj.user/
-calculated_data/
-*.RData
-*.Rdata
+.Rhistory
 .RHistory
+.RData
 *.RData
 *.Rdata
-calculated_data/
-.Rproj.user/
+.Ruserdata
 *.Rproj
-.DS_Store
-.Rproj.user
-.Rhistory
+
+# Quarto / R Markdown build output
 .quarto/
 *_files/
+
+# old local folders
+calculated_data/
+R scripts/
+
+# system files
+.DS_Store
+Icon?
+
+# journal TIFFs (recreated by the figure scripts; PDFs and PNGs are kept)
+manuscript_code/outputs/figures/*.tif

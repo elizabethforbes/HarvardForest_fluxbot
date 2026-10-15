@@ -11,11 +11,11 @@ set.seed(20260930)
 
 # ================================================================================
 # Core statistics, as a function of the analysis dataset, so they can be re-run
-# under each QC / flux-definition / timestamp / pressure alternative (A6-A8).
+# under each QC, flux-model and pressure alternative.
 # ================================================================================
 
 # hours used for Figs 4-5: both systems with >= 5 chambers reporting in both stands
-fig5_hours <- function(d) matched_hours(d, k = 3)
+compared_hours <- function(d) matched_hours(d, k = 3)
 
 # stand-hours in which both systems reported (common window for Q10, diel, effort)
 common_stand_hours <- function(d) {
@@ -130,41 +130,41 @@ for (st in c("healthy", "unhealthy")) record(paste0("n_fluxbot_units_", st),
 record("fluxbot_last_obs_doy", max(yday(d$hour_of_obs[d$method == "fluxbot"])), "data")
 record("autochamber_last_obs_doy", max(yday(d$hour_of_obs[d$method == "autochamber"])), "data")
 
-# ---- A1/A2: GAM, method offset, CI, TOST ----------------------------------------
+# ---- GAM: stand and system effects, CI, equivalence test (TOST) -----------------
 g <- fit_gam(d); sg <- summary(g)
 saveRDS(g, file.path(out_dir, "gam_re.rds"))
 capture.output(sg, file = file.path(out_dir, "gam_re_summary.txt"))
 est <- sg$p.table["methodfluxbot", 1]; se <- sg$p.table["methodfluxbot", 2]
 int <- sg$p.table["(Intercept)", 1]
-record("gam_intercept", int, "A1", "autochamber, stand 1 reference")
-record("gam_stand2", sg$p.table["standunhealthy", 1], "A1")
-record("gam_stand2_se", sg$p.table["standunhealthy", 2], "A1")
-record("gam_stand2_p", sg$p.table["standunhealthy", 4], "A1")
-record("gam_method", est, "A1")
-record("gam_method_se", se, "A1")
-record("gam_method_p", sg$p.table["methodfluxbot", 4], "A1")
-record("gam_method_ci95_lo", est - 1.96 * se, "A1")
-record("gam_method_ci95_hi", est + 1.96 * se, "A1")
-record("gam_method_ci90_lo", est - 1.645 * se, "A2")
-record("gam_method_ci90_hi", est + 1.645 * se, "A2")
-record("gam_method_pct_of_intercept", 100 * est / int, "A1")
-record("gam_r2adj", sg$r.sq, "A1")
-record("gam_dev_expl", sg$dev.expl, "A1")
-record("gam_edf_hour", sg$s.table["s(hour)", "edf"], "A1")
-record("gam_edf_s10t", sg$s.table["s(s10t)", "edf"], "A1")
-record("gam_p_hour", sg$s.table["s(hour)", "p-value"], "A1")
-record("gam_p_s10t", sg$s.table["s(s10t)", "p-value"], "A1")
+record("gam_intercept", int, "gam", "autochamber, stand 1 reference")
+record("gam_stand2", sg$p.table["standunhealthy", 1], "gam")
+record("gam_stand2_se", sg$p.table["standunhealthy", 2], "gam")
+record("gam_stand2_p", sg$p.table["standunhealthy", 4], "gam")
+record("gam_method", est, "gam")
+record("gam_method_se", se, "gam")
+record("gam_method_p", sg$p.table["methodfluxbot", 4], "gam")
+record("gam_method_ci95_lo", est - 1.96 * se, "gam")
+record("gam_method_ci95_hi", est + 1.96 * se, "gam")
+record("gam_method_ci90_lo", est - 1.645 * se, "equivalence")
+record("gam_method_ci90_hi", est + 1.645 * se, "equivalence")
+record("gam_method_pct_of_intercept", 100 * est / int, "gam")
+record("gam_r2adj", sg$r.sq, "gam")
+record("gam_dev_expl", sg$dev.expl, "gam")
+record("gam_edf_hour", sg$s.table["s(hour)", "edf"], "gam")
+record("gam_edf_s10t", sg$s.table["s(s10t)", "edf"], "gam")
+record("gam_p_hour", sg$s.table["s(hour)", "p-value"], "gam")
+record("gam_p_s10t", sg$s.table["s(s10t)", "p-value"], "gam")
 # alternative random-effect specification
 g_fs <- gam(fluxL_umolm2sec ~ stand + s(hour) + method + s(id, bs = "fs") + s(s10t),
             data = d, method = "REML")
-record("gam_fs_method", summary(g_fs)$p.table["methodfluxbot", 1], "A1", "alternative specification: bs='fs' chamber smooths")
-record("gam_fs_method_se", summary(g_fs)$p.table["methodfluxbot", 2], "A1")
+record("gam_fs_method", summary(g_fs)$p.table["methodfluxbot", 1], "gam", "alternative specification: bs='fs' chamber smooths")
+record("gam_fs_method_se", summary(g_fs)$p.table["methodfluxbot", 2], "gam")
 
 vc <- gam.vcomp(g, rescale = FALSE)
 sd_chamber <- unname(vc["s(id)", "std.dev"]); sd_resid <- sqrt(g$sig2)
-record("sd_between_chamber_gam", sd_chamber, "A1", "random-intercept SD, both systems")
-record("sd_residual_gam", sd_resid, "A1")
-record("method_offset_over_sd_chamber", abs(est) / sd_chamber, "A1")
+record("sd_between_chamber_gam", sd_chamber, "gam", "random-intercept SD, both systems")
+record("sd_residual_gam", sd_resid, "gam")
+record("method_offset_over_sd_chamber", abs(est) / sd_chamber, "gam")
 
 # variance components with system-specific between-chamber SD and a shared
 # stand x hour term that absorbs common temporal variation
@@ -176,10 +176,10 @@ vcl <- as.data.frame(VarCorr(lm_v))
 
 sd_ac <- vcl$sdcor[grepl("^id", vcl$grp) & grepl("autochamber", vcl$var1)]
 sd_fb <- vcl$sdcor[grepl("^id", vcl$grp) & grepl("fluxbot", vcl$var1)]
-record("sd_chamber_autochamber", sd_ac, "A1", "lmer, system-specific chamber SD")
-record("sd_chamber_fluxbot", sd_fb, "A1")
-record("sd_stand_hour", vcl$sdcor[grepl("^stand", vcl$grp)], "A1")
-record("sd_resid_lmer", vcl$sdcor[vcl$grp == "Residual"], "A1")
+record("sd_chamber_autochamber", sd_ac, "gam", "lmer, system-specific chamber SD")
+record("sd_chamber_fluxbot", sd_fb, "gam")
+record("sd_stand_hour", vcl$sdcor[grepl("^stand", vcl$grp)], "gam")
+record("sd_resid_lmer", vcl$sdcor[vcl$grp == "Residual"], "gam")
 
 # chamber-level summaries (the "1.5-4.0" medians in the text)
 chamber <- d %>% group_by(method, stand, id) %>%
@@ -187,32 +187,32 @@ chamber <- d %>% group_by(method, stand, id) %>%
             q1 = quantile(fluxL_umolm2sec, .25), q3 = quantile(fluxL_umolm2sec, .75),
             n = n(), .groups = "drop")
 write.csv(chamber, file.path(out_dir, "chamber_summary.csv"), row.names = FALSE)
-record("chamber_median_min", min(chamber$median), "A1")
-record("chamber_median_max", max(chamber$median), "A1")
-record("chamber_q1_min", min(chamber$q1), "A1")
-record("chamber_q3_max", max(chamber$q3), "A1")
+record("chamber_median_min", min(chamber$median), "gam")
+record("chamber_median_max", max(chamber$median), "gam")
+record("chamber_q1_min", min(chamber$q1), "gam")
+record("chamber_q3_max", max(chamber$q3), "gam")
 for (m in c("autochamber", "fluxbot")) {
   x <- chamber %>% filter(method == m)
-  record(paste0("chamber_mean_range_", m, "_lo"), min(x$mean), "A1")
-  record(paste0("chamber_mean_range_", m, "_hi"), max(x$mean), "A1")
+  record(paste0("chamber_mean_range_", m, "_lo"), min(x$mean), "gam")
+  record(paste0("chamber_mean_range_", m, "_hi"), max(x$mean), "gam")
   # within-system between-chamber SD of chamber means (pooled within stands)
   record(paste0("sd_chamber_means_", m),
-         sqrt(sum(tapply(x$mean, x$stand, function(v) sum((v - mean(v))^2))) / (nrow(x) - 2)), "A1")
+         sqrt(sum(tapply(x$mean, x$stand, function(v) sum((v - mean(v))^2))) / (nrow(x) - 2)), "gam")
 }
 
 # TOST on the GAM method effect, bounds = +/-10% and +/-20% of the autochamber mean
 ac_mean <- mean(d$fluxL_umolm2sec[d$method == "autochamber"])
-record("autochamber_mean_flux", ac_mean, "A2")
-record("fluxbot_mean_flux", mean(d$fluxL_umolm2sec[d$method == "fluxbot"]), "A2")
+record("autochamber_mean_flux", ac_mean, "equivalence")
+record("fluxbot_mean_flux", mean(d$fluxL_umolm2sec[d$method == "fluxbot"]), "equivalence")
 for (pct in c(10, 20, 30)) {
   bnd <- pct / 100 * ac_mean
   p_tost <- max(pnorm((est + bnd) / se, lower.tail = FALSE), pnorm((est - bnd) / se))
-  record(paste0("tost_bound_", pct, "pct"), bnd, "A2")
-  record(paste0("tost_p_", pct, "pct"), p_tost, "A2", "equivalence if < 0.05")
+  record(paste0("tost_bound_", pct, "pct"), bnd, "equivalence")
+  record(paste0("tost_p_", pct, "pct"), p_tost, "equivalence", "equivalence if < 0.05")
 }
 # smallest symmetric bound for which equivalence would be declared (alpha = 0.05)
-record("tost_min_equiv_bound", abs(est) + 1.645 * se, "A2")
-record("tost_min_equiv_bound_pct", 100 * (abs(est) + 1.645 * se) / ac_mean, "A2")
+record("tost_min_equiv_bound", abs(est) + 1.645 * se, "equivalence")
+record("tost_min_equiv_bound_pct", 100 * (abs(est) + 1.645 * se) / ac_mean, "equivalence")
 
 # chamber-cluster bootstrap of the difference in chamber-mean fluxes (resample chambers within
 # system x stand). A check on the GAM SE that makes no distributional assumptions; its point estimate
@@ -226,13 +226,12 @@ bt <- replicate(5000, {
 })
 obs_diff <- with(cm %>% group_by(method, stand) %>% summarise(m = mean(m), .groups = "drop") %>%
                    group_by(method) %>% summarise(m = mean(m)), m[method == "fluxbot"] - m[method == "autochamber"])
-record("chamber_boot_diff", obs_diff, "A2")
-record("chamber_boot_ci95_lo", quantile(bt, 0.025), "A2")
-record("chamber_boot_ci95_hi", quantile(bt, 0.975), "A2")
+record("chamber_boot_diff", obs_diff, "equivalence")
+record("chamber_boot_ci95_lo", quantile(bt, 0.025), "equivalence")
+record("chamber_boot_ci95_hi", quantile(bt, 0.975), "equivalence")
 
-# ---- Array-level agreement (Fig 5), without the `autochamber > 1` filter --------
+# ---- Array-level agreement (Fig. 3) -------------------------------------------------
 ag <- array_agreement(d)
-saveRDS(ag$data, file.path(out_dir, "fig5_data.rds"))
 record("fig5_n_hours", ag$n, "agreement")
 record("ccc", ag$ccc, "agreement"); record("ccc_lo", ag$ccc_lo, "agreement"); record("ccc_hi", ag$ccc_hi, "agreement")
 record("ccc_pearson_r", ag$r, "agreement", "precision component")
@@ -277,24 +276,15 @@ for (st in c("healthy", "unhealthy")) {
 an <- ag$data %>% mutate(a = ac3 - mean(ac3), f = fb3 - mean(fb3))
 record("anomaly_r", cor(an$a, an$f), "agreement", "correlation of 3-h anomalies")
 
-# ---- Fig 4 means ---------------------------------------------------------------
-f4 <- d %>% filter(hour_of_obs %in% fig5_hours(d)) %>% group_by(method) %>%
+# ---- mean and SD of individual fluxes in compared hours --------------------------
+f4 <- d %>% filter(hour_of_obs %in% compared_hours(d)) %>% group_by(method) %>%
   summarise(m = mean(fluxL_umolm2sec), s = sd(fluxL_umolm2sec), n = n())
 for (m in f4$method) {
-  record(paste0("fig4_mean_", m), f4$m[f4$method == m], "fig4")
-  record(paste0("fig4_sd_", m), f4$s[f4$method == m], "fig4")
+  record(paste0("compared_mean_", m), f4$m[f4$method == m], "flux_distribution")
+  record(paste0("compared_sd_", m), f4$s[f4$method == m], "flux_distribution")
 }
 
-# ---- Table 2: morning (05-10 h) and evening (15-20 h) summaries -----------------------
-t2 <- d %>% mutate(timeofday = case_when(hour >= 15 & hour <= 20 ~ "evening",
-                                         hour >= 5 & hour <= 10 ~ "morning")) %>%
-  filter(!is.na(timeofday)) %>% group_by(method, stand_label, timeofday) %>%
-  summarise(mean = mean(fluxL_umolm2sec), median = median(fluxL_umolm2sec),
-            p95 = quantile(fluxL_umolm2sec, 0.95), se = sd(fluxL_umolm2sec) / sqrt(n()),
-            n = n(), .groups = "drop")
-write.csv(t2, file.path(out_dir, "table2.csv"), row.names = FALSE)
-
-# ---- Diel (Fig 6), common stand-hours ---------------------------------------------
+# ---- Diel cycle (Fig. 4a), common stand-hours -----------------------------------------
 dc <- d %>% semi_join(common_stand_hours(d), by = c("stand", "hour_of_obs"))
 diel <- dc %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>%
   group_by(method, day, hour) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
@@ -314,17 +304,17 @@ for (m in c("autochamber", "fluxbot")) {
 record("diel_r_between_systems", cor(diel$mean[diel$method == "autochamber"],
                                      diel$mean[diel$method == "fluxbot"]), "diel")
 
-# ---- A4: Q10 on the common window --------------------------------------------------
+# ---- Q10 on the common window (Fig. 4b) ----------------------------------------------
 # All filters dropped except flux > 0 (required by the log/exponential model).
 # A stricter flux > 0.5 filter is reported as a sensitivity analysis.
 dq <- d %>% semi_join(common_stand_hours(d), by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t))
-record("q10_common_tmin", min(dq$s10t), "A4"); record("q10_common_tmax", max(dq$s10t), "A4")
+record("q10_common_tmin", min(dq$s10t), "q10"); record("q10_common_tmax", max(dq$s10t), "q10")
 for (thr in c(0, 0.5)) {
   q <- q10_common(d, min_flux = thr); tag <- ifelse(thr == 0, "", "_gt05")
   for (m in names(q)) {
-    for (k in c("q10", "lo", "hi", "r2", "n")) record(paste0("q10", tag, "_", m, "_", k), q[[m]]$nls[k], "A4",
+    for (k in c("q10", "lo", "hi", "r2", "n")) record(paste0("q10", tag, "_", m, "_", k), q[[m]]$nls[k], "q10",
                                                       "nls exponential, common stand-hours")
-    for (k in c("q10", "lo", "hi")) record(paste0("q10lmm", tag, "_", m, "_", k), q[[m]]$lmm[k], "A4",
+    for (k in c("q10", "lo", "hi")) record(paste0("q10lmm", tag, "_", m, "_", k), q[[m]]$lmm[k], "q10",
                                            "log-linear mixed model, chamber random intercept")
   }
 }
@@ -332,31 +322,31 @@ for (thr in c(0, 0.5)) {
 dall <- d %>% filter(!is.na(s10t), fluxL_umolm2sec > 0)
 for (m in c("autochamber", "fluxbot")) {
   q <- q10_nls(dall[dall$method == m, ])
-  for (k in c("q10", "lo", "hi", "tmin", "tmax")) record(paste0("q10_fullrecord_", m, "_", k), q[k], "A4")
+  for (k in c("q10", "lo", "hi", "tmin", "tmax")) record(paste0("q10_fullrecord_", m, "_", k), q[k], "q10")
 }
 # Q10 of the hourly array-mean flux (spatial noise averaged out)
 qa <- dq %>% group_by(method, hour_of_obs) %>%
   summarise(fluxL_umolm2sec = mean(fluxL_umolm2sec), s10t = mean(s10t), .groups = "drop")
 for (m in c("autochamber", "fluxbot")) {
   q <- q10_nls(qa[qa$method == m, ])
-  for (k in c("q10", "lo", "hi", "r2")) record(paste0("q10_arraymean_", m, "_", k), q[k], "A4")
+  for (k in c("q10", "lo", "hi", "r2")) record(paste0("q10_arraymean_", m, "_", k), q[k], "q10")
 }
 # difference in temperature slope between systems (interaction), mixed model
 mi <- lmer(log(fluxL_umolm2sec) ~ s10t * method + (1 | id), data = dq %>% filter(fluxL_umolm2sec > 0))
 ct <- summary(mi)$coefficients["s10t:methodfluxbot", ]
-record("q10_interaction_t", ct["t value"], "A4", "log-linear LMM s10t x method")
-record("q10_interaction_p_approx", 2 * pnorm(-abs(ct["t value"])), "A4", "normal approximation")
+record("q10_interaction_t", ct["t value"], "q10", "log-linear LMM s10t x method")
+record("q10_interaction_p_approx", 2 * pnorm(-abs(ct["t value"])), "q10", "normal approximation")
 
-# ---- Spatial heterogeneity (Fig 8) -------------------------------------------------
+# ---- Spatial heterogeneity (Fig. 5) -------------------------------------------------
 gi <- gini_arrays(d)
-record("gini_autochamber", gi["autochamber"], "fig8"); record("gini_fluxbot", gi["fluxbot"], "fig8")
+record("gini_autochamber", gi["autochamber"], "heterogeneity"); record("gini_fluxbot", gi["fluxbot"], "heterogeneity")
 # stand-level CVs of chamber means over the common window
 cv_tab <- dc %>% group_by(method, stand, id) %>% summarise(m = mean(fluxL_umolm2sec), .groups = "drop") %>%
   group_by(method, stand) %>% summarise(cv = sd(m) / mean(m), n_chambers = n(), mean = mean(m), .groups = "drop")
 write.csv(cv_tab, file.path(out_dir, "cv_chamber_means.csv"), row.names = FALSE)
-for (i in seq_len(nrow(cv_tab))) record(paste0("cv_", cv_tab$method[i], "_", cv_tab$stand[i]), cv_tab$cv[i], "A3")
+for (i in seq_len(nrow(cv_tab))) record(paste0("cv_", cv_tab$method[i], "_", cv_tab$stand[i]), cv_tab$cv[i], "sampling_effort")
 
-# ---- A3: sampling effort -------------------------------------------------------------
+# ---- sampling effort (Fig. 5b) ---------------------------------------------------------
 # For each system x stand: chamber means over the common window, then
 #  (1) analytic n for a 95% CI half-width of +/-E:  n = (t_{n-1} * CV / E)^2
 #  (2) bootstrap: resample n chambers with replacement, relative error of the mean
@@ -381,48 +371,48 @@ for (m in c("autochamber", "fluxbot")) for (st in c("healthy", "unhealthy")) {
                                        analytic_hourly = qt(0.975, pmax(1:20 - 1, 1)) * cv_h / sqrt(1:20),
                                        cv = cv, cv_hourly = cv_h, n_chambers = length(cmn))
   key <- paste0(m, "_", st)
-  record(paste0("effort_cv_", key), cv, "A3", "CV of chamber means, common window")
-  record(paste0("effort_cv_hourly_", key), cv_h, "A3", "median per-hour CV across chambers")
-  record(paste0("effort_n10_", key), n_required(cv, 0.10), "A3", "chambers for +/-10% (95% CI), deployment mean")
-  record(paste0("effort_n20_", key), n_required(cv, 0.20), "A3")
-  record(paste0("effort_n10_hourly_", key), n_required(cv_h, 0.10), "A3", "single-hour stand mean")
-  record(paste0("effort_n20_hourly_", key), n_required(cv_h, 0.20), "A3")
-  record(paste0("effort_boot_n10_", key), which(boot_err <= 0.10)[1], "A3", "bootstrap, 95% of draws within 10%")
-  record(paste0("effort_boot_n20_", key), which(boot_err <= 0.20)[1], "A3")
+  record(paste0("effort_cv_", key), cv, "sampling_effort", "CV of chamber means, common window")
+  record(paste0("effort_cv_hourly_", key), cv_h, "sampling_effort", "median per-hour CV across chambers")
+  record(paste0("effort_n10_", key), n_required(cv, 0.10), "sampling_effort", "chambers for +/-10% (95% CI), deployment mean")
+  record(paste0("effort_n20_", key), n_required(cv, 0.20), "sampling_effort")
+  record(paste0("effort_n10_hourly_", key), n_required(cv_h, 0.10), "sampling_effort", "single-hour stand mean")
+  record(paste0("effort_n20_hourly_", key), n_required(cv_h, 0.20), "sampling_effort")
+  record(paste0("effort_boot_n10_", key), which(boot_err <= 0.10)[1], "sampling_effort", "bootstrap, 95% of draws within 10%")
+  record(paste0("effort_boot_n20_", key), which(boot_err <= 0.20)[1], "sampling_effort")
 }
 effort <- bind_rows(effort)
 write.csv(effort, file.path(out_dir, "sampling_effort.csv"), row.names = FALSE)
 # pooled-within-stand CV per system
 for (m in c("autochamber", "fluxbot")) {
   x <- effort %>% filter(method == m, n == 1)
-  record(paste0("effort_cv_mean_", m), mean(x$cv), "A3")
-  record(paste0("effort_cv_hourly_mean_", m), mean(x$cv_hourly), "A3")
-  record(paste0("effort_n10_mean_", m), n_required(mean(x$cv), 0.10), "A3")
-  record(paste0("effort_n20_mean_", m), n_required(mean(x$cv), 0.20), "A3")
-  record(paste0("effort_n10_hourly_mean_", m), n_required(mean(x$cv_hourly), 0.10), "A3")
-  record(paste0("effort_n20_hourly_mean_", m), n_required(mean(x$cv_hourly), 0.20), "A3")
+  record(paste0("effort_cv_mean_", m), mean(x$cv), "sampling_effort")
+  record(paste0("effort_cv_hourly_mean_", m), mean(x$cv_hourly), "sampling_effort")
+  record(paste0("effort_n10_mean_", m), n_required(mean(x$cv), 0.10), "sampling_effort")
+  record(paste0("effort_n20_mean_", m), n_required(mean(x$cv), 0.20), "sampling_effort")
+  record(paste0("effort_n10_hourly_mean_", m), n_required(mean(x$cv_hourly), 0.10), "sampling_effort")
+  record(paste0("effort_n20_hourly_mean_", m), n_required(mean(x$cv_hourly), 0.20), "sampling_effort")
 }
 
-# ---- A5: temperature range -------------------------------------------------------------
+# ---- temperature range -------------------------------------------------------------------
 met_oct <- load_met(c(274, 308))
-record("s10t_min_deployment", min(d$s10t, na.rm = TRUE), "A5")
-record("s10t_max_deployment", max(d$s10t, na.rm = TRUE), "A5")
-record("s10t_min_autochamber", min(d$s10t[d$method == "autochamber"], na.rm = TRUE), "A5")
-record("s10t_min_fluxbot", min(d$s10t[d$method == "fluxbot"], na.rm = TRUE), "A5")
-record("n_fluxbot_obs_after_oct31", sum(d$method == "fluxbot" & d$hour_of_obs >= as.POSIXct("2023-11-01", tz = "America/New_York")), "A5")
+record("s10t_min_deployment", min(d$s10t, na.rm = TRUE), "temperature_range")
+record("s10t_max_deployment", max(d$s10t, na.rm = TRUE), "temperature_range")
+record("s10t_min_autochamber", min(d$s10t[d$method == "autochamber"], na.rm = TRUE), "temperature_range")
+record("s10t_min_fluxbot", min(d$s10t[d$method == "fluxbot"], na.rm = TRUE), "temperature_range")
+record("n_fluxbot_obs_after_oct31", sum(d$method == "fluxbot" & d$hour_of_obs >= as.POSIXct("2023-11-01", tz = "America/New_York")), "temperature_range")
 
-# ---- QC diagnostics (A6) ------------------------------------------------------------------
+# ---- QC diagnostics ------------------------------------------------------------------------
 raw_fb <- load_fluxbot(); raw_ac <- load_autochamber()
 for (nm in c("fluxbot", "autochamber")) {
   x <- if (nm == "fluxbot") raw_fb else raw_ac
   pos <- x$flux[!is.na(x$flux) & x$flux >= 0]
   q <- quantile(pos, c(.25, .75)); up <- q[2] + 1.5 * diff(q)
-  record(paste0("qc_n_raw_", nm), nrow(x), "A6")
-  record(paste0("qc_n_negative_", nm), sum(x$flux < 0, na.rm = TRUE), "A6")
-  record(paste0("qc_iqr_upper_fence_", nm), up, "A6")
-  record(paste0("qc_n_above_fence_", nm), sum(pos > up), "A6")
-  record(paste0("qc_pct_removed_iqr_", nm), 100 * (1 - mean(pos <= up & pos >= q[1] - 1.5 * diff(q))), "A6")
-  record(paste0("qc_max_raw_", nm), max(pos), "A6")
+  record(paste0("qc_n_raw_", nm), nrow(x), "qc")
+  record(paste0("qc_n_negative_", nm), sum(x$flux < 0, na.rm = TRUE), "qc")
+  record(paste0("qc_iqr_upper_fence_", nm), up, "qc")
+  record(paste0("qc_n_above_fence_", nm), sum(pos > up), "qc")
+  record(paste0("qc_pct_removed_iqr_", nm), 100 * (1 - mean(pos <= up & pos >= q[1] - 1.5 * diff(q))), "qc")
+  record(paste0("qc_max_raw_", nm), max(pos), "qc")
 }
 
 # ================================================================================

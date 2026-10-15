@@ -79,11 +79,15 @@ A test in a CO2 rig (Raymond lab, Yale) on 13 December 2023. Three uncovered K30
 
 Each K30 file holds several logging sessions, each starting with `EXPERIMENT BEGIN`. Only the last session belongs to this run; it starts at 11:12:11 on all loggers. The LGR clock is 130 s ahead of the K30 loggers, and the lag is constant over the day.
 
-Sequence, from J. Gewirtzman's messages of 13 Dec 2023:
+Sequence, from the lab notes of 13 Dec 2023:
 1. dry PTFE envelope
 2. wet PTFE envelope
 3. dry 3D-printed bracket
 4. wet 3D-printed bracket
 5. bare K30s sprayed with water (they became erratic and stopped recording)
 
-The notes give no times. In `19_cover_test_dec.R` the phase boundaries are set from the LGR H2O record (wetting at 16:40 and 17:43) and from the covered sensors stopping (18:06).
+The notes give no times. In `manuscript_code/3_lab_tests/02_cover_test_dec.R` the phase boundaries are set from the LGR H2O record (wetting at 16:40 and 17:43) and from the covered sensors stopping (18:06).
+
+## License
+
+The data in this folder are released under the Creative Commons Attribution 4.0 International license (CC BY 4.0). The HF001 and HF293 extracts in `ancillary/` are redistributed from the Harvard Forest Data Archive; cite the original datasets (see Sources and credit).

@@ -12,7 +12,7 @@ num <- get_number
 set.seed(20260930)
 d_scr <- build_dataset(qc = "screened")
 
-# ---- Fig 4: array-level agreement --------------------------------------------------------
+# ---- Fig. 3: array-level agreement --------------------------------------------------------
 # hourly array means (mean of the two stand means) in compared hours (>= 3 units of each system per
 # stand), as deployed. Grey: hours that are also in the RH-screened comparison (dry sensors); blue:
 # hours present only as deployed (wet sensors). Outlined points: daily means (>= 12 compared hours).

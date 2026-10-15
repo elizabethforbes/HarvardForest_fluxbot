@@ -10,7 +10,7 @@ d <- load_chamber_hours("deployed") %>%
 num <- get_number
 set.seed(20260930)
 
-# ---- Fig 7: spatial heterogeneity and sampling effort ---------------------------------------
+# ---- Fig. 5: spatial heterogeneity and sampling effort ---------------------------------------
 lz <- d %>% group_by(hour_of_obs) %>%
   filter(sum(method == "autochamber") >= 12 & sum(method == "fluxbot") >= 12) %>% ungroup() %>%
   group_by(method, id) %>% summarise(mf = mean(fluxL_umolm2sec), .groups = "drop") %>%

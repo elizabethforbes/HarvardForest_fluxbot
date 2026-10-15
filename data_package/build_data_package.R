@@ -21,9 +21,8 @@
 
 suppressPackageStartupMessages({ library(dplyr); library(readxl); library(stringr); library(readr) })
 
-drive <- Sys.getenv("FLUXBOT_DRIVE", file.path(Sys.getenv("HOME"),
-  "Library/CloudStorage/GoogleDrive-jonathan.gewirtzman@yale.edu/.shortcut-targets-by-id",
-  "1xCZfEjQvIvJrJ6t9FWhHFmNa01CDMpU5/Fluxbot 2023"))
+drive <- Sys.getenv("FLUXBOT_DRIVE")
+if (drive == "") stop("Set FLUXBOT_DRIVE to the 'Fluxbot 2023' source folder (see header).")
 pkg <- "data_package"
 for (d in c("raw", "metadata", "ancillary")) dir.create(file.path(pkg, d), showWarnings = FALSE, recursive = TRUE)
 

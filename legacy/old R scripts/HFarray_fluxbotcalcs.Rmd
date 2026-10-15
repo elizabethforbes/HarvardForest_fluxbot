@@ -642,7 +642,6 @@ fluxes_HF3_TEST <- estimate_flux(time_series_df = rawdat_met_HF3,
                                  volume = 10453.806, # cm3 
                                  area = 646.328) # cm2
 ```
-12 May 2025: Claude AI help in debugging original code
 ```{r}
 calculate_regressions_custom_intervals <- function(time_series_df, custom_intervals_df, 
                                                    method, volume, area, diff_threshold = 5) {

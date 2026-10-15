@@ -8,14 +8,14 @@ library(data.table)
 # Load local functions
 #file_sources <- list.files("R/functions", pattern="*.R", full.names = TRUE)
 #sapply(file_sources, source, .GlobalEnv)
-source("/Users/jongewirtzman/Google Drive/Research/Envirobotics/fluxbot_lgr_test/calculate_chamber_flux_fluxbot.R")
-#source("/Users/jongewirtzman/Google Drive/Research/Blueflux/Blueflux Tree Methane/Blueflux - Yale Ground Team - Shared/flux_code/calculate_chamber_flux_lgr2.R")
+source("fluxbot_lgr_test/calculate_chamber_flux_fluxbot.R")
+#source("flux_code/calculate_chamber_flux_lgr2.R")
 
-date_time <- read.csv("/Users/jongewirtzman/Google Drive/Research/Envirobotics/fluxbot_lgr_test/times.csv")
+date_time <- read.csv("fluxbot_lgr_test/times.csv")
 names(date_time)<-c("UniqueID", "start_time", "end_time")
 
 #fluxbot
-data_path <-  "/Users/jongewirtzman/Google Drive/Research/Envirobotics/fluxbot_lgr_test/fluxbot20.csv"
+data_path <-  "fluxbot_lgr_test/fluxbot20.csv"
 
 
 ####NEED TO UPDATE VOLUME CALC#####

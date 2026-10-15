@@ -8,6 +8,6 @@
 "srate_thin_best_ratio_cv",0.037283,"sampling_rate","6 s","2_analysis/09_sampling_rate.R"
 "srate_thin_share_HM_ref",0.7944,"sampling_rate","6 s","2_analysis/09_sampling_rate.R"
 "srate_thin_share_HM_x",0.79353,"sampling_rate","6 s","2_analysis/09_sampling_rate.R"
-"srate_thin_MDF_ratio",0.99099,"sampling_rate","6 s","2_analysis/09_sampling_rate.R"
+"srate_thin_MDF_ratio",1.0138,"sampling_rate","6 s","2_analysis/09_sampling_rate.R"
 "srate_array_hourly_r_thin_vs_1hz",0.99999,"sampling_rate","autochamber array, LM","2_analysis/09_sampling_rate.R"
 "srate_array_hourly_nrmse_thin_vs_1hz",0.13032,"sampling_rate","","2_analysis/09_sampling_rate.R"

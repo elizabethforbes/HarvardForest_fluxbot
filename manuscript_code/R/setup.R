@@ -215,7 +215,7 @@ assemble_dataset <- function(fb, ac, met) {
 }
 
 # ---- helpers used by several scripts -------------------------------------------
-# hours where both systems have >= k chambers reporting in both stands (Fig 4/5 subset)
+# hours where both systems have >= k chambers reporting in both stands (compared hours)
 # compared hours: >= k units of each system reporting in each stand (k = 3 throughout, except the
 # threshold-sensitivity analysis in 2_analysis/04_agreement_metrics.R)
 matched_hours <- function(d, k = 3) {

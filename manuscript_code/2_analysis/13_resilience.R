@@ -46,7 +46,7 @@ for (i in seq_len(nrow(res))) for (k in setdiff(names(res), c("method", "stand")
   record(sprintf("resil_%s_%s_%s", res$method[i], res$stand[i], k), res[[k]][i], "resilience")
 for (m in c("fluxbot", "autochamber")) record(paste0("unit_success_median_", m), median(unit_rate$success[unit_rate$method == m]), "resilience")
 
-# ---- hourly state of each stand array (Fig. 9d) ---------------------------------------------------
+# ---- hourly state of each stand array ---------------------------------------------------
 # >= 3 units retained (replicated), 1-2 units, units measured (a flux was computed) but all removed
 # by QC (failed fit or chamber check, spike), or no data (down: no record, or too few records to fit).
 computed_ds <- build_dataset(qc = "computed") %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
@@ -57,7 +57,7 @@ st_h <- sh %>% left_join(computed_ds, by = c("method", "stand", "hour_of_obs")) 
   state = factor(state, levels = c(">= 3 units", "1-2 units", "measured, removed by QC", "no data (down)")),
   series = factor(paste(lab_sys[method], stl[stand]), levels = c("Autochamber Stand 1", "Autochamber Stand 2", "Fluxbot 2.0 Stand 1", "Fluxbot 2.0 Stand 2")))
 state_tab <- st_h %>% count(series, state) %>% group_by(series) %>% mutate(pct = 100 * n / sum(n)) %>% ungroup()
-write.csv(state_tab, file.path(out_dir, "fig10_state_shares.csv"), row.names = FALSE)
+write.csv(state_tab, file.path(out_dir, "stand_state_shares.csv"), row.names = FALSE)
 for (i in seq_len(nrow(state_tab))) record(sprintf("state_%s_%s", gsub(" ", "_", state_tab$series[i]),
   c("rep3", "u12", "qc", "down")[as.integer(state_tab$state[i])]), state_tab$pct[i], "resilience", "% of stand-hours")
 write.csv(curves, file.path(out_dir, "resilience_curves.csv"), row.names = FALSE)

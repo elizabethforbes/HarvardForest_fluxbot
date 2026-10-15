@@ -27,7 +27,7 @@ Read in data from fluxbots, and autochamber array data calculated using fluxbot 
 met_data <- read.csv("https://harvardforest.fas.harvard.edu/data/p00/hf001/hf001-10-15min-m.csv")
 
 # fluxbot estimates:
-HF_fluxestimates <- read.csv("/Users/elizabethforbes/Documents/HarvardForest_fluxbot/manuscript_code/HarvardForest_fluxestimates_fall2023.csv", header = TRUE)
+HF_fluxestimates <- read.csv("manuscript_code/HarvardForest_fluxestimates_fall2023.csv", header = TRUE)
 
 pal <- wes_palette(name = "Zissou1", n = 24, type = "continuous")
 

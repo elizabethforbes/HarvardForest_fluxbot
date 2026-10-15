@@ -1,4 +1,4 @@
-# A7 (local drivers): compare the Fisher met-station 10 cm soil temperature
+# Local drivers: compare the Fisher met-station 10 cm soil temperature
 # (HF001 s10t, used for all analyses) with the soil temperature logged at each
 # autochamber (HF293-07 in data_package/ancillary; `tsoil` = mean of the logger's soil
 # probes at that chamber). There is no in-soil sensor on the Fluxbots.
@@ -23,15 +23,15 @@ saveRDS(cmp, file.path(out_dir, "soiltemp_local_vs_hf001.rds"))
 
 for (st in c("healthy", "unhealthy")) {
   x <- cmp %>% filter(stand == st)
-  record(paste0("tsoil_local_mean_", st), mean(x$tsoil_local), "A7")
-  record(paste0("tsoil_local_min_", st), min(x$tsoil_local), "A7")
-  record(paste0("tsoil_local_max_", st), max(x$tsoil_local), "A7")
-  record(paste0("tsoil_minus_s10t_mean_", st), mean(x$diff), "A7")
-  record(paste0("tsoil_minus_s10t_sd_", st), sd(x$diff), "A7")
-  record(paste0("tsoil_vs_s10t_r_", st), cor(x$tsoil_local, x$s10t), "A7")
-  record(paste0("tsoil_local_range_", st), max(x$tsoil_local) - min(x$tsoil_local), "A7")
+  record(paste0("tsoil_local_mean_", st), mean(x$tsoil_local), "drivers")
+  record(paste0("tsoil_local_min_", st), min(x$tsoil_local), "drivers")
+  record(paste0("tsoil_local_max_", st), max(x$tsoil_local), "drivers")
+  record(paste0("tsoil_minus_s10t_mean_", st), mean(x$diff), "drivers")
+  record(paste0("tsoil_minus_s10t_sd_", st), sd(x$diff), "drivers")
+  record(paste0("tsoil_vs_s10t_r_", st), cor(x$tsoil_local, x$s10t), "drivers")
+  record(paste0("tsoil_local_range_", st), max(x$tsoil_local) - min(x$tsoil_local), "drivers")
 }
-record("s10t_range_same_hours", max(cmp$s10t) - min(cmp$s10t), "A7")
+record("s10t_range_same_hours", max(cmp$s10t) - min(cmp$s10t), "drivers")
 
 # Q10 of both systems with the local (stand-mean autochamber) soil temperature
 d <- load_chamber_hours("deployed") %>%
@@ -43,11 +43,11 @@ for (m in c("autochamber", "fluxbot")) {
   x <- dq %>% filter(method == m)
   fit <- nls(fluxL_umolm2sec ~ a * exp(b * tsoil_local), data = x, start = list(a = 1, b = 0.1))
   b <- unname(coef(fit)["b"]); se <- sqrt(vcov(fit)["b", "b"])
-  record(paste0("q10_localT_", m), exp(10 * b), "A7", "common stand-hours, local autochamber soil T")
-  record(paste0("q10_localT_", m, "_lo"), exp(10 * (b - 1.96 * se)), "A7")
-  record(paste0("q10_localT_", m, "_hi"), exp(10 * (b + 1.96 * se)), "A7")
+  record(paste0("q10_localT_", m), exp(10 * b), "drivers", "common stand-hours, local autochamber soil T")
+  record(paste0("q10_localT_", m, "_lo"), exp(10 * (b - 1.96 * se)), "drivers")
+  record(paste0("q10_localT_", m, "_hi"), exp(10 * (b + 1.96 * se)), "drivers")
   fit2 <- nls(fluxL_umolm2sec ~ a * exp(b * s10t), data = x, start = list(a = 1, b = 0.1))
-  record(paste0("q10_s10t_samerows_", m), exp(10 * coef(fit2)["b"]), "A7", "same rows, HF001 s10t")
+  record(paste0("q10_s10t_samerows_", m), exp(10 * coef(fit2)["b"]), "drivers", "same rows, HF001 s10t")
 }
-record("q10_localT_tmin", min(dq$tsoil_local), "A7"); record("q10_localT_tmax", max(dq$tsoil_local), "A7")
+record("q10_localT_tmin", min(dq$tsoil_local), "drivers"); record("q10_localT_tmax", max(dq$tsoil_local), "drivers")
 print(write_numbers(), row.names = FALSE)

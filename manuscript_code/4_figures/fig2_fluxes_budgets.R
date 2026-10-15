@@ -18,7 +18,7 @@ num <- get_number
 set.seed(20260930)
 met <- load_met()
 
-# ---- Fig 2: time series and cumulative budgets ---------------------------------------------
+# ---- Fig. 2: time series and cumulative budgets ---------------------------------------------
 # (b) air temperature (HF001) and hourly precipitation
 # (c) cumulative CO2-C from 2 Oct, gap-filled per stand (s10t + time-of-day GAM, as in
 #     2_analysis/08_scales_budget.R), mean of the two stands; bands = chamber-bootstrap 95% intervals

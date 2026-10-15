@@ -11,13 +11,29 @@ raw/autochamber_co2_1hz_oct2023.csv.gz,chamber,Autochamber number (1-6 Hemlock t
 raw/autochamber_co2_1hz_oct2023.csv.gz,co2_ppm,Analyzer CO2 (LI-840 at stand 2; LI-800 at stand 1),ppm
 metadata/fluxbot_units.csv,unit,Fluxbot unit ID,
 metadata/fluxbot_units.csv,stand_code,healthy = stand 1 (Bigelow Brook); unhealthy = stand 2 (Hemlock tower),
+metadata/fluxbot_units.csv,stand,Stand label used in the paper (stand 1 or stand 2),
+metadata/fluxbot_units.csv,site_name,Site name (Bigelow Brook or Hemlock tower),
 metadata/fluxbot_units.csv,latitude/longitude,GPS position recorded 17 Nov 2023 (horizontal accuracy 4-8 m; see gps_horizontal_accuracy_m),decimal degrees
+metadata/fluxbot_units.csv,gps_date,Date the GPS position was recorded,
 metadata/fluxbot_units.csv,gps_horizontal_accuracy_m,Horizontal accuracy reported by the GPS for each position,m
 metadata/fluxbot_units.csv,chamber_volume_cm3,Chamber headspace volume,cm3
 metadata/fluxbot_units.csv,collar_area_cm2,Soil area inside collar,cm2
+metadata/fluxbot_units.csv,collar_inner_diameter_cm,Collar inner diameter (SCH 40 PVC),cm
+metadata/fluxbot_units.csv,collar_insertion_cm,Approximate collar insertion depth,cm
+metadata/fluxbot_units.csv,co2_sensor,CO2 sensor model,
+metadata/fluxbot_units.csv,notes,"Unit-specific notes (e.g., faulty pressure sensor)",
+metadata/autochamber_chambers.csv,chamber,Autochamber number (1-6 Hemlock tower/stand 2; 7-12 Bigelow Brook/stand 1),
+metadata/autochamber_chambers.csv,logger_site,Logger (site1 = Hemlock tower; site2 = Bigelow Brook),
+metadata/autochamber_chambers.csv,"stand, stand_code, site_name",As in metadata/fluxbot_units.csv,
+metadata/autochamber_chambers.csv,analyzer,Infrared gas analyzer shared by the stand's chambers,
+metadata/autochamber_chambers.csv,collar_area_cm2,Soil area inside collar,cm2
 metadata/autochamber_chambers.csv,collar_height_cm,Collar height above soil,cm
+metadata/autochamber_chambers.csv,lid_volume_cm3,Chamber lid volume,cm3
+metadata/autochamber_chambers.csv,system_volume_cm3,Tubing and analyzer volume,cm3
 metadata/autochamber_chambers.csv,total_volume_cm3,Collar + lid + tubing/analyzer volume,cm3
 metadata/autochamber_chambers.csv,slot_minute,Minute of each half hour at which the chamber's 5-min measurement slot starts (lid closes 45 s later),min
 ancillary/hf001-10-15min-m_2023.csv,(all),HF001 Fisher met station 15-min data; see Harvard Forest Data Archive HF001 metadata (EST; bar = sea-level pressure),
 ancillary/hf293-07-soil-resp-2023.csv,rs,Soil respiration as published by the HF team (best 1-min window; visually checked),umol m-2 s-1
 ancillary/hf293-07-soil-resp-2023.csv,tsoil,Soil temperature at the chamber (mean of logger probes),degC
+raw/lab_ptfe_test_2023-09-22/*,(all),"K30 (time, ppm) and LGR records of the September 2023 laboratory test; formats described in README.md",
+raw/lab_cover_test_2023-12-13/*,(all),"K30 (time, ppm) and LGR records of the December 2023 laboratory test; formats described in README.md",

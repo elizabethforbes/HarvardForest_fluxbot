@@ -63,4 +63,36 @@ for (sy in c("fluxbot", "autochamber")) {
   record(paste0("fm_median_lm_se_", sy), median(raw$LM.SE, na.rm = TRUE), "flux_model", "main dataset")
   record(paste0("fm_median_hm_se_", sy), median(raw$HM.SE, na.rm = TRUE), "flux_model", "main dataset")
 }
+
+# ---- curvature by time of day (SI Section S2.3) ----------------------------------------------------
+# Median HM curvature (kappa) and selected/linear flux ratio at midday (09-12 h) and in the evening and night
+# (16-05 h), starting CO2 at closure, and the Fluxbot diel curve under linear fits.
+period <- function(h) case_when(h >= 9 & h <= 12 ~ "midday", h >= 16 | h <= 5 ~ "night", TRUE ~ NA_character_)
+for (sy in c("fluxbot", "autochamber")) {
+  x <- read_clean(paste0("closures_", sy, ".csv"), cols(.default = col_guess(), id = "c", UniqueID = "c", start_local = "c", start_utc = "c",
+                  quality.check = "c", model = "c", hour_of_obs = "c", qc_status = "c")) %>% filter(in_screened, LM.flux > 0.3) %>%
+    mutate(p = period(hour(round_hour(start_local))), ratio = best.flux / LM.flux)
+  for (pp in c("midday", "night")) { z <- x %>% filter(p == pp)
+    record(sprintf("curv_kappa_%s_%s", sy, pp), median(z$HM.k[z$model == "HM"]), "flux_model", "median HM kappa, HM closures")
+    record(sprintf("curv_ratio_%s_%s", sy, pp), median(z$ratio), "flux_model", "median selected / linear flux")
+    record(sprintf("curv_co2start_%s_%s", sy, pp), median(z$co2_start), "flux_model", "median CO2 at the start of the fit window (ppm)") }
+  h <- x %>% filter(model == "HM")
+  record(paste0("curv_kappa_vs_co2start_rho_", sy), cor(h$HM.k, h$co2_start, method = "spearman", use = "complete.obs"), "flux_model", "Spearman")
+}
+# diel curves of the Fluxbot system mean under linear fits vs model selection (common stand-hours)
+src <- readLines("2_analysis/02_main_analyses.R"); i0 <- grep("^common_stand_hours <- function", src); i1 <- i0 + which(src[(i0 + 1):length(src)] == "}")[1]
+eval(parse(text = src[i0:i1]))
+diel_of <- function(d) { sh <- common_stand_hours(d)
+  d %>% semi_join(sh, by = c("stand", "hour_of_obs")) %>% group_by(method, stand, hour_of_obs) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
+    group_by(method, hour_of_obs) %>% summarise(f = mean(f), .groups = "drop") %>% mutate(h = hour(hour_of_obs), method = as.character(method)) %>%
+    group_by(method, h) %>% summarise(m = mean(f), .groups = "drop") }
+rough <- function(v) { s3 <- stats::filter(c(tail(v, 1), v, head(v, 1)), rep(1 / 3, 3))[2:25]; sd(v - s3) }
+for (fm in c("LM.flux", "best.flux")) { dd <- diel_of(build_dataset(flux_col = fm)); tg <- sub(".flux", "", fm)
+  f <- dd$m[dd$method == "fluxbot"]; a <- dd$m[dd$method == "autochamber"]
+  record(paste0("diel_", tg, "_peak_hour_fluxbot"), dd$h[dd$method == "fluxbot"][which.max(f)], "flux_model")
+  record(paste0("diel_", tg, "_rel_amp_fluxbot"), 100 * (max(f) - min(f)) / mean(f), "flux_model", "% of daily mean")
+  record(paste0("diel_", tg, "_rel_amp_autochamber"), 100 * (max(a) - min(a)) / mean(a), "flux_model", "% of daily mean")
+  record(paste0("diel_", tg, "_curve_r"), cor(f, a), "flux_model", "hour-of-day curves, Fluxbot vs autochamber")
+  record(paste0("diel_", tg, "_roughness_fluxbot"), rough(f), "flux_model", "SD from a 3-h running mean (umol m-2 s-1)")
+  record(paste0("diel_", tg, "_roughness_autochamber"), rough(a), "flux_model") }
 write_numbers()

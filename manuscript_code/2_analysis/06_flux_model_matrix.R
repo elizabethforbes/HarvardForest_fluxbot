@@ -41,4 +41,26 @@ for (i in seq_len(nrow(s))) { tg <- if_else(grepl("Fluxbot", s$system[i]), "flux
   record(paste0("fm_best_lm_ratio_median_", tg), s$ratio_med[i], "flux_model", "closure-level best / LM") }
 write.csv(cl %>% select(system, ratio, hm), file.path(out_dir, "flux_model_closures.csv"), row.names = FALSE)
 write.csv(s, file.path(out_dir, "flux_model_closure_summary.csv"), row.names = FALSE)
+
+# ---- why linear fits give higher hourly correlation between systems: precision, not dynamics ----
+set.seed(20260930)
+sys_hourly <- function(d) { hrs <- matched_hours(d, 3)
+  d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
+    group_by(hour_of_obs, method) %>% summarise(f = mean(f), .groups = "drop") %>% tidyr::pivot_wider(names_from = method, values_from = f) }
+j <- inner_join(sys_hourly(build_dataset()), sys_hourly(build_dataset(flux_col = "LM.flux")), by = "hour_of_obs", suffix = c("_b", "_l")) %>% arrange(hour_of_obs)
+r_l <- cor(j$autochamber_l, j$fluxbot_l); r_b <- cor(j$autochamber_b, j$fluxbot_b)
+n <- nrow(j); L <- 24; nb <- ceiling(n / L)
+dr <- replicate(2000, { st <- sample(1:(n - L + 1), nb, TRUE); idx <- unlist(lapply(st, function(s) s:(s + L - 1)))[1:n]
+  cor(j$autochamber_l[idx], j$fluxbot_l[idx]) - cor(j$autochamber_b[idx], j$fluxbot_b[idx]) })
+record("fm_rdiff_lm_minus_best", r_l - r_b, "flux_model", "hourly r between systems, LM minus model selection, same hours")
+record("fm_rdiff_lo", quantile(dr, 0.025), "flux_model", "24-h block bootstrap"); record("fm_rdiff_hi", quantile(dr, 0.975), "flux_model")
+record("fm_best_vs_lm_hourly_r_autochamber", cor(j$autochamber_b, j$autochamber_l), "flux_model", "same system, two flux models")
+record("fm_best_vs_lm_hourly_r_fluxbot", cor(j$fluxbot_b, j$fluxbot_l), "flux_model", "same system, two flux models")
+for (sy in c("fluxbot", "autochamber")) {
+  x <- (if (sy == "fluxbot") load_fluxbot() else load_autochamber()) %>% apply_qc(main_qc) %>% ungroup()
+  raw <- read_clean(paste0("closures_", sy, ".csv"), cols(.default = col_guess(), id = "c", UniqueID = "c", start_local = "c", start_utc = "c",
+                                                            quality.check = "c", model = "c", hour_of_obs = "c", qc_status = "c")) %>% filter(in_screened)
+  record(paste0("fm_median_lm_se_", sy), median(raw$LM.SE, na.rm = TRUE), "flux_model", "main dataset")
+  record(paste0("fm_median_hm_se_", sy), median(raw$HM.SE, na.rm = TRUE), "flux_model", "main dataset")
+}
 write_numbers()

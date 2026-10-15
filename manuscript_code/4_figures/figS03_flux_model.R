@@ -16,10 +16,10 @@ pa <- ggplot(cl, aes(ratio, fill = system)) + geom_histogram(binwidth = 0.05, bo
   scale_fill_manual(values = sys_col, name = NULL) + facet_wrap(~ system, ncol = 1, scales = "free_y") +
   geom_text(data = s, aes(x = 2.5, y = Inf, label = sprintf("HM chosen in %.0f%%\nmedian ratio %.2f", hm_pct, ratio_med)),
             hjust = 1, vjust = 1.3, size = txt, inherit.aes = FALSE) +
-  labs(x = "Closure flux, goFlux best / linear", y = "Closures") + theme_afm() +
+  labs(x = "Closure flux, model-selected / linear", y = "Closures") + theme_afm() +
   theme(legend.position = "none", strip.background = element_blank())
 fm <- read.csv(file.path(out_dir, "flux_model_matrix.csv")) %>% filter(autochamber != "HF293") %>%
-  mutate(fluxbot = factor(fluxbot, levels = c("LM", "HM", "best")), autochamber = factor(autochamber, levels = c("LM", "HM", "best")))
+  mutate(fluxbot = factor(recode(fluxbot, best = "selected"), levels = c("LM", "HM", "selected")), autochamber = factor(recode(autochamber, best = "selected"), levels = c("LM", "HM", "selected")))
 pb <- ggplot(fm, aes(autochamber, fluxbot, fill = offset_pct)) + geom_tile(colour = "white") +
   geom_text(aes(label = sprintf("%+.0f%%\nr %.2f", offset_pct, r)), size = txt, lineheight = 0.9) +
   scale_fill_gradient2(low = unname(pal_div["low"]), mid = "white", high = unname(pal_div["high"]), midpoint = 0, limits = c(-35, 35), name = "Offset (%)") +
@@ -28,7 +28,7 @@ pb <- ggplot(fm, aes(autochamber, fluxbot, fill = offset_pct)) + geom_tile(colou
 bud <- read.csv(file.path(out_dir, "october_budget.csv")) %>% filter(model %in% c("LM.flux", "best.flux"),
                                                                      (system == "fluxbot" & dataset == main_qc) | (system == "autochamber" & dataset == "deployed")) %>%
   distinct(model, system, mean_stands_gC, lo, hi) %>%
-  mutate(model = factor(recode(model, LM.flux = "Linear", best.flux = "goFlux best (main)"), levels = c("goFlux best (main)", "Linear")), system = recode(system, fluxbot = "Fluxbot 2.0", autochamber = "Autochamber"))
+  mutate(model = factor(recode(model, LM.flux = "Linear fits", best.flux = "Model selection (main)"), levels = c("Model selection (main)", "Linear fits")), system = recode(system, fluxbot = "Fluxbot 2.0", autochamber = "Autochamber"))
 pc <- ggplot(bud, aes(model, mean_stands_gC, colour = system)) +
   geom_pointrange(aes(ymin = lo, ymax = hi), position = position_dodge(0.4), size = 0.3, linewidth = lw_main) +
   scale_colour_manual(values = sys_col, name = NULL) + expand_limits(y = 0) +

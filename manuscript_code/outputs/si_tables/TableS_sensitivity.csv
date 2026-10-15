@@ -1,5 +1,5 @@
 "Scenario","Fluxbot closures","Method effect (GAM, umol m-2 s-1; 95% CI)","Paired bias, 3-h array means (umol m-2 s-1; block-bootstrap 95% CI)","r (3-h array means)","CCC (3-h array means)","Q10 autochamber","Q10 Fluxbot"
-"Main: RH-screened, goFlux best model",6301,"-0.04 (-0.65 to 0.57)","-0.00 (-0.22 to 0.26)",0.74,0.68,2.83,3.7
+"Main: RH-screened, model selection",6301,"-0.04 (-0.65 to 0.57)","-0.00 (-0.22 to 0.26)",0.74,0.68,2.83,3.7
 "As deployed: wet-sensor closures kept",6962,"-0.11 (-0.72 to 0.50)","-0.08 (-0.30 to 0.17)",0.71,0.66,2.72,3.38
 "Flux model: linear (LM) for all closures",6307,"-0.33 (-0.82 to 0.17)","-0.27 (-0.39 to -0.14)",0.84,0.74,2.97,3.52
 "Flux model: Hutchinson-Mosier (HM) for all closures",6287,"0.08 (-0.52 to 0.69)","0.13 (-0.09 to 0.41)",0.75,0.68,2.83,3.38

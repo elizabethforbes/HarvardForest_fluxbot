@@ -416,7 +416,7 @@ for (nm in c("fluxbot", "autochamber")) {
 # Sensitivity table (QC, flux model, pressure)
 # ================================================================================
 scen <- list()
-scen[["Main: RH-screened, goFlux best model"]] <- d
+scen[["Main: RH-screened, model selection"]] <- d
 scen[["As deployed: wet-sensor closures kept"]] <- build_dataset(qc = "deployed")
 scen[["Flux model: linear (LM) for all closures"]] <- build_dataset(flux_col = "LM.flux")
 scen[["Flux model: Hutchinson-Mosier (HM) for all closures"]] <- build_dataset(flux_col = "HM.flux")

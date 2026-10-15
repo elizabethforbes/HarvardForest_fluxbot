@@ -95,4 +95,19 @@ for (fm in c("LM.flux", "best.flux")) { dd <- diel_of(build_dataset(flux_col = f
   record(paste0("diel_", tg, "_curve_r"), cor(f, a), "flux_model", "hour-of-day curves, Fluxbot vs autochamber")
   record(paste0("diel_", tg, "_roughness_fluxbot"), rough(f), "flux_model", "SD from a 3-h running mean (umol m-2 s-1)")
   record(paste0("diel_", tg, "_roughness_autochamber"), rough(a), "flux_model") }
+
+# Fluxbot / autochamber ratio of system means by time of day under each flux model (SI Section S2.3):
+# if model selection only amplified a night-time artifact, Fluxbots would exceed the autochambers at night
+set.seed(20260930)
+for (fm in c("LM.flux", "best.flux")) {
+  s2 <- sys_hourly(build_dataset(flux_col = fm)) %>% mutate(h = hour(hour_of_obs), day = as.Date(hour_of_obs, tz = "America/New_York"),
+          p = case_when(h >= 9 & h <= 15 ~ "day", TRUE ~ "evening_night"))
+  days <- unique(s2$day)
+  bt <- replicate(1000, { z <- bind_rows(lapply(sample(days, replace = TRUE), function(x) s2[s2$day == x, ]))
+    z %>% group_by(p) %>% summarise(r = mean(fluxbot) / mean(autochamber), .groups = "drop") %>% arrange(p) %>% pull(r) })
+  r0 <- s2 %>% group_by(p) %>% summarise(r = mean(fluxbot) / mean(autochamber), .groups = "drop") %>% arrange(p)
+  for (k in seq_len(nrow(r0))) { tg <- sprintf("period_ratio_%s_%s", sub(".flux", "", fm), r0$p[k])
+    record(tg, r0$r[k], "flux_model", "Fluxbot / autochamber system means; day = 09-15 h, evening_night = 16-08 h")
+    record(paste0(tg, "_lo"), quantile(bt[k, ], 0.025), "flux_model", "days resampled"); record(paste0(tg, "_hi"), quantile(bt[k, ], 0.975), "flux_model") }
+}
 write_numbers()

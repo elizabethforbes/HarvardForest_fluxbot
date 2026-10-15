@@ -1,4 +1,4 @@
-# Fig. 4. Responses to meteorological drivers over stand-hours in which both systems reported (as deployed).
+# Fig. 4. Responses to meteorological drivers over stand-hours in which both systems reported (main dataset: RH-screened, goFlux best model).
 #  (a) diel cycle of each system: hourly means over days with 95% confidence intervals across days
 #  (b) temperature response of each system: exponential fits; bands = 95% intervals from resampling
 #      chambers within stands; dashed line = the other system's fit
@@ -6,7 +6,7 @@ source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork); library(mgcv) })
 pal <- pal_sys
-d <- load_chamber_hours("deployed") %>%
+d <- load_chamber_hours() %>%
   mutate(stand_label = factor(if_else(stand == "healthy", "Stand 1", "Stand 2")),
          method_label = factor(lab_sys[as.character(method)], levels = lab_sys))
 num <- get_number
@@ -24,12 +24,12 @@ pa <- ggplot(diel, aes(hour, mean, colour = method, fill = method)) +
   theme(legend.position = c(0.25, 0.92))
 
 # ---- (b) temperature response by system ----------------------------------------------------------
-dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), fluxL_umolm2sec > 0)
+dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), flux_umolm2sec > 0)
 tseq <- seq(min(dq$s10t), max(dq$s10t), length.out = 100)
 # exponential fit for each system; band = 95% interval from resampling chambers within stands
 # (the chamber, not the closure, is the unit of replication; 200 draws). The other system's fit is
 # drawn in grey for comparison.
-fit_exp <- function(x) { m <- nls(fluxL_umolm2sec ~ a * exp(b * s10t), data = x, start = list(a = 1, b = 0.1)); coef(m) }
+fit_exp <- function(x) { m <- nls(flux_umolm2sec ~ a * exp(b * s10t), data = x, start = list(a = 1, b = 0.1)); coef(m) }
 pred <- bind_rows(lapply(split(dq, dq$method), function(x) {
   p <- fit_exp(x)
   ids <- x %>% distinct(stand, id)
@@ -41,7 +41,7 @@ pred <- bind_rows(lapply(split(dq, dq$method), function(x) {
 other <- pred %>% mutate(method_label = factor(lab_sys[if_else(method == "fluxbot", "autochamber", "fluxbot")], levels = lab_sys))
 qlab <- data.frame(method_label = factor(lab_sys, levels = lab_sys),
                    lab = c(sprintf("Q[10] == %.2f", num("q10_autochamber_q10")), sprintf("Q[10] == %.2f", num("q10_fluxbot_q10"))))
-pb <- ggplot(dq, aes(s10t, fluxL_umolm2sec)) +
+pb <- ggplot(dq, aes(s10t, flux_umolm2sec)) +
   geom_point(aes(colour = method), size = pt_dense, alpha = a_dense, stroke = 0) +
   geom_ribbon(data = pred, aes(y = f, ymin = lo, ymax = hi), alpha = 0.3, fill = col_fit) +
   geom_line(data = pred, aes(y = f), linewidth = 0.6) +

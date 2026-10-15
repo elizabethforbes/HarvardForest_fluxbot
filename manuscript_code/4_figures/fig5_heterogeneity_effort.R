@@ -4,7 +4,7 @@ source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork); library(ineq) })
 pal <- pal_sys
 save_fig <- function(p, name, width_mm, height_mm) save_afm(p, name, width_mm, height_mm)
-d <- load_chamber_hours("deployed") %>%
+d <- load_chamber_hours() %>%
   mutate(stand_label = factor(if_else(stand == "healthy", "Stand 1", "Stand 2")),
          method_label = factor(lab_sys[as.character(method)], levels = lab_sys))
 num <- get_number
@@ -13,7 +13,7 @@ set.seed(20260930)
 # ---- Fig. 5: spatial heterogeneity and sampling effort ---------------------------------------
 lz <- d %>% group_by(hour_of_obs) %>%
   filter(sum(method == "autochamber") >= 12 & sum(method == "fluxbot") >= 12) %>% ungroup() %>%
-  group_by(method, id) %>% summarise(mf = mean(fluxL_umolm2sec), .groups = "drop") %>%
+  group_by(method, id) %>% summarise(mf = mean(flux_umolm2sec), .groups = "drop") %>%
   group_by(method) %>% group_modify(~ { lc <- Lc(.x$mf); data.frame(p = lc$p, L = lc$L, gini = Gini(.x$mf)) }) %>%
   ungroup()
 glab <- lz %>% distinct(method, gini) %>%

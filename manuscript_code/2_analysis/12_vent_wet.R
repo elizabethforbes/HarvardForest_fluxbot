@@ -43,10 +43,10 @@ write.csv(by_unit, file.path(out_dir, "baseline_anomaly_by_unit.csv"), row.names
 # diagnostics need the wet-sensor closures (kept in the deployed dataset)
 d <- build_dataset(qc = "deployed")
 ach <- d %>% filter(method == "autochamber") %>% group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>%
-  summarise(ac = mean(fluxL_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
-fbx <- d %>% filter(method == "fluxbot", fluxL_umolm2sec > 0.1) %>% mutate(unit = sub("fluxbot", "", as.character(id)), stand = as.character(stand)) %>%
+  summarise(ac = mean(flux_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
+fbx <- d %>% filter(method == "fluxbot", flux_umolm2sec > 0.1) %>% mutate(unit = sub("fluxbot", "", as.character(id)), stand = as.character(stand)) %>%
   inner_join(cl %>% select(unit, hour_of_obs, anom, rh, base), by = c("unit", "hour_of_obs")) %>%
-  inner_join(ach %>% filter(ac > 0.1), by = c("stand", "hour_of_obs")) %>% mutate(lr = log(fluxL_umolm2sec / ac),
+  inner_join(ach %>% filter(ac > 0.1), by = c("stand", "hour_of_obs")) %>% mutate(lr = log(flux_umolm2sec / ac),
     anom_bin = cut(anom, c(-Inf, 25, 50, 100, 200, Inf), labels = c("<25", "25-50", "50-100", "100-200", ">200")))
 bins <- fbx %>% group_by(anom_bin) %>% summarise(n = n(), ratio_median = exp(median(lr)), .groups = "drop")
 write.csv(bins, file.path(out_dir, "flux_ratio_by_baseline_anomaly.csv"), row.names = FALSE); print(bins)
@@ -59,18 +59,18 @@ record("fluxratio_pct_rh99", 100 * (exp(cf[3, 1]) - 1), "vent_wet"); record("flu
 # Q10 and rain response with and without affected closures
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
 flag <- cl %>% transmute(id = paste0("fluxbot", unit), hour_of_obs, bad = anom > 100 | rh >= 99)
-dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(fluxL_umolm2sec > 0.3, !is.na(s10t)) %>%
+dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(flux_umolm2sec > 0.3, !is.na(s10t)) %>%
   mutate(id = as.character(id)) %>% left_join(flag, by = c("id", "hour_of_obs")) %>% mutate(bad = coalesce(bad, FALSE)) %>%
   left_join(met %>% select(hour_of_obs, airt, p72), by = "hour_of_obs")
-q10s <- function(x) { cq <- x %>% group_by(method, id) %>% filter(n() >= 100) %>% summarise(b = coef(lm(log(fluxL_umolm2sec) ~ s10t))[2], .groups = "drop")
+q10s <- function(x) { cq <- x %>% group_by(method, id) %>% filter(n() >= 100) %>% summarise(b = coef(lm(log(flux_umolm2sec) ~ s10t))[2], .groups = "drop")
   c(ac = exp(10 * mean(cq$b[cq$method == "autochamber"])), fb = exp(10 * mean(cq$b[cq$method == "fluxbot"])), p = t.test(b ~ method, cq)$p.value) }
 for (sc in list(list("all", dq), list("excl_anom_or_wet", dq %>% filter(!(method == "fluxbot" & bad))))) {
   q <- q10s(sc[[2]]); for (k in names(q)) record(paste0("q10_", sc[[1]], "_", k), q[k], "vent_wet", "chamber-level, HF001 s10t")
   fx <- sc[[2]] %>% filter(method == "fluxbot")
-  aics <- sapply(c("s10t", "airt"), function(v) AIC(lmer(as.formula(paste("log(fluxL_umolm2sec) ~", v, "+ (1|id)")), data = fx, REML = FALSE)))
+  aics <- sapply(c("s10t", "airt"), function(v) AIC(lmer(as.formula(paste("log(flux_umolm2sec) ~", v, "+ (1|id)")), data = fx, REML = FALSE)))
   record(paste0("aic_air_minus_soil_fb_", sc[[1]]), aics["airt"] - aics["s10t"], "vent_wet", "negative = air temperature fits better")
   ax <- sc[[2]] %>% filter(method == "autochamber")
-  aics <- sapply(c("s10t", "airt"), function(v) AIC(lmer(as.formula(paste("log(fluxL_umolm2sec) ~", v, "+ (1|id)")), data = ax, REML = FALSE)))
+  aics <- sapply(c("s10t", "airt"), function(v) AIC(lmer(as.formula(paste("log(flux_umolm2sec) ~", v, "+ (1|id)")), data = ax, REML = FALSE)))
   record(paste0("aic_air_minus_soil_ac_", sc[[1]]), aics["airt"] - aics["s10t"], "vent_wet")
 }
 print(write_numbers() %>% select(key, value), row.names = FALSE)

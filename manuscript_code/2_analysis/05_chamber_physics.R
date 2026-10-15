@@ -58,19 +58,19 @@ record("diel_peak_hour_s10t", dielT$hod[which.max(dielT$s10t)], "chamber_physics
 record("dT_closure_as_pct_of_TK", 100 * mean(iv$dT_closure, na.rm = TRUE) / (mean(iv$t_start, na.rm = TRUE) + 273.15), "chamber_physics")
 
 # does warming during closure relate to flux, and to the Fluxbot/autochamber ratio?
-d <- load_chamber_hours("deployed")
+d <- load_chamber_hours()
 fbx <- d %>% filter(method == "fluxbot") %>% mutate(bot = sub("fluxbot", "", as.character(id))) %>%
   inner_join(iv %>% select(bot, hour_of_obs, dT_closure, t_open, t_closed), by = c("bot", "hour_of_obs"))
 record("n_fluxbot_fluxes_with_chamberT", nrow(fbx), "chamber_physics")
-m1 <- lm(log(fluxL_umolm2sec) ~ s10t + dT_closure, data = fbx %>% filter(fluxL_umolm2sec > 0.5))
+m1 <- lm(log(flux_umolm2sec) ~ s10t + dT_closure, data = fbx %>% filter(flux_umolm2sec > 0.5))
 record("flux_pct_per_C_closure_warming", 100 * (exp(coef(m1)["dT_closure"]) - 1), "chamber_physics", "controlling for s10t")
 record("flux_pct_per_C_closure_warming_se", 100 * summary(m1)$coefficients["dT_closure", 2], "chamber_physics")
-m2 <- lm(log(fluxL_umolm2sec) ~ s10t + I(t_open - s10t), data = fbx %>% filter(fluxL_umolm2sec > 0.5))
+m2 <- lm(log(flux_umolm2sec) ~ s10t + I(t_open - s10t), data = fbx %>% filter(flux_umolm2sec > 0.5))
 record("flux_pct_per_C_air_minus_soil_fb", 100 * (exp(coef(m2)[3]) - 1), "chamber_physics", "in-chamber open-lid T minus s10t")
-ac <- d %>% filter(method == "autochamber", fluxL_umolm2sec > 0.5) %>% left_join(met %>% select(hour_of_obs, airt), by = "hour_of_obs")
-m3 <- lm(log(fluxL_umolm2sec) ~ s10t + I(airt - s10t), data = ac)
+ac <- d %>% filter(method == "autochamber", flux_umolm2sec > 0.5) %>% left_join(met %>% select(hour_of_obs, airt), by = "hour_of_obs")
+m3 <- lm(log(flux_umolm2sec) ~ s10t + I(airt - s10t), data = ac)
 record("flux_pct_per_C_air_minus_soil_ac", 100 * (exp(coef(m3)[3]) - 1), "chamber_physics", "HF001 air T minus s10t")
-m2b <- lm(log(fluxL_umolm2sec) ~ s10t + I(airt - s10t), data = fbx %>% filter(fluxL_umolm2sec > 0.5) %>%
+m2b <- lm(log(flux_umolm2sec) ~ s10t + I(airt - s10t), data = fbx %>% filter(flux_umolm2sec > 0.5) %>%
             left_join(met %>% select(hour_of_obs, airt), by = "hour_of_obs"))
 record("flux_pct_per_C_airHF_minus_soil_fb", 100 * (exp(coef(m2b)[3]) - 1), "chamber_physics", "HF001 air T minus s10t, Fluxbots")
 
@@ -108,9 +108,9 @@ record("hf293_q10_local_tsoil", exp(10 * coef(qh)["b"]), "hf293", "HF-processed 
 
 # ---- 3. Q10 with chambers as replicates -----------------------------------------------------------
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
-dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), fluxL_umolm2sec > 0.5)
+dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), flux_umolm2sec > 0.5)
 cq <- dq %>% group_by(method, stand, id) %>% filter(n() >= 100) %>%
-  summarise(b = coef(lm(log(fluxL_umolm2sec) ~ s10t))[2], .groups = "drop") %>% mutate(q10 = exp(10 * b))
+  summarise(b = coef(lm(log(flux_umolm2sec) ~ s10t))[2], .groups = "drop") %>% mutate(q10 = exp(10 * b))
 boot <- replicate(5000, {
   bb <- cq %>% group_by(method, stand) %>% slice_sample(prop = 1, replace = TRUE) %>% group_by(method) %>% summarise(b = mean(b))
   c(ac = bb$b[bb$method == "autochamber"], fb = bb$b[bb$method == "fluxbot"]) })
@@ -135,7 +135,7 @@ record("precip_total_deployment_mm", sum(met$prec[met$hour_of_obs >= as.POSIXct(
                                                   met$hour_of_obs < as.POSIXct("2023-11-01", tz = "America/New_York")], na.rm = TRUE), "moisture")
 hrs3 <- matched_hours(d, 3)
 rs3 <- d %>% filter(hour_of_obs %in% hrs3) %>% group_by(hour_of_obs, stand, method) %>%
-  summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f) %>%
+  summarise(f = mean(flux_umolm2sec), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f) %>%
   group_by(hour_of_obs) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot)) %>%
   inner_join(metp, by = "hour_of_obs") %>% mutate(lr = log(fb / ac), grad = airt - s10t)
 mp <- lm(lr ~ grad + slrr + log1p(p72), data = rs3)

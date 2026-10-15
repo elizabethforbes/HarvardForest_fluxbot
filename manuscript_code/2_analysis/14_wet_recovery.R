@@ -27,8 +27,8 @@ grid <- tidyr::expand_grid(unit = units$unit, hour_of_obs = seq(p0, p1 - 3600, b
 cl <- readRDS(file.path(out_dir, "fluxbot_baseline_anomaly.rds")) %>% select(unit, hour_of_obs, anom)
 d_all <- build_dataset(qc = "deployed")
 ach <- d_all %>% filter(method == "autochamber") %>% group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>%
-  summarise(ac = mean(fluxL_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
-fbq <- d_all %>% filter(method == "fluxbot") %>% transmute(unit = gsub("[^0-9]", "", as.character(id)), hour_of_obs, flux = fluxL_umolm2sec)
+  summarise(ac = mean(flux_umolm2sec), .groups = "drop") %>% mutate(stand = as.character(stand))
+fbq <- d_all %>% filter(method == "fluxbot") %>% transmute(unit = gsub("[^0-9]", "", as.character(id)), hour_of_obs, flux = flux_umolm2sec)
 uh <- grid %>% left_join(cl, by = c("unit", "hour_of_obs")) %>% left_join(fbq, by = c("unit", "hour_of_obs")) %>%
   left_join(ach, by = c("stand", "hour_of_obs")) %>%
   mutate(wet = !is.na(rh) & rh >= 99, lr = if_else(flux > 0.1 & ac > 0.1, log(flux / ac), NA_real_)) %>% arrange(unit, hour_of_obs)
@@ -154,7 +154,7 @@ ac0 <- apply_qc(load_autochamber(), "deployed"); met <- load_met()
 agree <- function(fb) {
   d <- assemble_dataset(fb, ac0, met) %>% filter(hour_of_obs >= p0, hour_of_obs < p1)
   hrs <- matched_hours(d, 3)
-  s <- d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
+  s <- d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
     group_by(hour_of_obs, method) %>% summarise(f = mean(f), .groups = "drop") %>% tidyr::pivot_wider(names_from = method, values_from = f)
   dd <- s %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>% summarise(a = mean(autochamber), f = mean(fluxbot))
   tibble(fb_closures = sum(d$method == "fluxbot"), n_hours = nrow(s), offset_pct = 100 * (mean(s$fluxbot) / mean(s$autochamber) - 1),
@@ -162,8 +162,8 @@ agree <- function(fb) {
 }
 sc <- bind_rows(
   agree(apply_qc(fb0 %>% mutate(lid_fail = FALSE), "deployed")) %>% mutate(scenario = "stuck lids and wet sensors kept"),
-  agree(apply_qc(fb0, "deployed")) %>% mutate(scenario = "as deployed (main)"),
-  agree(apply_qc(fb0, "screened")) %>% mutate(scenario = "RH-screened"),
+  agree(apply_qc(fb0, "deployed")) %>% mutate(scenario = "as deployed"),
+  agree(apply_qc(fb0, "screened")) %>% mutate(scenario = "RH-screened (main)"),
   bind_rows(lapply(c(1, 3, 6, 12, 24), function(k) agree(apply_qc(fb0 %>% mutate(wet = wet | (!is.na(h_since_wet) & h_since_wet >= 1 & h_since_wet <= k)), "screened")) %>%
     mutate(scenario = paste0("RH-screened + ", k, " h after wet removed")))))
 print(sc, width = 200)

@@ -12,10 +12,6 @@
 .quarto/
 *_files/
 
-# old local folders
-calculated_data/
-R scripts/
-
 # system files
 .DS_Store
 Icon?

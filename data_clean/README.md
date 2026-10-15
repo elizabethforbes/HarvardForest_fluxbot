@@ -14,8 +14,8 @@ Column definitions are in `data_dictionary.csv`.
 | `fluxes/fluxbot_fluxes_w56.csv` | Fluxbot fluxes with the 56:00–60:00 fit window (sensitivity analysis) | `1_clean/02_fluxes_window56.R` |
 | `fluxes/flux_run_metadata.csv` | Instrument precision and the station/HF001 pressure ratio used by the flux run | `1_clean/01_fluxes.R` |
 | `closures_fluxbot.csv`, `closures_autochamber.csv` | Every closure in the analysis period (2–31 Oct 2023): flux columns, QC flags, `qc_status`, `in_deployed`, `in_screened` | `1_clean/03_clean_datasets.R` |
-| `chamber_hours_deployed.csv` | **Main analysis dataset ("as deployed")**: one row per chamber-hour of retained closures, with HF001 soil and air temperature, pressure and precipitation | `1_clean/03_clean_datasets.R` |
-| `chamber_hours_screened.csv` | RH-screened subset (wet-sensor Fluxbot closures removed) | `1_clean/03_clean_datasets.R` |
+| `chamber_hours_screened.csv` | **Main analysis dataset ("RH-screened")**: one row per chamber-hour of retained closures, wet-sensor Fluxbot closures removed, with HF001 soil and air temperature, pressure and precipitation | `1_clean/03_clean_datasets.R` |
+| `chamber_hours_deployed.csv` | As-deployed dataset (wet-sensor closures kept; sensitivity analysis) | `1_clean/03_clean_datasets.R` |
 | `qc_log.csv` | Number of closures at each QC status, by system | `1_clean/03_clean_datasets.R` |
 
 ## Data-hygiene rules
@@ -24,12 +24,12 @@ Each closure's `qc_status` is the first rule that removed it:
 1. no flux computed;
 2. too few records;
 3. chamber failure: stuck lid;
-4. chamber failure: no CO2 accumulation;
-5. chamber failure: CO2 decline;
-6. chamber failure: poor linear fit (R² < 0.5);
-7. spike (outside the chamber's median ± 5 MAD).
+4. chamber failure: whole array (autochambers; three or more of the array's chambers failing in the same hour);
+5. chamber failure: no CO2 accumulation;
+6. chamber failure: CO2 decline;
+7. spike (sensor artifact; outside the chamber's median ± 5 MAD).
 
-Closures that pass every rule are **retained**. The RH-screened subset also removes Fluxbot closures whose in-chamber RH was ≥ 99% in the open-lid minute before closure (wet K30 sensor). `manuscript_code/README.md` gives the full definitions.
+Closures that pass every rule are **retained** (as deployed). The main dataset, **RH-screened**, also removes Fluxbot closures whose in-chamber RH was ≥ 99% in the open-lid minute before closure (wet K30 sensor). `manuscript_code/README.md` gives the full definitions.
 
 ## Times
 

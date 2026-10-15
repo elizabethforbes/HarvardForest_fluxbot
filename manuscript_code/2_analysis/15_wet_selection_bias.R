@@ -10,7 +10,7 @@
 source("R/setup.R")
 suppressPackageStartupMessages({ library(mgcv) })
 p0 <- as.POSIXct("2023-10-02", tz = "America/New_York"); p1 <- as.POSIXct("2023-11-01", tz = "America/New_York")
-stand_hour <- function(x, k) x %>% group_by(stand, hour_of_obs, id) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
+stand_hour <- function(x, k) x %>% group_by(stand, hour_of_obs, id) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
   group_by(stand, hour_of_obs) %>% filter(n() >= k) %>% summarise(f = mean(f), n = n(), .groups = "drop") %>% mutate(stand = as.character(stand))
 met <- load_met() %>% mutate(hour_of_obs = floor_date(with_tz(Time, "America/New_York"), "hour")) %>%
   group_by(hour_of_obs) %>% summarise(s10t = mean(s10t), prec = sum(prec), .groups = "drop")

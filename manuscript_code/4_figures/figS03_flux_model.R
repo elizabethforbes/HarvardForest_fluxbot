@@ -1,7 +1,7 @@
-# Fig. S3. Flux model. Main analysis uses linear fits (LM) for both systems; the goFlux "best"
-# selection (LM or Hutchinson-Mosier, HM) is the alternative.
+# Fig. S3. Flux model. The main analysis uses the goFlux best model (LM or Hutchinson-Mosier, HM,
+# per closure) for both systems; linear fits (LM) for both are the alternative.
 #  (a) closure-level best / LM flux ratio by system (where goFlux chose HM, the ratio > 1)
-#  (b) array offset and hourly r for each Fluxbot x autochamber model pairing (as-deployed data)
+#  (b) offset and hourly r for each Fluxbot x autochamber model pairing (main dataset)
 #  (c) gap-filled October budgets by model, with chamber-bootstrap 95% CIs
 # Closure-level ratios and numbers: 2_analysis/06_flux_model_matrix.R; budgets: 2_analysis/08_scales_budget.R.
 
@@ -25,9 +25,10 @@ pb <- ggplot(fm, aes(autochamber, fluxbot, fill = offset_pct)) + geom_tile(colou
   scale_fill_gradient2(low = unname(pal_div["low"]), mid = "white", high = unname(pal_div["high"]), midpoint = 0, limits = c(-35, 35), name = "Offset (%)") +
   labs(x = "Autochamber flux model", y = "Fluxbot flux model") + coord_equal() + theme_afm() +
   theme(axis.line = element_blank(), axis.ticks = element_blank())
-bud <- read.csv(file.path(out_dir, "october_budget.csv")) %>% filter(model %in% c("LM.flux", "best.flux"), dataset == "deployed") %>%
+bud <- read.csv(file.path(out_dir, "october_budget.csv")) %>% filter(model %in% c("LM.flux", "best.flux"),
+                                                                     (system == "fluxbot" & dataset == main_qc) | (system == "autochamber" & dataset == "deployed")) %>%
   distinct(model, system, mean_stands_gC, lo, hi) %>%
-  mutate(model = recode(model, LM.flux = "Linear (main)", best.flux = "goFlux best"), system = recode(system, fluxbot = "Fluxbot 2.0", autochamber = "Autochamber"))
+  mutate(model = factor(recode(model, LM.flux = "Linear", best.flux = "goFlux best (main)"), levels = c("goFlux best (main)", "Linear")), system = recode(system, fluxbot = "Fluxbot 2.0", autochamber = "Autochamber"))
 pc <- ggplot(bud, aes(model, mean_stands_gC, colour = system)) +
   geom_pointrange(aes(ymin = lo, ymax = hi), position = position_dodge(0.4), size = 0.3, linewidth = lw_main) +
   scale_colour_manual(values = sys_col, name = NULL) + expand_limits(y = 0) +

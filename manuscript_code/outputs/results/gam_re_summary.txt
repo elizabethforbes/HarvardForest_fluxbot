@@ -3,24 +3,24 @@ Family: gaussian
 Link function: identity 
 
 Formula:
-fluxL_umolm2sec ~ stand + method + s(hour, bs = "cc", k = 12) + 
+flux_umolm2sec ~ stand + method + s(hour, bs = "cc", k = 12) + 
     s(s10t) + s(id, bs = "re")
 
 Parametric coefficients:
                Estimate Std. Error t value Pr(>|t|)    
-(Intercept)     2.71758    0.22439  12.111   <2e-16 ***
-standunhealthy -0.08338    0.24586  -0.339    0.735    
-methodfluxbot  -0.32117    0.24839  -1.293    0.196    
+(Intercept)     2.98860    0.28232  10.586   <2e-16 ***
+standunhealthy -0.02015    0.30937  -0.065    0.948    
+methodfluxbot  -0.04075    0.31253  -0.130    0.896    
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 Approximate significance of smooth terms:
            edf Ref.df      F p-value    
-s(hour)  6.807 10.000  30.36  <2e-16 ***
-s(s10t)  8.534  8.938 903.07  <2e-16 ***
-s(id)   24.926 25.000 418.32  <2e-16 ***
+s(hour)  7.713 10.000  23.59  <2e-16 ***
+s(s10t)  7.894  8.683 702.20  <2e-16 ***
+s(id)   24.905 25.000 325.07  <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-R-sq.(adj) =  0.598   Deviance explained =   60%
--REML =  14359  Scale est. = 0.47711   n = 13579
+R-sq.(adj) =  0.541   Deviance explained = 54.2%
+-REML =  18071  Scale est. = 0.92701   n = 13006

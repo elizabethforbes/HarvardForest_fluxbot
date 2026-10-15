@@ -34,19 +34,19 @@ for (st in c("healthy", "unhealthy")) {
 record("s10t_range_same_hours", max(cmp$s10t) - min(cmp$s10t), "drivers")
 
 # Q10 of both systems with the local (stand-mean autochamber) soil temperature
-d <- load_chamber_hours("deployed") %>%
+d <- load_chamber_hours() %>%
   mutate(hour_of_obs = as.POSIXct(hour_of_obs, tz = "America/New_York"), stand = as.character(stand)) %>%
-  inner_join(local_hourly, by = c("stand", "hour_of_obs")) %>% filter(fluxL_umolm2sec > 0)
+  inner_join(local_hourly, by = c("stand", "hour_of_obs")) %>% filter(flux_umolm2sec > 0)
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
 dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs"))
 for (m in c("autochamber", "fluxbot")) {
   x <- dq %>% filter(method == m)
-  fit <- nls(fluxL_umolm2sec ~ a * exp(b * tsoil_local), data = x, start = list(a = 1, b = 0.1))
+  fit <- nls(flux_umolm2sec ~ a * exp(b * tsoil_local), data = x, start = list(a = 1, b = 0.1))
   b <- unname(coef(fit)["b"]); se <- sqrt(vcov(fit)["b", "b"])
   record(paste0("q10_localT_", m), exp(10 * b), "drivers", "common stand-hours, local autochamber soil T")
   record(paste0("q10_localT_", m, "_lo"), exp(10 * (b - 1.96 * se)), "drivers")
   record(paste0("q10_localT_", m, "_hi"), exp(10 * (b + 1.96 * se)), "drivers")
-  fit2 <- nls(fluxL_umolm2sec ~ a * exp(b * s10t), data = x, start = list(a = 1, b = 0.1))
+  fit2 <- nls(flux_umolm2sec ~ a * exp(b * s10t), data = x, start = list(a = 1, b = 0.1))
   record(paste0("q10_s10t_samerows_", m), exp(10 * coef(fit2)["b"]), "drivers", "same rows, HF001 s10t")
 }
 record("q10_localT_tmin", min(dq$tsoil_local), "drivers"); record("q10_localT_tmax", max(dq$tsoil_local), "drivers")

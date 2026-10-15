@@ -12,7 +12,7 @@ blocks <- c(1, 3, 6, 12, 24, 72)
 
 # stand-hour means from a set of chambers (>= k reporting), array = mean of the two stands
 stand_hour <- function(x, k) x %>% group_by(method, stand, hour_of_obs) %>% filter(n() >= k) %>%
-  summarise(f = mean(fluxL_umolm2sec), .groups = "drop")
+  summarise(f = mean(flux_umolm2sec), .groups = "drop")
 array_hour <- function(sh) sh %>% group_by(method, hour_of_obs) %>% filter(n() == 2) %>% summarise(f = mean(f), .groups = "drop")
 block_means <- function(a, b, L) {
   a %>% mutate(blk = floor(as.numeric(difftime(hour_of_obs, as.POSIXct("2023-10-02", tz = "America/New_York"), units = "hours")) / L)) %>%
@@ -43,8 +43,9 @@ scale_table <- function(d) {
   list(cross = cross, bench = bench)
 }
 
-res <- list(LM = scale_table(build_dataset(flux_col = "LM.flux")), best = scale_table(build_dataset(flux_col = "best.flux")),
-            LMscreened = scale_table(build_dataset(qc = "screened", flux_col = "LM.flux")))
+# main = RH-screened, goFlux best model; deployed = as deployed, best model; LM = RH-screened, linear fits
+res <- list(main = scale_table(build_dataset()), deployed = scale_table(build_dataset(qc = "deployed")),
+            LM = scale_table(build_dataset(flux_col = "LM.flux")))
 for (m in names(res)) {
   write.csv(res[[m]]$cross, file.path(out_dir, paste0("scale_agreement_", m, ".csv")), row.names = FALSE)
   bs <- res[[m]]$bench %>% group_by(pair, L) %>% summarise(across(c(r, nrmse, offset_pct), list(med = median,
@@ -81,7 +82,8 @@ chamber_boot <- function(x, B = 200) {
   })
 }
 bud <- list(); boots <- list()
-for (cfg in list(c("LM.flux", "deployed"), c("best.flux", "deployed"), c("LM.flux", "screened"))) {
+cfgs <- list(c("best.flux", "screened"), c("best.flux", "deployed"), c("LM.flux", "screened"), c("LM.flux", "deployed"))   # first = main
+for (cfg in cfgs) {
   m <- cfg[1]; q <- cfg[2]
   d <- build_dataset(qc = q, flux_col = m)
   for (sys in c("autochamber", "fluxbot")) {
@@ -93,7 +95,7 @@ for (cfg in list(c("LM.flux", "deployed"), c("best.flux", "deployed"), c("LM.flu
   }
 }
 # Fluxbot / autochamber budget ratio with a bootstrap CI (chambers resampled independently per system)
-for (cfg in list(c("LM.flux", "deployed"), c("best.flux", "deployed"), c("LM.flux", "screened"))) {
+for (cfg in cfgs) {
   fbb <- boots[[paste(cfg[1], cfg[2], "fluxbot")]]; acb <- boots[[paste(cfg[1], "deployed", "autochamber")]]
   fbm <- bud[[paste(cfg[1], cfg[2], "fluxbot")]]$mean_stands_gC[1]; acm <- bud[[paste(cfg[1], "deployed", "autochamber")]]$mean_stands_gC[1]
   tag <- sprintf("budget_ratio_%s_%s", sub(".flux", "", cfg[1]), cfg[2])

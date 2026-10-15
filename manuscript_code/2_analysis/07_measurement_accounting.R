@@ -46,16 +46,15 @@ acr <- read_csv(file.path(pkg, "raw", "autochamber_co2_1hz_oct2023.csv.gz"),
 acct <- function(system) {
   flx <- read.csv(file.path(flux_dir, paste0(system, "_fluxes.csv")), colClasses = c(id = "character")) %>%
     mutate(t = round_hour(start_local)) %>% filter(t >= p0, t < p1) %>%
-    mutate(lid_fail = if ("lid_fail" %in% names(.)) coalesce(as.logical(lid_fail), FALSE) else FALSE,
-           decline = (LM.flux < 0 & !grepl("p-value", quality.check)) | grepl("p-value", quality.check) | (!is.na(LM.r2) & LM.r2 < 0.5) | lid_fail,
-           wet = coalesce(as.logical(wet), FALSE))
+    flag_closures() %>%                                        # the same chamber-failure flags as data_clean/
+    mutate(decline = decline | no_accum | lid_fail | array_fail, wet = coalesce(as.logical(wet), FALSE))
   # "recorded" windows that yielded no flux are counted as lost at the "valid" step
   n_units <- if (system == "fluxbot") nrow(units) else nrow(chambers)
   sched <- n_units * n_days * ifelse(system == "fluxbot", 24, 48)
   rec <- if (system == "fluxbot") nrow(fbr) else nrow(acr)
   comp <- nrow(flx)
   valid <- flx %>% filter(!decline)
-  ret <- valid %>% group_by(id) %>% filter(abs(LM.flux - median(LM.flux)) <= 5 * mad(LM.flux)) %>% ungroup()
+  ret <- valid %>% mutate(f = .data[[main_flux]]) %>% group_by(id) %>% filter(abs(f - median(f)) <= 5 * mad(f)) %>% ungroup() %>% select(-f)
   scr <- ret %>% filter(!wet)
   tibble(system, stage = c("intended", "recorded", "computed", "valid", "retained", "RH-screened"),
          n = c(sched, rec, comp, nrow(valid), nrow(ret), nrow(scr))) %>%
@@ -80,7 +79,7 @@ stage_agree <- function(qc) {
   d <- build_dataset(qc = qc) %>% filter(hour_of_obs < p1)
   hrs <- matched_hours(d, 3)
   s <- d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>%
-    summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% group_by(hour_of_obs, method) %>%
+    summarise(f = mean(flux_umolm2sec), .groups = "drop") %>% group_by(hour_of_obs, method) %>%
     summarise(f = mean(f), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f)
   dd <- s %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>%
     filter(n() >= 12) %>% summarise(a = mean(autochamber), f = mean(fluxbot))
@@ -95,4 +94,11 @@ print(ag)
 for (i in seq_len(nrow(ag))) for (k in c("offset_pct", "r_hourly", "r_daily"))
   record(paste0("stage_", ag$stage[i], "_", k), ag[[k]][i], "accounting", "array means, hours with >= 3 chambers per system x stand")
 
+# fluxes below the minimal detectable flux (goFlux MDF) among the closures of the main dataset; they are
+# kept, with their sign, not removed or set to zero
+for (s in c("fluxbot", "autochamber")) {
+  cm <- read_clean(paste0("closures_", s, ".csv"), cols(.default = col_guess(), id = "c", UniqueID = "c", start_local = "c", start_utc = "c",
+                                                        quality.check = "c", model = "c", hour_of_obs = "c", qc_status = "c")) %>% filter(in_screened)
+  record(paste0("below_mdf_pct_", s), 100 * mean(abs(cm[[main_flux]]) < cm$MDF, na.rm = TRUE), "accounting", "main dataset; kept")
+}
 write_numbers()

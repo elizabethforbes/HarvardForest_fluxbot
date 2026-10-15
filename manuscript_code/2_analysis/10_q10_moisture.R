@@ -29,10 +29,10 @@ for (per in list(list("season", 4:12), list("october", 10), list("sep_nov", 9:11
 record("site_tsoil_range_season_lo", min(hf$tsoil), "q10_expect"); record("site_tsoil_range_season_hi", max(hf$tsoil), "q10_expect")
 
 # ---- 2 & 3. chamber-level Q10 components and confounders -------------------------------------------------
-d <- load_chamber_hours("deployed") %>% select(-s10t) %>%
-  left_join(met, by = "hour_of_obs") %>% filter(!is.na(s10t), fluxL_umolm2sec > 0.3)
+d <- load_chamber_hours() %>% select(-s10t) %>%
+  left_join(met, by = "hour_of_obs") %>% filter(!is.na(s10t), flux_umolm2sec > 0.3)
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
-dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% mutate(lf = log(fluxL_umolm2sec),
+dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% mutate(lf = log(flux_umolm2sec),
       day = as.Date(hour_of_obs, tz = "America/New_York"), doy = yday(hour_of_obs))
 comp <- dq %>% group_by(method, id) %>% filter(n() >= 100) %>% group_by(method, id, day) %>%
   mutate(lf_anom = lf - mean(lf), t_anom = s10t - mean(s10t), ta_anom = airt - mean(airt)) %>% ungroup()
@@ -89,7 +89,7 @@ record("onset_s_diff_rh95", coef(mo)[2], "moisture", "extra onset delay when RH 
 record("onset_s_diff_rh95_p", summary(mo)$coefficients[2, 4], "moisture")
 record("onset_s_per_log1p_p72", coef(mo)[3], "moisture"); record("onset_s_p72_p", summary(mo)$coefficients[3, 4], "moisture")
 # Fluxbot/autochamber ratio vs in-chamber RH (stand-hour)
-sh <- d %>% group_by(method, stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
+sh <- d %>% group_by(method, stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
   pivot_wider(names_from = method, values_from = f) %>% filter(!is.na(autochamber), !is.na(fluxbot))
 rhs <- cl %>% left_join(units %>% select(unit, stand = stand_code), by = "unit") %>% group_by(stand, hour_of_obs) %>%
   summarise(rh = mean(rh, na.rm = TRUE), onset = mean(onset_s, na.rm = TRUE), .groups = "drop")

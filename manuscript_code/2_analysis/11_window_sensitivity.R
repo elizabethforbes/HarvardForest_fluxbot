@@ -5,13 +5,13 @@ suppressPackageStartupMessages(library(lme4))
 summ <- function(tag) {
   d <- build_dataset() %>% filter(hour_of_obs < as.POSIXct("2023-11-01", tz = "America/New_York"))
   hrs <- matched_hours(d, 3)
-  s <- d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
+  s <- d %>% filter(hour_of_obs %in% hrs) %>% group_by(hour_of_obs, stand, method) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
     group_by(hour_of_obs, method) %>% summarise(f = mean(f), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f)
   dd <- s %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>% summarise(a = mean(autochamber), f = mean(fluxbot))
   common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
-  dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(fluxL_umolm2sec > 0.3, !is.na(s10t))
-  cq <- dq %>% group_by(method, id) %>% filter(n() >= 100) %>% summarise(b = coef(lm(log(fluxL_umolm2sec) ~ s10t))[2], .groups = "drop")
-  diel <- dq %>% group_by(method, hour) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% group_by(method) %>%
+  dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(flux_umolm2sec > 0.3, !is.na(s10t))
+  cq <- dq %>% group_by(method, id) %>% filter(n() >= 100) %>% summarise(b = coef(lm(log(flux_umolm2sec) ~ s10t))[2], .groups = "drop")
+  diel <- dq %>% group_by(method, hour) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>% group_by(method) %>%
     summarise(amp = 100 * diff(range(f)) / mean(f))
   tibble(window = tag, offset_pct = 100 * (mean(s$fluxbot) / mean(s$autochamber) - 1), r_hourly = cor(s$autochamber, s$fluxbot),
          r_daily = cor(dd$a, dd$f), q10_ac = exp(10 * mean(cq$b[cq$method == "autochamber"])),

@@ -15,7 +15,7 @@ units <- read.csv(file.path(pkg, "metadata", "fluxbot_units.csv"), colClasses = 
 chambers <- read.csv(file.path(pkg, "metadata", "autochamber_chambers.csv"))
 roster <- bind_rows(units %>% transmute(method = "fluxbot", stand = stand_code, id = paste0("fluxbot", unit)),
                     chambers %>% transmute(method = "autochamber", stand = stand_code, id = paste0("autochamber", chamber)))
-d <- load_chamber_hours("deployed") %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
+d <- load_chamber_hours() %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>%
   mutate(id = as.character(id), stand = as.character(stand), method = as.character(method)) %>% distinct(method, stand, id, hour_of_obs)
 grid <- roster %>% tidyr::crossing(hour_of_obs = hours) %>%
   left_join(d %>% mutate(ok = TRUE), by = c("method", "stand", "id", "hour_of_obs")) %>% mutate(ok = coalesce(ok, FALSE))

@@ -1,28 +1,27 @@
 "System","Stand","Chamber","Q10","n"
-"Autochamber","Stand 1","10",1.79,444
-"Autochamber","Stand 1","11",2.96,483
-"Autochamber","Stand 1","12",2.94,482
-"Autochamber","Stand 1","7",2.99,468
-"Autochamber","Stand 1","8",2.71,482
-"Autochamber","Stand 1","9",2.59,486
-"Autochamber","Stand 2","1",2.42,589
-"Autochamber","Stand 2","2",3.25,589
-"Autochamber","Stand 2","3",2.74,589
-"Autochamber","Stand 2","4",2.61,587
-"Autochamber","Stand 2","5",2.95,591
-"Autochamber","Stand 2","6",2.13,590
-"Fluxbot 2.0","Stand 1","100",3.06,462
-"Fluxbot 2.0","Stand 1","101",2.63,421
-"Fluxbot 2.0","Stand 1","108",1.98,417
-"Fluxbot 2.0","Stand 1","111",3.51,210
-"Fluxbot 2.0","Stand 1","112",9.17,222
-"Fluxbot 2.0","Stand 1","114",5.64,130
-"Fluxbot 2.0","Stand 1","13",6.47,314
-"Fluxbot 2.0","Stand 1","22",2.65,441
-"Fluxbot 2.0","Stand 2","102",1.94,396
-"Fluxbot 2.0","Stand 2","103",2.51,282
-"Fluxbot 2.0","Stand 2","104",1.83,482
-"Fluxbot 2.0","Stand 2","105",2.84,516
-"Fluxbot 2.0","Stand 2","106",1.36,380
-"Fluxbot 2.0","Stand 2","110",3.92,467
-"Fluxbot 2.0","Stand 2","113",3.06,240
+"Autochamber","Stand 1","10",2,379
+"Autochamber","Stand 1","11",3.34,419
+"Autochamber","Stand 1","12",2.92,418
+"Autochamber","Stand 1","7",3.59,413
+"Autochamber","Stand 1","8",2.68,418
+"Autochamber","Stand 1","9",2.64,419
+"Autochamber","Stand 2","1",2.29,568
+"Autochamber","Stand 2","2",3.27,569
+"Autochamber","Stand 2","3",3.52,569
+"Autochamber","Stand 2","4",2.72,568
+"Autochamber","Stand 2","5",3.2,570
+"Autochamber","Stand 2","6",2.08,570
+"Fluxbot 2.0","Stand 1","100",3.85,371
+"Fluxbot 2.0","Stand 1","101",4.11,357
+"Fluxbot 2.0","Stand 1","108",2.4,332
+"Fluxbot 2.0","Stand 1","111",5.66,192
+"Fluxbot 2.0","Stand 1","112",10.9,206
+"Fluxbot 2.0","Stand 1","13",7.38,270
+"Fluxbot 2.0","Stand 1","22",3.28,361
+"Fluxbot 2.0","Stand 2","102",2.14,310
+"Fluxbot 2.0","Stand 2","103",3.13,240
+"Fluxbot 2.0","Stand 2","104",2.01,435
+"Fluxbot 2.0","Stand 2","105",3.12,466
+"Fluxbot 2.0","Stand 2","106",1.32,380
+"Fluxbot 2.0","Stand 2","110",4.67,446
+"Fluxbot 2.0","Stand 2","113",3.91,201

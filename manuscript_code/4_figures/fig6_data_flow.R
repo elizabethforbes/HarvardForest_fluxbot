@@ -1,8 +1,8 @@
 # Fig. 6. Data flow and coverage, 2-31 October 2023.
-#  (a) Sankey of closures (intended, recorded, flux computed, valid, retained = as deployed, RH-screened) for each
+#  (a) Sankey of closures (intended, recorded, flux computed, valid, as deployed, RH-screened = main dataset) for each
 #      system, with losses at each step (2_analysis/07_measurement_accounting.R)
-#  (b) measurement success of each unit (retained / intended closures), (c) by system
-#  (d) daily share of each stand's units with a retained measurement (2_analysis/13_resilience.R)
+#  (b) measurement success of each unit (closures in the main dataset / intended closures), (c) by system
+#  (d) daily share of each stand's units with a measurement in the main dataset (2_analysis/13_resilience.R)
 # The agreement of array means at each stage is in SI Table S3.
 source("R/setup.R")
 source("R/fig_style.R")
@@ -27,11 +27,11 @@ sig <- function(x0, x1, ya0, ya1, yb0, yb1, n = 40) {   # ribbon from [ya0,ya1] 
   tibble(x = c(x, rev(x)), y = c(ya1 + (yb1 - ya1) * s, rev(ya0 + (yb0 - ya0) * s)))
 }
 reason <- c(recorded = "No data: no record\n(logger, power, transmission)", computed = "No data: too few records\nto fit a flux",
-            valid = "Removed by QC: failed fit\nor chamber check", retained = "Removed by QC: spike",
-            `RH-screened` = "Wet sensor\n(RH-screened subset only)")
+            valid = "Removed by QC:\nchamber failure", retained = "Removed by QC:\nsensor artifact (spike)",
+            `RH-screened` = "Removed by QC:\nwet sensor")
 rcol <- setNames(c(unname(pal_state["no data (down)"]), "#F4A09A", unname(pal_state["measured, removed by QC"]), "#FDD9A8", col_wet), reason)
 sys_lab <- c(fluxbot = "Fluxbot 2.0 (16 units)", autochamber = "Autochamber (12 chambers)")
-stage_lab <- c(intended = "Intended", recorded = "Recorded", computed = "Flux computed", valid = "Valid", retained = "Retained", `RH-screened` = "RH-screened")
+stage_lab <- c(intended = "Intended", recorded = "Recorded", computed = "Flux computed", valid = "Valid", retained = "As deployed", `RH-screened` = "RH-screened")
 w <- 0.12
 sk <- lapply(c("autochamber", "fluxbot"), function(sy) {
   a <- acc %>% filter(system == sy, !(sy == "autochamber" & stage == "RH-screened")) %>% mutate(f = pct_of_intended / 100, x = row_number())

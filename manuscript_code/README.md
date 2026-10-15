@@ -47,25 +47,29 @@ The analyses read only `../data_clean/`. A few sensor-level diagnostics also rea
 
 | Term | Definition |
 |---|---|
-| **as deployed** (main) | All conditions. Chamber failures and spikes removed (rules below). File: `data_clean/chamber_hours_deployed.csv`. |
-| **RH-screened** | As deployed, minus Fluxbot closures with in-chamber RH ≥ 99% in the open-lid minute (54:00–55:00), i.e. wet K30 sensors. A strict subset. File: `data_clean/chamber_hours_screened.csv`. |
-| **compared hours** | Hours with ≥ 3 units of each system in each stand. The array mean is the mean of the two stand means. |
+| **RH-screened** (main) | Retained closures minus Fluxbot closures with in-chamber RH ≥ 99% in the open-lid minute (54:00–55:00), i.e. wet K30 sensors. File: `data_clean/chamber_hours_screened.csv`. |
+| **as deployed** | All conditions: chamber failures and sensor artifacts removed (rules below), wet-sensor closures kept. Sensitivity analysis. File: `data_clean/chamber_hours_deployed.csv`. |
+| **array** | The chambers of one system in one stand (two arrays per system). |
+| **compared hours** | Hours with ≥ 3 units of each system in each stand. The system mean is the mean of its two stand (array) means. |
+| **flux model** | goFlux best model, linear or Hutchinson–Mosier per closure (main); linear fits for both systems as a sensitivity analysis. Set by `main_flux` and `main_qc` in `R/setup.R`. |
 | **period** | 2–31 October 2023 (the autochamber record ends on 31 October). Days are defined in local time. |
 | **budgets** | Every hour of 2–31 Oct. Missing stand-hours are gap-filled with a GAM of flux on 10-cm soil temperature and hour of day. CIs come from resampling chambers. |
 
 ### Data-hygiene rules (`1_clean/03_clean_datasets.R`)
 
-Each closure gets the first rule that removes it (`qc_status`), for the main linear-flux model:
+Each closure gets the first rule that removes it (`qc_status`). The chamber checks use the linear-fit diagnostics; the spike screen uses the main flux (goFlux best model):
 
 1. **no flux computed**
 2. **too few records**: goFlux `nb.obs` flag.
 3. **chamber failure: stuck lid** (Fluxbot): a saturated episode in which the open-lid CO2 stays > 500 ppm above the stand's other units. Flagged in `01_fluxes.R`.
-4. **chamber failure: no CO2 accumulation**: the slope is not significant (goFlux `p-value` flag).
-5. **chamber failure: CO2 decline**: a significant negative slope.
-6. **chamber failure: poor linear fit**: R² < 0.5.
-7. **spike**: outside the chamber's median ± 5 MAD, among closures passing rules 1–6.
+4. **chamber failure: whole array** (autochambers): three or more of the array's six chambers fail in the same hour (CO2 decline, no accumulation, or weak, noisy accumulation with linear-fit R² < 0.5). The chambers share one pump, pneumatic system and power supply, so these are system failures (stand 1 on 5 and 25–30 Oct).
+5. **chamber failure: no CO2 accumulation**: the slope is not significant (goFlux `p-value` flag).
+6. **chamber failure: CO2 decline**: a significant negative slope.
+7. **spike** (sensor artifact): outside the chamber's median ± 5 MAD, among closures passing rules 1–6.
 
-Closures that pass every rule are **retained** (the as-deployed dataset). Retained Fluxbot closures with the wet-sensor flag are removed in the RH-screened subset. `qc_log.csv` counts closures at each status. Sensitivity analyses rebuild other datasets from the closure tables with `apply_qc()` in `R/setup.R`: other flux models, an alternative pooled 1.5 × IQR rule, and negatives only.
+Individual closures are not removed for a weak fit (R²) alone, which would remove small fluxes preferentially. Fluxes below the minimal detectable flux are kept, with their sign.
+
+Closures that pass every rule are **retained** (the as-deployed dataset). The main dataset, **RH-screened**, also removes Fluxbot closures with the wet-sensor flag. `qc_log.csv` counts closures at each status. Sensitivity analyses rebuild other datasets from the closure tables with `apply_qc()` in `R/setup.R`: other flux models, an alternative pooled 1.5 × IQR rule, and negatives only.
 
 The two chamber-hour datasets are written as CSV, then read back and checked against the in-memory datasets. Decimal text does not round-trip doubles to the last bit, so values can differ by about 1e-16 relative (one unit in the last place). No reported number depends on that.
 
@@ -73,7 +77,7 @@ The two chamber-hour datasets are written as CSV, then read back and checked aga
 
 The same goFlux procedure is used for both systems.
 
-- **Model:** linear (LM) for the main analysis; `best.flux` (LM or Hutchinson–Mosier) as a sensitivity analysis.
+- **Model:** goFlux `best.flux` (linear or Hutchinson–Mosier for each closure, chosen by goFlux's default criteria) for the main analysis; linear (LM) for both systems as a sensitivity analysis.
 - **Fit windows:**
   - Fluxbot 57:00–60:00. The sensitivity run (`02_fluxes_window56.R`) uses 56:00–60:00.
   - Autochamber: slot + 75 s to + 295 s.

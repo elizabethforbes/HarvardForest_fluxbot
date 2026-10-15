@@ -15,8 +15,8 @@ acc <- rd("measurement_accounting.csv") %>%
             Closures = n, `% of intended` = r2(pct_of_intended, 1), `Removed at this step` = lost,
             Reason = recode(stage, intended = "", recorded = "no data (logger, power or transmission down)",
                             computed = "too few records to fit a flux",
-                            valid = "failed fit or chamber check (no CO2 accumulation, CO2 decline, linear-fit R2 < 0.5, stuck lid)",
-                            retained = "spike (> 5 MAD from chamber median)", `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)"))
+                            valid = "chamber failure (no CO2 accumulation, CO2 decline, stuck lid)",
+                            retained = "sensor artifact (> 5 MAD from chamber median)", `RH-screened` = "wet sensor (in-chamber RH >= 99% before closure)"))
 w(acc, "TableS_accounting.csv")
 
 # S-datasets: the two datasets side by side (hourly, daily, 72-h, budget)
@@ -30,8 +30,8 @@ w(dc %>% transmute(Dataset = dataset, `Fluxbot closures` = fluxbot_closures, `% 
                    `Sampling-pattern bias in budget (%)` = r2(sampling_bias_pct, 1)), "TableS_datasets_compared.csv")
 
 # S-metrics: full agreement metric panel, both datasets x three scales
-pm <- bind_rows(rd("agreement_metric_panel.csv") %>% mutate(Dataset = "As deployed"),
-                rd("agreement_metric_panel_screened.csv") %>% mutate(Dataset = "RH-screened")) %>%
+pm <- bind_rows(rd("agreement_metric_panel.csv") %>% mutate(Dataset = "RH-screened (main)"),
+                rd("agreement_metric_panel_deployed.csv") %>% mutate(Dataset = "As deployed")) %>%
   transmute(Dataset, Scale = scale, n, `Mean, autochamber` = r2(mean_ref), `Mean, Fluxbot` = r2(mean_fb), r = r2(r),
             `SMA slope` = r2(sma_slope), `Bias` = r2(bias), `Bias (%)` = r2(bias_pct, 1), RMSE = r2(rmse), `nRMSE (%)` = r2(nrmse_pct, 1),
             `Limits of agreement` = sprintf("%.2f to %.2f", loa_lo, loa_hi), CCC = r2(ccc), `Cb` = r2(cb))

@@ -48,13 +48,13 @@ pb <- ggplot(seg, aes(t0)) + geom_histogram(binwidth = 6, boundary = 0, fill = "
 pc <- ggplot(both, aes(factor(cut(t0, c(-1, 30, 60, 120, 180), labels = c("0-30", "31-60", "61-120", "121-180"))), ratio)) +
   geom_hline(yintercept = 1, colour = "grey50", linetype = "22") + geom_boxplot(outliers = FALSE, fill = "grey90", width = 0.6) +
   labs(x = "Delay (s)", y = "Flux ratio, 56:00 / 57:00 window") + theme_afm()
-# (d) array-level comparison with the autochambers under each window (as deployed)
+# (d) comparison with the autochambers under each window (main dataset)
 wsr <- read.csv(file.path(out_dir, "window_sensitivity.csv"))
-tab <- data.frame(row.names = c("Offset vs autochamber", "r, hourly means", "r, daily means", "Diel amplitude (autochamber 21%)"),
+tab <- data.frame(row.names = c("Offset vs autochamber", "r, hourly means", "r, daily means", sprintf("Diel amplitude (autochamber %.0f%%)", wsr$diel_amp_ac[1])),
                   `56:00-60:00` = c(sprintf("%+.1f%%", wsr$offset_pct[1]), sprintf("%.2f", wsr$r_hourly[1]), sprintf("%.2f", wsr$r_daily[1]), sprintf("%.0f%%", wsr$diel_amp_fb[1])),
                   `57:00-60:00 (main)` = c(sprintf("%+.1f%%", wsr$offset_pct[2]), sprintf("%.2f", wsr$r_hourly[2]), sprintf("%.2f", wsr$r_daily[2]), sprintf("%.0f%%", wsr$diel_amp_fb[2])),
                   check.names = FALSE)
-stopifnot(grepl("56", wsr$window[1]), grepl("57", wsr$window[2]), round(wsr$diel_amp_ac[1]) == 21)
+stopifnot(grepl("56", wsr$window[1]), grepl("57", wsr$window[2]))
 tg <- gridExtra::tableGrob(tab, theme = gridExtra::ttheme_minimal(base_size = 7, padding = unit(c(3, 2.5), "mm"),
         core = list(fg_params = list(hjust = 1, x = 0.9)), rowhead = list(fg_params = list(hjust = 0, x = 0.02, fontface = "plain")),
         colhead = list(fg_params = list(fontface = "bold", col = c(wcol[[1]], wcol[[2]])))))

@@ -8,8 +8,8 @@ source("R/setup.R")
 sh <- function(x) x %>% group_by(stand, id, hour_of_obs) %>% summarise(f = mean(flux), .groups = "drop") %>%
   group_by(stand, hour_of_obs) %>% filter(n() >= 3) %>% summarise(f = mean(f), .groups = "drop")
 models <- c(LM = "LM.flux", HM = "HM.flux", best = "best.flux")
-FB <- lapply(models, function(m) sh(apply_qc(load_fluxbot(m), "deployed")))
-AC <- c(lapply(models, function(m) sh(apply_qc(load_autochamber(m), "deployed"))),
+FB <- lapply(models, function(m) sh(apply_qc(load_fluxbot(m), main_qc)))
+AC <- c(lapply(models, function(m) sh(apply_qc(load_autochamber(m), main_qc))),
         list(HF293 = sh(load_hf293() %>% group_by(id) %>% filter(abs(flux - median(flux)) <= 5 * mad(flux)) %>% ungroup())))
 res <- bind_rows(lapply(names(FB), function(i) bind_rows(lapply(names(AC), function(j) {
   a <- inner_join(FB[[i]], AC[[j]], by = c("stand", "hour_of_obs"), suffix = c("_fb", "_ac")) %>%
@@ -31,8 +31,8 @@ for (s in c("fluxbot", "autochamber")) {
   record(paste0("share_HM_", s), mean(x$model == "HM"), "flux_model", "best.flux chose HM")
 }
 # closure level: goFlux best / linear flux, and how often the HM model was chosen (as deployed; Fig. S3a)
-cl <- bind_rows(apply_qc(load_fluxbot("LM.flux"), "deployed") %>% mutate(system = "Fluxbot 2.0"),
-                apply_qc(load_autochamber("LM.flux"), "deployed") %>% mutate(system = "Autochamber")) %>%
+cl <- bind_rows(apply_qc(load_fluxbot("LM.flux"), main_qc) %>% mutate(system = "Fluxbot 2.0"),
+                apply_qc(load_autochamber("LM.flux"), main_qc) %>% mutate(system = "Autochamber")) %>%
   filter(LM.flux > 0.3) %>% mutate(ratio = best.flux / LM.flux, hm = model == "HM")
 s <- cl %>% group_by(system) %>% summarise(hm_pct = 100 * mean(hm), ratio_med = median(ratio), ratio_mean = mean(ratio), .groups = "drop")
 print(s)

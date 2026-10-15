@@ -4,8 +4,8 @@ source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
 blocks <- c(1, 3, 6, 12, 24, 72)
-cr <- read.csv(file.path(out_dir, "scale_agreement_LM.csv")) %>% mutate(pair = "full arrays (AC vs FB)")
-bs <- read.csv(file.path(out_dir, "scale_benchmark_LM.csv")) %>%
+cr <- read.csv(file.path(out_dir, "scale_agreement_main.csv")) %>% mutate(pair = "full arrays (AC vs FB)")
+bs <- read.csv(file.path(out_dir, "scale_benchmark_main.csv")) %>%
   mutate(pair = recode(pair, autochamber = "AC vs AC subsets", fluxbot = "FB vs FB subsets", cross = "AC vs FB subsets"))
 pal <- c("AC vs AC subsets" = unname(pal_sys["autochamber"]), "FB vs FB subsets" = unname(pal_sys["fluxbot"]), "AC vs FB subsets" = col_cross, "full arrays (AC vs FB)" = "black")
 pp <- function(v, lab) ggplot(bs, aes(L, .data[[paste0(v, "_med")]], colour = pair, fill = pair)) +

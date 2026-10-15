@@ -13,7 +13,7 @@ source("R/setup.R")
 suppressPackageStartupMessages({ library(zoo); library(epiR); library(lme4) })
 set.seed(20260930)
 
-d <- load_chamber_hours("deployed")
+d <- load_chamber_hours()   # main dataset (RH-screened, goFlux best model)
 
 metrics <- function(x, y) {  # x = reference (autochamber), y = Fluxbot
   ok <- is.finite(x) & is.finite(y); x <- x[ok]; y <- y[ok]
@@ -40,7 +40,7 @@ metrics <- function(x, y) {  # x = reference (autochamber), y = Fluxbot
 array_series <- function(d, k = 3) {
   hrs <- matched_hours(d, k)
   d %>% filter(hour_of_obs %in% hrs) %>%
-    group_by(hour_of_obs, stand, method) %>% summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>%
+    group_by(hour_of_obs, stand, method) %>% summarise(f = mean(flux_umolm2sec), .groups = "drop") %>%
     group_by(hour_of_obs, method) %>% summarise(f = mean(f), .groups = "drop") %>%
     pivot_wider(names_from = method, values_from = f)
 }
@@ -58,16 +58,16 @@ panel <- bind_rows(
   cbind(scale = "daily", metrics(dy$ac, dy$fb)))
 write.csv(panel, file.path(out_dir, "agreement_metric_panel.csv"), row.names = FALSE)
 print(panel %>% mutate(across(where(is.numeric), ~ round(., 3))))
-# the same panel for the RH-screened subset (Fluxbot wet-sensor closures removed)
+# the same panel for the as-deployed dataset (wet-sensor closures kept)
 panel_for <- function(dd) { h <- array_series(dd)
   g3 <- data.frame(hour_of_obs = seq(min(h$hour_of_obs), max(h$hour_of_obs), by = "hour")) %>% left_join(h, by = "hour_of_obs") %>%
     mutate(ac3 = rollapply(autochamber, 3, mean, fill = NA, align = "right"), fb3 = rollapply(fluxbot, 3, mean, fill = NA, align = "right"))
   dd2 <- h %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot))
   bind_rows(cbind(scale = "hourly", metrics(h$autochamber, h$fluxbot)), cbind(scale = "3-h rolling", metrics(g3$ac3, g3$fb3)),
             cbind(scale = "daily", metrics(dd2$ac, dd2$fb))) }
-panel_scr <- panel_for(build_dataset(qc = "screened"))
-write.csv(panel_scr, file.path(out_dir, "agreement_metric_panel_screened.csv"), row.names = FALSE)
-for (ds in c("deployed", "screened")) { pn <- if (ds == "deployed") panel else panel_scr
+panel_dep <- panel_for(build_dataset(qc = "deployed"))
+write.csv(panel_dep, file.path(out_dir, "agreement_metric_panel_deployed.csv"), row.names = FALSE)
+for (ds in c("screened", "deployed")) { pn <- if (ds == "screened") panel else panel_dep
   for (i in seq_len(nrow(pn))) for (k in c("n", "r", "bias", "bias_pct", "rmse", "nrmse_pct", "ccc", "sma_slope", "loa_lo", "loa_hi"))
     record(sprintf("panel_%s_%s_%s", ds, gsub("[^a-z0-9]", "", pn$scale[i]), k), pn[[k]][i], "agreement_panel",
            "array means; compared hours = >= 3 units per system per stand") }
@@ -84,7 +84,7 @@ print(thr %>% select(k, n, r, bias, rmse, ccc) %>% mutate(across(where(is.numeri
 # DISJOINT subsets, then compute agreement metrics on hourly and daily means.
 m <- 3
 ids <- d %>% distinct(method, stand, id) %>% mutate(id = as.character(id))
-chour <- d %>% mutate(id = as.character(id)) %>% select(method, stand, id, hour_of_obs, f = fluxL_umolm2sec)
+chour <- d %>% mutate(id = as.character(id)) %>% select(method, stand, id, hour_of_obs, f = flux_umolm2sec)
 subset_series <- function(sel) {  # sel: data.frame(stand, id)
   chour %>% semi_join(sel, by = c("stand", "id")) %>%
     group_by(stand, hour_of_obs) %>% filter(n() >= 2) %>% summarise(f = mean(f), .groups = "drop") %>%
@@ -129,10 +129,10 @@ for (v in c("abs_bias", "r_hourly", "ccc_hourly", "nrmse_hourly", "r_daily", "cc
 
 # ---- 3. Q10 with chamber random slopes ---------------------------------------------------------
 common <- d %>% distinct(stand, hour_of_obs, method) %>% count(stand, hour_of_obs) %>% filter(n == 2)
-dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), fluxL_umolm2sec > 0.5) %>%
+dq <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% filter(!is.na(s10t), flux_umolm2sec > 0.5) %>%
   mutate(T10 = s10t - 15)
-m_int <- lmer(log(fluxL_umolm2sec) ~ T10 * method + (1 | id), data = dq)
-m_slp <- lmer(log(fluxL_umolm2sec) ~ T10 * method + (1 + T10 | id), data = dq,
+m_int <- lmer(log(flux_umolm2sec) ~ T10 * method + (1 | id), data = dq)
+m_slp <- lmer(log(flux_umolm2sec) ~ T10 * method + (1 + T10 | id), data = dq,
               control = lmerControl(optimizer = "bobyqa"))
 for (nm in c("int", "slp")) {
   mm <- get(paste0("m_", nm)); co <- summary(mm)$coefficients
@@ -149,7 +149,7 @@ record("q10lmm_slp_sd_chamber_slope_as_q10factor", exp(10 * attr(VarCorr(m_slp)$
        "between-chamber SD of slope expressed as a Q10 multiplier")
 # per-chamber Q10 (log-linear fit per chamber, >= 100 obs)
 cq <- dq %>% group_by(method, stand, id) %>% filter(n() >= 100) %>%
-  summarise(q10 = exp(10 * coef(lm(log(fluxL_umolm2sec) ~ s10t))[2]), n = n(), .groups = "drop")
+  summarise(q10 = exp(10 * coef(lm(log(flux_umolm2sec) ~ s10t))[2]), n = n(), .groups = "drop")
 write.csv(cq, file.path(out_dir, "q10_by_chamber.csv"), row.names = FALSE)
 for (mt in c("autochamber", "fluxbot")) {
   x <- cq$q10[cq$method == mt]
@@ -174,7 +174,7 @@ record("diel_rel_r_best_lag", max(lag_r), "diel_relative")
 
 # ---- 4b. leave-one-chamber-out: influence on the array offset ------------------------------------
 cm <- d %>% semi_join(common, by = c("stand", "hour_of_obs")) %>% group_by(method, stand, id) %>%
-  summarise(f = mean(fluxL_umolm2sec), .groups = "drop")
+  summarise(f = mean(flux_umolm2sec), .groups = "drop")
 offset <- function(x) { s <- x %>% group_by(method, stand) %>% summarise(f = mean(f), .groups = "drop") %>%
   group_by(method) %>% summarise(f = mean(f)); s$f[s$method == "fluxbot"] - s$f[s$method == "autochamber"] }
 loo <- bind_rows(lapply(seq_len(nrow(cm)), function(i) data.frame(dropped = cm$id[i], method = cm$method[i],
@@ -189,7 +189,7 @@ print(write_numbers(), row.names = FALSE)
 # ---- 5. what drives the Fluxbot/autochamber ratio? ------------------------------------------
 hrs3 <- matched_hours(d, 3)
 rs <- d %>% filter(hour_of_obs %in% hrs3) %>% group_by(hour_of_obs, stand, method) %>%
-  summarise(f = mean(fluxL_umolm2sec), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f) %>%
+  summarise(f = mean(flux_umolm2sec), .groups = "drop") %>% pivot_wider(names_from = method, values_from = f) %>%
   group_by(hour_of_obs) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot))
 metr <- load_met() %>% mutate(hour_of_obs = floor_date(with_tz(Time, "America/New_York"), "hour")) %>%
   group_by(hour_of_obs) %>% summarise(airt = mean(airt), slrr = mean(slrr), s10t = mean(s10t))

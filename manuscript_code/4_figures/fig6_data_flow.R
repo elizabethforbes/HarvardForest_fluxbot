@@ -2,7 +2,7 @@
 #  (a) Sankey of closures (intended, recorded, as deployed = passed QC, RH-screened = main dataset) for each
 #      system, with losses at each step (2_analysis/07_measurement_accounting.R; finer steps in SI Section S2.5)
 #  (b) measurement success of each unit (share of hours with a flux in the main dataset), (c) by system
-#  (d) daily share of hours with a measurement in the main dataset: each unit (faint) and each stand's mean (2_analysis/13_resilience.R)
+#  (d) units with a measurement in the main dataset each hour, per array, with the share of hours with >= 3 units (2_analysis/13_resilience.R)
 # Agreement of system means at selected data-cleaning steps is in SI Table S2b.
 source("R/setup.R")
 source("R/fig_style.R")
@@ -78,23 +78,21 @@ p_unit <- ggplot(ur, aes(unit, 100 * success, fill = method)) + geom_col(width =
 p_box <- ggplot(ur, aes(c(autochamber = "Auto-\nchamber", fluxbot = "Fluxbot\n2.0")[method], 100 * success, fill = method)) + geom_boxplot(outliers = FALSE, width = 0.6, alpha = a_mean) +
   geom_jitter(width = 0.1, size = pt_mean, alpha = a_mean) + scale_fill_manual(values = pal, guide = "none") +
   scale_y_continuous(limits = c(0, 100)) + labs(x = NULL, y = NULL) + theme_afm()
-daily <- st_h %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(method, stand, series, day) %>%
-  summarise(share = 100 * mean(n_ok / n_units), .groups = "drop") %>% mutate(sys = factor(lab_sys[method], levels = lab_sys), st = unname(stl[stand]))
-# faint traces: each unit's daily share of hours with a measurement in the main dataset
-days <- seq(as.Date("2023-10-02"), as.Date("2023-10-31"), by = "day")
-ud <- load_chamber_hours() %>% filter(hour_of_obs >= p0, hour_of_obs < p1) %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>%
-  distinct(id, hour_of_obs, day) %>% count(id, day, name = "h")
-unit_daily <- unit_rate %>% select(method, stand, id) %>% tidyr::crossing(day = days) %>% left_join(ud, by = c("id", "day")) %>%
-  mutate(share = 100 * coalesce(h, 0L) / 24, sys = factor(lab_sys[method], levels = lab_sys), st = unname(stl[stand]))
-p_daily <- ggplot(daily, aes(day, share, colour = method, linetype = st)) +
-  geom_line(data = unit_daily, aes(group = id), linewidth = 0.25, alpha = 0.25, linetype = "solid") + geom_line(linewidth = 0.7) +
-  facet_wrap(~ sys, ncol = 1, scales = "free_x") + scale_colour_manual(values = pal, guide = "none") +
-  scale_linetype_manual(values = c("Stand 1" = "solid", "Stand 2" = "22"), name = NULL) +
-  scale_y_continuous(limits = c(0, 100), breaks = c(0, 50, 100)) + scale_x_date(date_labels = "%d %b", expand = c(0, 0)) +
-  labs(x = NULL, y = "Daily coverage\n(% of unit-hours)") +
-  theme_afm() + theme(legend.position = "top", legend.key.width = unit(8, "mm"), strip.text = element_text(face = "bold", hjust = 0))
+# (d) units with a measurement in the main dataset each hour, per array; dashed line = 3 units (replicated
+#     coverage); right: share of hours with >= 3 units
+cov <- st_h %>% mutate(arr = factor(sub(" Stand", ", Stand", as.character(series)),
+                                    levels = c("Autochamber, Stand 1", "Autochamber, Stand 2", "Fluxbot 2.0, Stand 1", "Fluxbot 2.0, Stand 2")))
+cov_pct <- cov %>% group_by(arr) %>% summarise(p3 = 100 * mean(n_ok >= 3), .groups = "drop")
+p_daily <- ggplot(cov, aes(hour_of_obs, n_ok, colour = method)) +
+  geom_hline(yintercept = 3, linetype = "22", colour = "grey50", linewidth = 0.3) + geom_step(linewidth = 0.35) +
+  geom_text(data = cov_pct, aes(x = p1 + 6 * 3600, y = 4, label = sprintf("%.0f%%", p3)), inherit.aes = FALSE, hjust = 0, size = 2.5) +
+  facet_wrap(~ arr, ncol = 1, strip.position = "left") + scale_colour_manual(values = pal, guide = "none") +
+  scale_y_continuous(breaks = c(0, 3, 6), limits = c(0, 8)) + scale_x_datetime(date_labels = "%d %b", expand = c(0, 0)) +
+  coord_cartesian(clip = "off") + labs(x = NULL, y = "Units with a measurement") +
+  theme_afm() + theme(strip.placement = "outside", strip.text.y.left = element_text(angle = 0, hjust = 1, size = 6.5, face = "bold"),
+                      plot.margin = margin(5, 28, 5, 5))
 
 top <- p_sk + inset_element(p_key, left = 0.58, bottom = 0.02, right = 1, top = 0.3)
 fig <- wrap_elements(full = top) / (p_unit + p_box + plot_layout(widths = c(4, 1))) / p_daily +
-  plot_layout(heights = c(1.25, 0.85, 1)) + plot_annotation(tag_levels = "a")
+  plot_layout(heights = c(1.25, 0.85, 0.9)) + plot_annotation(tag_levels = "a")
 save_afm(fig, "Fig6_data_flow", 190, 230)

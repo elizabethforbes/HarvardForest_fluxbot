@@ -1,7 +1,7 @@
 # Unit-level reliability vs array-level resilience, 2-31 October 2023 (720 stand-hours per stand).
-#  Unit level  : success rate = share of the unit's hours with a retained measurement.
-#  Array level : coverage_k = share of stand-hours with >= k units retained; outage = stand-hour
-#                with no retained unit; longest outage (h).
+#  Unit level  : success rate = share of the unit's hours with a measurement in the main dataset.
+#  Array level : coverage_k = share of stand-hours with >= k units in the main dataset; outage = stand-hour
+#                with no unit; longest outage (h).
 #  Redundancy  : observed outage (and < 3-unit) frequencies vs those expected if units failed
 #                independently with their observed success rates (Poisson-binomial). Observed >>
 #                expected = failures are shared (common power/logger/pneumatics); observed ~

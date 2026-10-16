@@ -7,7 +7,7 @@
 #   hourly / daily agreement : array means over compared hours (>= 3 units of each system per stand)
 #   72-h blocks              : block means of the compared hours
 #   budget                   : 2-31 Oct, every hour, gaps filled per stand (s10t + time of day GAM)
-# Reads numbers written by 2_analysis/05, 08, 09 and 16.
+# Reads numbers written by earlier 2_analysis scripts.
 
 source("R/setup.R")
 n <- bind_rows(lapply(list.files(num_dir, "\\.csv$", full.names = TRUE) %>% setdiff(file.path(num_dir, "numbers_all.csv")), read.csv))

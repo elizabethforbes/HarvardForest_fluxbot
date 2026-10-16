@@ -3,14 +3,14 @@
 This code reproduces every flux, dataset, number, figure and table in the paper from the raw data in `../data_package/`. Run it from this folder:
 
 ```
-Rscript run_all.R                  # everything (~11 min on a laptop, ~2 min of it flux calculation)
+Rscript run_all.R                  # everything (~11 min on a laptop, ~2 min of it flux calculation; parallel, macOS/Linux)
 SKIP_FLUXES=1 Rscript run_all.R    # reuse ../data_clean/fluxes/
 ```
 
 `run_all.R` runs each script in a fresh R session, in folder and file order. Each script's console output goes to `outputs/logs/`, along with `sessionInfo.txt`.
 
 - R version: 4.4.3.
-- Package versions: recorded in `renv.lock`. Restore them with `renv::restore(lockfile = "renv.lock")`.
+- Package versions: recorded in `renv.lock`. Restore them into a separate library with `renv::restore(lockfile = "renv.lock", library = "<path>")` and run the pipeline with that library first on the path, e.g. `R_LIBS=<path> Rscript run_all.R`.
 - Main packages: goFlux 0.4.0 (github.com/Qepanna/goFlux, commit aee8456; the flux scripts stop if another version is loaded), dplyr, tidyr, readr, lubridate, stringr, purrr, fuzzyjoin, zoo, mgcv, lme4, epiR, ineq, ggplot2, patchwork, gridExtra, ggridges, ragg; for the site map (Fig. S1) sf, maptiles, tidyterra, ggspatial and ggrepel.
 - `outputs/logs/sessionInfo.txt` records the session, with every package the pipeline loads.
 
@@ -24,8 +24,8 @@ SKIP_FLUXES=1 Rscript run_all.R    # reuse ../data_clean/fluxes/
       |  1_clean/03       data hygiene: QC flags, status of every closure, analysis datasets
       v
 ../data_clean/            closures_{fluxbot,autochamber}.csv   every closure in 2-31 Oct + QC flags + qc_status
-                          chamber_hours_deployed.csv           MAIN dataset (as deployed)
-                          chamber_hours_screened.csv           RH-screened subset
+                          chamber_hours_deployed.csv           as-deployed dataset (wet sensors kept)
+                          chamber_hours_screened.csv           MAIN dataset (RH-screened)
                           qc_log.csv, data_dictionary.csv
       |  2_analysis, 3_lab_tests
       v
@@ -33,8 +33,8 @@ outputs/results/          analysis tables and model objects
 outputs/numbers/          every number quoted in the paper, one file per script; numbers_all.csv (with the script)
       |  4_figures, 5_tables
       v
-outputs/figures/          Fig2-Fig6 (PDF, PNG, 600 dpi TIFF) and FigS01-FigS09 (PDF, PNG)
-outputs/si_tables/        SI Tables S1-S3, plus further tables for the data release (see below)
+outputs/figures/          Fig2-Fig6 (PDF, PNG, 600 dpi TIFF) and FigS01-FigS08 (PDF, PNG)
+outputs/si_tables/        SI Tables S1, S2a and S2b, plus further tables for the data release (see below)
 outputs/diagnostics/      figures not in the paper (lab-test full runs, chamber temperature)
 ```
 
@@ -61,7 +61,7 @@ Each closure gets the first rule that removes it (`qc_status`). The chamber chec
 
 1. **no flux computed**
 2. **too few records**: goFlux `nb.obs` flag.
-3. **chamber failure: stuck lid** (Fluxbot): a saturated episode in which the open-lid CO2 stays > 500 ppm above the stand's other units. Flagged in `01_fluxes.R`.
+3. **chamber failure: stuck lid**: CO2 > 500 ppm above the stand's other units, so the chamber was not venting (Fluxbots: open-lid CO2 through a saturated episode; autochambers: CO2 at the start of the closure). Flagged in `01_fluxes.R`.
 4. **chamber failure: whole array** (autochambers): three or more of the array's six chambers fail in the same hour (CO2 decline, no accumulation, or weak, noisy accumulation with linear-fit R² < 0.5). The chambers share one pump, pneumatic system and power supply, so these are system failures (stand 1 on 5 and 25–30 Oct).
 5. **chamber failure: no CO2 accumulation**: the slope is not significant (goFlux `p-value` flag).
 6. **chamber failure: CO2 decline**: a significant negative slope.
@@ -99,30 +99,30 @@ The same goFlux procedure is used for both systems.
 | **1_clean** | | |
 | `01_fluxes.R` | Per-closure fluxes for both systems from the raw records; wet-sensor and stuck-lid flags | Methods |
 | `02_fluxes_window56.R` | Fluxbot fluxes with the 56:00 window (sensitivity) | Fig. S2 |
-| `03_clean_datasets.R` | QC status of every closure; as-deployed and RH-screened chamber-hour datasets; QC log; data dictionary | Methods, Table 2 |
+| `03_clean_datasets.R` | QC status of every closure; as-deployed and RH-screened chamber-hour datasets; QC log; data dictionary | Methods 2.7 |
 | **2_analysis** | | |
 | `01_station_pressure.R` | Station pressure vs HF001 sea-level pressure | Methods |
 | `02_main_analyses.R` | GAM stand and system effects, TOST, variance components, array agreement, diel cycle, Q10, sampling effort, sensitivity table | Results, Table S2 |
 | `03_soil_temperature.R` | Autochamber soil probes (HF293) vs HF001 | Methods |
-| `04_agreement_metrics.R` | Agreement-metric panels (both datasets), spatial-null benchmark, random-slope Q10, diel shape, ratio drivers | Table 2, Table S1, Fig. S5 |
+| `04_agreement_metrics.R` | Agreement-metric panels (both datasets), spatial-null benchmark, random-slope Q10, diel shape, ratio drivers | Table S1 |
 | `05_chamber_physics.R` | In-chamber temperature, chamber-level Q10 bootstrap, antecedent rain | Results |
 | `06_flux_model_matrix.R` | Offset under every pairing of flux models; closure-level best/linear ratio | Fig. S3 |
-| `07_measurement_accounting.R` | Closures intended, recorded, valid, retained, RH-screened; agreement at each stage | Fig. 6a, Table S3 |
-| `08_scales_budget.R` | Agreement vs averaging scale with within-system benchmark; October budgets and ratios | Fig. 2c, Fig. S4 |
+| `07_measurement_accounting.R` | Closures intended, recorded, valid, retained, RH-screened; agreement at each stage | Fig. 6a, Table S2b |
+| `08_scales_budget.R` | Agreement vs averaging scale with within-system benchmark; monthly budgets and ratios | Fig. 2c, Fig. S5 |
 | `09_sampling_rate.R` | Autochamber closures thinned to the Fluxbot sampling rate | SI |
 | `10_q10_moisture.R` | Q10 components and drivers; sensor delay (breakpoint) | SI |
 | `11_window_sensitivity.R` | 56:00 vs 57:00 Fluxbot window, array and closure level | Fig. S2 |
 | `12_vent_wet.R` | Open-lid baseline anomaly | SI |
-| `13_resilience.R` | Coverage and outages; independence expectation; hourly array states | Fig. 6, Fig. S9 |
-| `14_wet_recovery.R` | Field wet-sensor episodes: stuck lid vs wet sensor, recovery, data loss and bias | Fig. S8, Table S3 |
+| `13_resilience.R` | Coverage and outages; independence expectation; hourly array states | Fig. 6, Fig. S8 |
+| `14_wet_recovery.R` | Field wet-sensor episodes: stuck lid vs wet sensor, recovery, data loss and bias | Fig. S7, Table S2b |
 | `15_wet_selection_bias.R` | Selection bias from removing wet periods | Results |
-| `16_dataset_summary.R` | The two datasets side by side | Table 2 |
+| `16_dataset_summary.R` | The two datasets side by side | data release |
 | **3_lab_tests** | | |
 | `01_ptfe_test_sep.R` | Laboratory test, 22 Sep 2023 | Fig. S6 |
 | `02_cover_test_dec.R` | Laboratory test, 13 Dec 2023 | Fig. S6 |
-| `03_failure_modes.R` | Failure-mode diagnostics from both tests | Fig. S7 |
-| **4_figures** | One script per figure: `fig2_fluxes_budgets.R`, `fig3_array_agreement.R`, `fig4_drivers.R`, `fig5_heterogeneity_effort.R`, `fig6_data_flow.R`, `figS01_site_map.R` … `figS09_resilience.R` | |
-| **5_tables** | `01_si_tables.R`: formatted SI tables | SI Tables S1-S3 |
+| `03_failure_modes.R` | Failure-mode diagnostics from both tests | Fig. S6 |
+| **4_figures** | One script per figure: `fig2_fluxes_budgets.R`, `fig3_array_agreement.R`, `fig4_drivers.R`, `fig5_heterogeneity_effort.R`, `fig6_data_flow.R`, `figS01_site_map.R` … `figS08_resilience.R` (`fig2_fluxes_budgets.R` also writes Fig. S4, the gap-filling model) | |
+| **5_tables** | `01_si_tables.R`: formatted SI tables | SI Tables S1, S2a, S2b |
 
 Fig. 1 is a field photograph and is not generated by code. Fig. S1 (site map) downloads basemap tiles (Esri) and so needs an internet connection; everything else runs offline.
 
@@ -134,14 +134,14 @@ Fig. 1 is a field photograph and is not generated by code. Fig. S1 (site map) do
 |---|---|
 | `TableS_agreement_metrics.csv` | SI Table S1 |
 | `TableS_sensitivity.csv` | SI Table S2 |
-| `TableS_cleaning_steps.csv` | SI Table S3 |
+| `TableS_cleaning_steps.csv` | SI Table S2b |
 | `TableS_accounting.csv` | numbers shown in Fig. 6a |
 | `TableS_flux_models.csv` | numbers shown in Fig. S3b |
-| `TableS_lab_tests.csv`, `TableS_lab_tests_full.csv` | numbers shown in Fig. S7 (covered sensors and reference; every sensor) |
+| `TableS_lab_tests.csv`, `TableS_lab_tests_full.csv` | lab diagnostics behind Fig. S6 and SI Section S4.1 (covered sensors and reference; every sensor) |
 | `TableS_q10_by_chamber.csv` | chamber-level Q10 (SI Section S5.1) |
-| `TableS_resilience.csv` | coverage and outages (Fig. S9; SI Section S5.2) |
+| `TableS_resilience.csv` | coverage and outages (Fig. S8; SI Section S5.2) |
 | `TableS_sampling_rate.csv` | sampling-rate test (SI Section S2.4) |
-| `TableS_datasets_compared.csv` | Table 2 |
+| `TableS_datasets_compared.csv` | data release (not in the paper) |
 
 ## License
 

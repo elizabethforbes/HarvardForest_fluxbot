@@ -12,8 +12,8 @@
 #                sealed; no stuck lid, i.e. open-lid CO2 > 500 ppm above the other units through a
 #                saturated episode)
 #   retained   : valid closures that pass the per-chamber spike screen (median +/- 5 MAD). This is
-#                the main, "as deployed" dataset (all conditions, wet sensors included).
-#   RH-screened: retained closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
+#                the "as deployed" dataset (all conditions, wet sensors included).
+#   RH-screened: the main dataset; retained closures without a wet-sensor flag (Fluxbot in-chamber RH >= 99% in the
 #                open-lid minute; condensation on the K30, Pan et al. 2024). A strict subset,
 #                compared alongside the main dataset.
 # Derived rates: uptime = recorded / intended; downtime = 1 - uptime;

@@ -9,13 +9,13 @@ pal_stand <- c("Autochamber Stand 1" = "#1F6E43", "Autochamber Stand 2" = "#7FBF
                "Fluxbot 2.0 Stand 1" = "#4D4D4D", "Fluxbot 2.0 Stand 2" = "#A6A6A6")   # light = stand 2
 col_wet <- "#4575B4"          # wet sensors, rain, water vapour
 col_accent <- "#F4A582"       # daily means and other highlighted points
-col_fit <- "black"            # model fits (SMA, exponential, GAM)
+col_fit <- "black"            # model fits (OLS, exponential, GAM)
 col_ref <- "grey40"           # 1:1 and zero reference lines (dashed)
 col_cross <- "#2F5D9E"        # cross-system comparisons (benchmarks)
 pal_lab <- c(covered = "#2C7BB6", uncovered = "#E08214", reference = "black")         # lab tests only
 pal_window <- c(main = "black", alternative = "#D6604D")                              # fit windows
 pal_div <- c(low = "#B2182B", mid = "white", high = "#2166AC")                         # signed offsets
-pal_state <- c(">= 3 units" = "#2C7BB6", "1-2 units" = "#ABD9E9", "measured, removed by QC" = "#FDAE61", "no data (down)" = "#D7191C")
+pal_state <- c("measured, removed by QC" = "#FDAE61", "no data (down)" = "#D7191C")
 
 # ---- transparency and sizes ----
 a_dense <- 0.4     # many individual fluxes

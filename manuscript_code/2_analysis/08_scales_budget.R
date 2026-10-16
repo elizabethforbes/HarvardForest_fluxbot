@@ -1,8 +1,8 @@
 # (A) Agreement as a function of temporal aggregation, benchmarked against the agreement
 #     between independent chamber subsets of the same system at the same scale.
-# (B) Cumulative October CO2-C efflux per stand from each system and flux model.
-# Both for the main "as deployed" dataset (all conditions) and the RH-screened subset (Fluxbot
-# wet-sensor closures removed; the autochamber data are the same in both).
+# (B) Cumulative monthly (2-31 October) CO2-C efflux per stand from each system and flux model.
+# Both for the main RH-screened dataset (Fluxbot wet-sensor closures removed) and the "as deployed"
+# dataset (all conditions; the autochamber data are the same in both).
 
 source("R/setup.R")
 suppressPackageStartupMessages({ library(mgcv); library(epiR) })

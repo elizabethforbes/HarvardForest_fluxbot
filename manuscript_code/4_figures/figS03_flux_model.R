@@ -2,7 +2,7 @@
 # per closure) for both systems; linear fits (LM) for both are the alternative.
 #  (a) closure-level best / LM flux ratio by system (where goFlux chose HM, the ratio > 1)
 #  (b) offset and hourly r for each Fluxbot x autochamber model pairing (main dataset)
-#  (c) gap-filled October budgets by model, with chamber-bootstrap 95% CIs
+#  (c) gap-filled monthly budgets by model, with chamber-bootstrap 95% CIs
 # Closure-level ratios and numbers: 2_analysis/06_flux_model_matrix.R; budgets: 2_analysis/08_scales_budget.R.
 
 source("R/setup.R")
@@ -32,6 +32,6 @@ bud <- read.csv(file.path(out_dir, "october_budget.csv")) %>% filter(model %in% 
 pc <- ggplot(bud, aes(model, mean_stands_gC, colour = system)) +
   geom_pointrange(aes(ymin = lo, ymax = hi), position = position_dodge(0.4), size = 0.3, linewidth = lw_main) +
   scale_colour_manual(values = sys_col, name = NULL) + expand_limits(y = 0) +
-  labs(x = NULL, y = expression("CO"[2]*"-C, 2-31 Oct (g C m"^-2*")")) + theme_afm() + theme(legend.position = "bottom")
+  labs(x = NULL, y = expression("CO"[2]*"-C, 2-31 Oct (g C m"^-2*")")) + theme_afm() + theme(legend.position = "bottom", axis.text.x = element_text(angle = 20, hjust = 1))
 pfig <- (pa | pb | pc) + plot_layout(widths = c(1.1, 1, 0.8)) + plot_annotation(tag_levels = "a")
 save_afm(pfig, "FigS03_flux_model", 190, 85, tif = FALSE)

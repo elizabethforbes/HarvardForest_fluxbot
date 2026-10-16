@@ -21,7 +21,7 @@ closures_*.csv,hour_of_obs,"closure hour (start rounded to the nearest hour), UT
 closures_*.csv,short,QC flag: too few records to fit (goFlux nb.obs)
 closures_*.csv,decline,QC flag: significant CO2 decline (chamber failure)
 closures_*.csv,no_accum,QC flag: no significant CO2 accumulation (chamber failure)
-closures_*.csv,lid_fail,QC flag: Fluxbot lid stuck shut (chamber failure); FALSE for autochambers
+closures_*.csv,lid_fail,QC flag: lid stuck shut (chamber failure): CO2 more than 500 ppm above the other units in the stand (Fluxbots: open-lid CO2 through a saturated episode; autochambers: CO2 at the start of the closure)
 closures_*.csv,array_fail,"QC flag: whole-array failure, >= 3 of the array's chambers failing in the same hour (chamber failure); FALSE for Fluxbots"
 closures_*.csv,wet,Fluxbot wet-sensor flag: RH >= 99% in the open-lid minute; FALSE for autochambers
 closures_*.csv,spike,QC flag: outside the chamber's median +/- 5 MAD among closures passing the earlier rules

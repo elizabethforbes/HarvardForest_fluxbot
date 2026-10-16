@@ -1,5 +1,5 @@
 # Fig. S1. Site map: Fluxbot GPS positions (17 Nov 2023) in the two stands (points; boxes = inset extents), with the Fisher meteorological
-# station (HF001) and the EMS and HEM eddy-covariance towers (Harvard Forest Data Archive coordinates:
+# station (HF001) and the two nearest eddy-covariance towers (Harvard Forest Data Archive coordinates:
 # HF001 42.53311 N 72.18968 W; EMS tower, HF004, 42.537755 N 72.171478 W; HEM tower, HF103, 42.539 N 72.180 W,
 # given to 0.001 degrees, about +/- 100 m). Autochamber positions were not surveyed; the autochambers are in
 # the same stands as the Fluxbots. Insets: each unit's GPS position with its reported horizontal accuracy
@@ -11,7 +11,7 @@ u <- read.csv(file.path(pkg, "metadata", "fluxbot_units.csv"), colClasses = c(un
   mutate(stand_lab = if_else(stand == "stand 1", "Stand 1 (Bigelow Brook)", "Stand 2 (Hemlock tower)"))
 fb <- st_as_sf(u, coords = c("longitude", "latitude"), crs = 4326)
 utm <- 32618
-sites <- st_as_sf(data.frame(name = c("HF001 met station", "EMS tower", "HEM tower (approx.)"),
+sites <- st_as_sf(data.frame(name = c("HF001 met station", "HF004 tower", "HF103 tower (approx.)"),
                              lon = c(-72.18968, -72.171478, -72.180), lat = c(42.53311, 42.537755, 42.539)),
                   coords = c("lon", "lat"), crs = 4326)
 cent <- fb %>% group_by(stand_lab) %>% summarise(geometry = st_centroid(st_union(geometry)), .groups = "drop")

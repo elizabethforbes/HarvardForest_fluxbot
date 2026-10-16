@@ -1,6 +1,6 @@
 # Supplementary tables, formatted for the SI (outputs/si_tables/). Each table names the
-# dataset(s) it uses: "as deployed" (main, all conditions) and/or "RH-screened" (wet-sensor closures
-# removed). Compared hours = >= 3 units of each system in each stand; period 2-31 Oct 2023.
+# dataset(s) it uses: "RH-screened" (main; wet-sensor closures removed) and/or "as deployed" (all
+# conditions). Compared hours = >= 3 units of each system in each stand; period 2-31 Oct 2023.
 
 source("R/setup.R")
 td <- si_dir
@@ -33,7 +33,7 @@ w(dc %>% transmute(Dataset = dataset, `Fluxbot closures` = fluxbot_closures, `% 
 pm <- bind_rows(rd("agreement_metric_panel.csv") %>% mutate(Dataset = "RH-screened (main)"),
                 rd("agreement_metric_panel_deployed.csv") %>% mutate(Dataset = "As deployed")) %>%
   transmute(Dataset, Scale = scale, n, `Mean, autochamber` = r2(mean_ref), `Mean, Fluxbot` = r2(mean_fb), r = r2(r),
-            `SMA slope` = r2(sma_slope), `Bias` = r2(bias), `Bias (%)` = r2(bias_pct, 1), RMSE = r2(rmse), `nRMSE (%)` = r2(nrmse_pct, 1),
+            `OLS slope` = r2(ols_slope), `Bias` = r2(bias), `Bias (%)` = r2(bias_pct, 1), RMSE = r2(rmse), `nRMSE (%)` = r2(nrmse_pct, 1),
             `Limits of agreement` = sprintf("%.2f to %.2f", loa_lo, loa_hi), CCC = r2(ccc), `Cb` = r2(cb))
 w(pm, "TableS_agreement_metrics.csv")
 
@@ -75,13 +75,9 @@ lab <- bind_rows(lab_all %>% filter(group == "covered") %>% mutate(Sensor = if_e
             `Scatter (MAD, ppm)` = r2(scatter_vs_dry, 1), `RMSE (ppm)` = r2(refit_rmse, 1), `Error codes (%)` = r2(err_pct, 1))
 w(lab, "TableS_lab_tests.csv")
 
-# S-cleaning: agreement of array means at each data-cleaning step, from stuck lids and wet sensors kept to
-# RH-screened with extra hours removed after each wet episode
-stg <- rd("agreement_by_stage.csv") %>% filter(stage == "valid")
-nvalid <- rd("measurement_accounting.csv") %>% filter(system == "fluxbot", stage == "valid") %>% pull(n)
-wb <- rd("wet_bias_scenarios.csv")
-wb <- bind_rows(wb[1, ], tibble(fb_closures = nvalid, n_hours = stg$n_hours, offset_pct = stg$offset_pct, r_hourly = stg$r_hourly, r_daily = stg$r_daily,
-                                scenario = "valid (before spike screen)"), wb[-1, ]) %>%
+# S-cleaning (Table S2b): agreement of array means at selected data-cleaning steps, from stuck lids and wet sensors
+# kept to RH-screened with extra hours removed after each wet episode
+wb <- rd("wet_bias_scenarios.csv") %>% filter(!grepl("\\+ (3|12) h", scenario)) %>%
   transmute(`Fluxbot data` = scenario, `Fluxbot closures` = fb_closures, `Compared hours` = n_hours,
             `Offset (%)` = r2(offset_pct, 1), `r (hourly)` = r2(r_hourly), `r (daily)` = r2(r_daily))
 w(wb, "TableS_cleaning_steps.csv")

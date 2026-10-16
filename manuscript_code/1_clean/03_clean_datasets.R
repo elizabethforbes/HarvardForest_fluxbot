@@ -15,8 +15,9 @@
 # QC rules, in order (R/setup.R: flag_closures(), apply_qc()):
 #   1. no flux computed                     flux missing
 #   2. too few records                       goFlux nb.obs flag
-#   3. chamber failure: stuck lid            open-lid CO2 > 500 ppm above the stand's other units through a
-#                                            saturated episode (1_clean/01_fluxes.R)
+#   3. chamber failure: stuck lid            CO2 > 500 ppm above the stand's other units (Fluxbots: open-lid CO2
+#                                            through a saturated episode; autochambers: CO2 at the start of the
+#                                            closure; 1_clean/01_fluxes.R)
 #   4. chamber failure: whole array          autochambers: >= 3 of the array's chambers fail in that hour
 #                                            (shared pump, pneumatics and power; see flag_closures())
 #   5. chamber failure: no CO2 accumulation  goFlux p-value flag (slope not significant)
@@ -72,6 +73,7 @@ wet_log <- tibble(system = "fluxbot", qc_status = "retained, wet sensor (removed
 log <- bind_rows(log %>% mutate(qc_status = as.character(qc_status)), wet_log)
 write_csv(log, file.path(clean_dir, "qc_log.csv"))
 print(as.data.frame(log))
+for (i in seq_len(nrow(log))) record(paste0("qc_", log$system[i], "_", gsub("[^a-z0-9]+", "_", tolower(log$qc_status[i]))), log$n[i], "qc_log", "closures, 2-31 Oct")
 
 # chamber-hour analysis datasets, built with the same code the analyses used before (from_clean = FALSE),
 # written, read back and checked. Decimal text does not round-trip doubles to the last bit, so the check
@@ -112,7 +114,7 @@ dict <- tribble(~file, ~column, ~description,
   "closures_*.csv", "short", "QC flag: too few records to fit (goFlux nb.obs)",
   "closures_*.csv", "decline", "QC flag: significant CO2 decline (chamber failure)",
   "closures_*.csv", "no_accum", "QC flag: no significant CO2 accumulation (chamber failure)",
-  "closures_*.csv", "lid_fail", "QC flag: Fluxbot lid stuck shut (chamber failure); FALSE for autochambers",
+  "closures_*.csv", "lid_fail", "QC flag: lid stuck shut (chamber failure): CO2 more than 500 ppm above the other units in the stand (Fluxbots: open-lid CO2 through a saturated episode; autochambers: CO2 at the start of the closure)",
   "closures_*.csv", "array_fail", "QC flag: whole-array failure, >= 3 of the array's chambers failing in the same hour (chamber failure); FALSE for Fluxbots",
   "closures_*.csv", "wet", "Fluxbot wet-sensor flag: RH >= 99% in the open-lid minute; FALSE for autochambers",
   "closures_*.csv", "spike", "QC flag: outside the chamber's median +/- 5 MAD among closures passing the earlier rules",
@@ -135,3 +137,4 @@ dict <- tribble(~file, ~column, ~description,
   "fluxes/*_fluxes*.csv", "(all columns)", "every computed closure, 25 Sep - 5 Nov, before QC; the columns are the first 29 columns of closures_*.csv (system to lid_fail). fluxbot_fluxes_w56.csv uses the 56:00-60:00 fit window",
   "fluxes/flux_run_metadata.csv", "key, value", "settings of the flux run: instrument precision of each system (ppm), Fluxbot units with faulty pressure sensors, and the median ratio of station to HF001 sea-level pressure")
 write_csv(dict, file.path(clean_dir, "data_dictionary.csv"))
+write_numbers()

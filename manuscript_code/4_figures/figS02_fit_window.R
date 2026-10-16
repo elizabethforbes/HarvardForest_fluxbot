@@ -4,7 +4,7 @@
 #  (a) an example closure, with linear fits over both windows
 #  (b) distribution of t0
 #  (c) closure-level flux ratio, 56:00 vs 57:00 window, by t0
-#  (d) agreement with the autochambers under each window (as-deployed dataset)
+#  (d) agreement with the autochambers under each window (main dataset)
 # Closure-level ratios and numbers: 2_analysis/11_window_sensitivity.R.
 
 source("R/setup.R")
@@ -50,9 +50,9 @@ pc <- ggplot(both, aes(factor(cut(t0, c(-1, 30, 60, 120, 180), labels = c("0-30"
   labs(x = "Delay (s)", y = "Flux ratio, 56:00 / 57:00 window") + theme_afm()
 # (d) comparison with the autochambers under each window (main dataset)
 wsr <- read.csv(file.path(out_dir, "window_sensitivity.csv"))
-tab <- data.frame(row.names = c("Offset vs autochamber", "r, hourly means", "r, daily means", sprintf("Diel amplitude (autochamber %.0f%%)", wsr$diel_amp_ac[1])),
-                  `56:00-60:00` = c(sprintf("%+.1f%%", wsr$offset_pct[1]), sprintf("%.2f", wsr$r_hourly[1]), sprintf("%.2f", wsr$r_daily[1]), sprintf("%.0f%%", wsr$diel_amp_fb[1])),
-                  `57:00-60:00 (main)` = c(sprintf("%+.1f%%", wsr$offset_pct[2]), sprintf("%.2f", wsr$r_hourly[2]), sprintf("%.2f", wsr$r_daily[2]), sprintf("%.0f%%", wsr$diel_amp_fb[2])),
+tab <- data.frame(row.names = c("Offset vs autochamber", "r, hourly means", "r, daily means"),
+                  `56:00-60:00` = c(sprintf("%+.1f%%", wsr$offset_pct[1]), sprintf("%.2f", wsr$r_hourly[1]), sprintf("%.2f", wsr$r_daily[1])),
+                  `57:00-60:00 (main)` = c(sprintf("%+.1f%%", wsr$offset_pct[2]), sprintf("%.2f", wsr$r_hourly[2]), sprintf("%.2f", wsr$r_daily[2])),
                   check.names = FALSE)
 stopifnot(grepl("56", wsr$window[1]), grepl("57", wsr$window[2]))
 tg <- gridExtra::tableGrob(tab, theme = gridExtra::ttheme_minimal(base_size = 7, padding = unit(c(3, 2.5), "mm"),

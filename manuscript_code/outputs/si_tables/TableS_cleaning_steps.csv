@@ -1,10 +1,7 @@
 "Fluxbot data","Fluxbot closures","Compared hours","Offset (%)","r (hourly)","r (daily)"
 "stuck lids and wet sensors kept",7420,376,-7.1,0.71,0.86
-"valid (before spike screen)",6982,357,-2.8,0.69,0.81
 "as deployed",6962,357,-3,0.69,0.8
 "RH-screened (main)",6301,305,-0.3,0.72,0.85
 "RH-screened + 1 h after wet removed",6222,301,-0.3,0.72,0.85
-"RH-screened + 3 h after wet removed",6078,291,-0.1,0.71,0.88
-"RH-screened + 6 h after wet removed",5878,278,0.2,0.7,0.84
-"RH-screened + 12 h after wet removed",5563,261,1.6,0.71,0.83
+"RH-screened + 6 h after wet removed",5878,278,0.2,0.7,0.83
 "RH-screened + 24 h after wet removed",5155,229,4.1,0.72,0.9

@@ -68,7 +68,7 @@ panel_for <- function(dd) { h <- array_series(dd)
 panel_dep <- panel_for(build_dataset(qc = "deployed"))
 write.csv(panel_dep, file.path(out_dir, "agreement_metric_panel_deployed.csv"), row.names = FALSE)
 for (ds in c("screened", "deployed")) { pn <- if (ds == "screened") panel else panel_dep
-  for (i in seq_len(nrow(pn))) for (k in c("n", "r", "bias", "bias_pct", "rmse", "nrmse_pct", "ccc", "sma_slope", "loa_lo", "loa_hi"))
+  for (i in seq_len(nrow(pn))) for (k in c("n", "r", "bias", "bias_pct", "rmse", "nrmse_pct", "ccc", "sma_slope", "ols_slope", "loa_lo", "loa_hi"))
     record(sprintf("panel_%s_%s_%s", ds, gsub("[^a-z0-9]", "", pn$scale[i]), k), pn[[k]][i], "agreement_panel",
            "array means; compared hours = >= 3 units per system per stand") }
 

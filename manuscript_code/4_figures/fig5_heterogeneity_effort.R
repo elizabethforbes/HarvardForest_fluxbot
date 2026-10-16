@@ -25,13 +25,17 @@ p9a <- ggplot(lz, aes(p, L, colour = method)) +
   labs(x = "Cumulative share of chambers", y = "Cumulative share of flux")
 eff <- read.csv(file.path(out_dir, "sampling_effort.csv")) %>%
   mutate(stand_label = if_else(stand == "healthy", "Stand 1", "Stand 2"))
-p9b <- ggplot(eff %>% filter(n >= 3), aes(n, 100 * analytic, colour = method, linetype = stand_label)) +
+# analytic curve extended to 50 chambers from each array's CV of chamber means (as in 2_analysis/02_main_analyses.R)
+curve <- eff %>% distinct(method, stand, stand_label, cv, n_chambers) %>% tidyr::crossing(n = 3:50) %>%
+  mutate(analytic = qt(0.975, n - 1) * cv / sqrt(n))
+p9b <- ggplot(curve, aes(n, 100 * analytic, colour = method, linetype = stand_label)) +
   geom_hline(yintercept = c(10, 20), colour = "grey70", linewidth = 0.3) +
   geom_line(linewidth = 0.5) +
-  geom_point(data = eff %>% filter(n == n_chambers), size = pt_big - 0.6) +
+  geom_point(data = curve %>% filter(n == n_chambers), size = pt_big - 0.6) +
   scale_colour_manual(values = pal, labels = lab_sys, name = NULL) +
   scale_linetype_manual(values = c("solid", "22"), name = NULL) +
+  guides(colour = guide_legend(override.aes = list(linetype = "solid"))) +
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
-  labs(x = "Number of chambers per stand", y = "Uncertainty of stand mean (±%)") +
+  labs(x = "Number of chambers per stand", y = "Half-width of 95% CI\n(% of stand mean)") +
   theme(legend.position = c(0.72, 0.78), legend.spacing.y = unit(0, "mm"))
 save_fig(p9a + p9b + tags_afm(), "Fig5_heterogeneity_effort", 190, 85)

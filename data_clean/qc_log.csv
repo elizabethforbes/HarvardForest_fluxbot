@@ -1,9 +1,10 @@
 system,qc_status,n,pct_of_closures
-autochamber,retained,13326,92.88
+autochamber,retained,13309,92.77
 autochamber,spike,79,0.55
-autochamber,chamber failure: CO2 decline,20,0.14
-autochamber,chamber failure: no CO2 accumulation,46,0.32
-autochamber,chamber failure: whole array,876,6.11
+autochamber,chamber failure: CO2 decline,2,0.01
+autochamber,chamber failure: no CO2 accumulation,2,0.01
+autochamber,chamber failure: whole array,870,6.06
+autochamber,chamber failure: stuck lid,85,0.59
 fluxbot,retained,6962,83.16
 fluxbot,spike,20,0.24
 fluxbot,chamber failure: CO2 decline,503,6.01

@@ -165,8 +165,14 @@ tidy_out <- function(gf, d, system) {
 fb_out <- tidy_out(gf_fb, fb, "fluxbot") %>% left_join(units %>% select(id = unit, stand_code), by = "id") %>%
   left_join(rh_open, by = "UniqueID") %>% mutate(wet = !is.na(rh_open) & rh_open >= 99) %>%
   left_join(lid_hours, by = "UniqueID") %>% mutate(lid_fail = coalesce(lid_fail, FALSE))
+# autochamber stuck lids: the same rule as for Fluxbots, applied per closure. A chamber whose CO2 at the start
+# of the fit is more than 500 ppm above the median of the other chambers in its stand in the same hour was not
+# venting between closures (e.g., chamber 10 on 2-3 Oct, whose reading sat at the analyzer's ~1500 ppm ceiling).
+ac_lid <- function(x) x %>% mutate(hr = floor_date(start_utc, "hour")) %>% group_by(stand_code, hr) %>%
+  mutate(others = sapply(seq_along(co2_start), function(i) median(co2_start[id != id[i]], na.rm = TRUE)),
+         lid_fail = !is.na(others) & !is.na(co2_start) & co2_start - others > 500) %>% ungroup() %>% select(-hr, -others)
 ac_out <- if (fluxbot_only) NULL else tidy_out(gf_ac, ac, "autochamber") %>%
-  left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id") %>% mutate(rh_open = NA_real_, wet = FALSE, lid_fail = FALSE)
+  left_join(chambers %>% transmute(id = as.character(chamber), stand_code), by = "id") %>% mutate(rh_open = NA_real_, wet = FALSE) %>% ac_lid()
 sfx <- paste0(if (test_n > 0) "_test" else "", if (fluxbot_only) paste0("_w", fb_wstart) else "")
 write_csv(fb_out, file.path(out_dir, paste0("fluxbot_fluxes", sfx, ".csv")))
 if (!fluxbot_only) write_csv(ac_out, file.path(out_dir, paste0("autochamber_fluxes", sfx, ".csv")))

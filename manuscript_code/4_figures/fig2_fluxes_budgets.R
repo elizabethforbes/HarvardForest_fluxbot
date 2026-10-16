@@ -2,9 +2,9 @@
 #  (a) individual chamber fluxes by system and stand, with the 24-h mean of the gap-filled stand-mean series
 #      (dark where mostly observed, light where mostly modelled); dashed = the other system's
 #  (b) air temperature and rain (HF001)
-#  (c) cumulative gap-filled budgets with chamber-bootstrap 95% intervals
-#  (d) the gap-filling model: observed vs fitted hourly stand means, per array
-#  (e) flux distribution of every chamber (ridges) with all closures (points), by array
+#  (c) cumulative gap-filled budgets with chamber-bootstrap 95% intervals; dashed = Fluxbot with wet-sensor closures kept
+#  (d) flux distribution of every chamber (ridges) with all closures (points), by array
+# Also writes SI Fig. S4: the gap-filling model, observed vs fitted hourly stand means, per array.
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork); library(mgcv); library(zoo); library(ggridges) })
@@ -55,7 +55,7 @@ p2a <- ggplot(dd2, aes(hour_of_obs, flux_umolm2sec)) +
   facet_grid(method_label ~ stand_label) + scale_colour_manual(values = pal, guide = "none") +
   coord_cartesian(ylim = c(0, 7)) + xs2 + labs(x = NULL, y = flux_lab) +
   theme(panel.spacing.x = unit(gap_mm, "mm"))   # gap = gutter between the columns below, so b and c align with Stand 1
-# (d) observed vs fitted hourly stand means
+# SI Fig. S4: observed vs fitted hourly stand means
 fitd <- gfa %>% filter(!filled) %>% mutate(array = factor(paste(lab_sys[as.character(method)], stand_label), levels = names(pal_stand)))
 rlab <- fitd %>% group_by(array) %>% summarise(r = cor(f, fit), .groups = "drop") %>%
   mutate(lab = sprintf("%s: r = %.2f", array, r), y = 6.6 - 0.45 * (as.integer(array) - 1))
@@ -88,15 +88,15 @@ d_dep <- build_dataset(qc = "deployed")
 cum <- bind_rows(
   bind_cols(gf_series(d %>% filter(method == "autochamber")), boot_cum(d %>% filter(method == "autochamber"))) %>% mutate(series = "Autochamber"),
   bind_cols(gf_series(d %>% filter(method == "fluxbot")), boot_cum(d %>% filter(method == "fluxbot"))) %>% mutate(series = "Fluxbot 2.0"),
-  gf_series(d_dep %>% filter(method == "fluxbot")) %>% mutate(lo = NA_real_, hi = NA_real_, series = "Fluxbot 2.0, as deployed"))
-cpal <- c("Autochamber" = unname(pal["autochamber"]), "Fluxbot 2.0" = unname(pal["fluxbot"]), "Fluxbot 2.0, as deployed" = unname(pal["fluxbot"]))
+  gf_series(d_dep %>% filter(method == "fluxbot")) %>% mutate(lo = NA_real_, hi = NA_real_, series = "Fluxbot 2.0, wet sensors kept"))
+cpal <- c("Autochamber" = unname(pal["autochamber"]), "Fluxbot 2.0" = unname(pal["fluxbot"]), "Fluxbot 2.0, wet sensors kept" = unname(pal["fluxbot"]))
 p2c <- ggplot(cum, aes(hour_of_obs, cum, colour = series, fill = series, linetype = series)) +
   geom_ribbon(aes(ymin = lo, ymax = hi), alpha = a_band, colour = NA, na.rm = TRUE) + geom_line(linewidth = lw_main) +
   scale_colour_manual(values = cpal, name = NULL) + scale_fill_manual(values = cpal, name = NULL) +
-  scale_linetype_manual(values = c("Autochamber" = "solid", "Fluxbot 2.0" = "solid", "Fluxbot 2.0, as deployed" = "22"), name = NULL) +
+  scale_linetype_manual(values = c("Autochamber" = "solid", "Fluxbot 2.0" = "solid", "Fluxbot 2.0, wet sensors kept" = "22"), name = NULL) +
   xs2 + labs(x = NULL, y = expression("Cumulative C (g m"^-2*")")) +
   theme(legend.position = c(0.3, 0.8), legend.key.height = unit(3, "mm"))
-# (e) flux distributions of every chamber, ordered by mean within each array
+# (d) flux distributions of every chamber, ordered by mean within each array
 d3 <- dd2 %>% mutate(array = factor(paste0(lab_sys[as.character(method)], ", ", stand_label),
                                     levels = c("Autochamber, Stand 1", "Autochamber, Stand 2", "Fluxbot 2.0, Stand 1", "Fluxbot 2.0, Stand 2")),
                      unit = sub("^(autochamber|fluxbot)", "", as.character(id)))
@@ -105,10 +105,11 @@ d3 <- d3 %>% mutate(key = factor(paste(array, unit), levels = ord$key))
 p2e <- ggplot(d3, aes(flux_umolm2sec, key, fill = method, colour = method)) +
   geom_density_ridges(jittered_points = TRUE, position = position_points_jitter(height = 0.25, yoffset = -0.18), point_size = 0.25, point_alpha = 0.35,
                       alpha = 0.5, scale = 1.1, rel_min_height = 0.005, linewidth = 0.25, bandwidth = 0.18) +
-  facet_wrap(~ array, scales = "free_y", nrow = 1) + scale_y_discrete(labels = function(k) sub(".* ", "", k)) +
+  facet_wrap(~ array, scales = "free_y", nrow = 2) + scale_y_discrete(labels = function(k) sub(".* ", "", k)) +
   scale_fill_manual(values = pal, guide = "none") + scale_colour_manual(values = pal, guide = "none") +
   coord_cartesian(xlim = c(0, 7)) + labs(x = flux_lab, y = "Chamber or unit")
-# layout: a full width; b (weather) over c (budgets) in the left column, under Stand 1 and on the same dates; d right; e full width
-fig2 <- wrap_plots(A = p2a, B = p2b, C = p2c, D = p2d, E = p2e, design = "AA\nBD\nCD\nEE") +
-  plot_layout(heights = c(3.2, 0.7, 1.6, 1.6)) + tags_afm()
-save_fig(fig2, "Fig2_fluxes_budgets", 190, 255)
+# layout: a full width; b (weather) over c (budgets) in the left column, under Stand 1 and on the same dates; d right
+fig2 <- wrap_plots(A = p2a, B = p2b, C = p2c, E = p2e, design = "AA\nBE\nCE") +
+  plot_layout(heights = c(3.2, 0.8, 2.0)) + tags_afm()
+save_fig(fig2, "Fig2_fluxes_budgets", 190, 225)
+save_afm(p2d + scale_y_continuous(position = "left") + theme_afm(), "FigS04_gap_fill", 90, 90, tif = FALSE)

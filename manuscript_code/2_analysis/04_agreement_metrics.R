@@ -52,6 +52,13 @@ grid <- data.frame(hour_of_obs = seq(min(hr$hour_of_obs), max(hr$hour_of_obs), b
 # daily: days with >= 12 matched hours
 dy <- hr %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>%
   filter(n() >= 12) %>% summarise(ac = mean(autochamber), fb = mean(fluxbot))
+# overall level and day-to-day range of the system means (Results 3.1)
+record("summary_mean_autochamber", mean(hr$autochamber), "flux_summary", "system mean over compared hours")
+record("summary_mean_fluxbot", mean(hr$fluxbot), "flux_summary", "system mean over compared hours")
+record("summary_n_days", nrow(dy), "flux_summary", "days with >= 12 compared hours")
+for (m in c("ac", "fb")) {
+  record(paste0("summary_daily_min_", m), min(dy[[m]]), "flux_summary", "daily system means")
+  record(paste0("summary_daily_max_", m), max(dy[[m]]), "flux_summary", "daily system means") }
 panel <- bind_rows(
   cbind(scale = "hourly", metrics(hr$autochamber, hr$fluxbot)),
   cbind(scale = "3-h rolling", metrics(grid$ac3, grid$fb3)),

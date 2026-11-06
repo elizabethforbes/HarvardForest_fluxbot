@@ -1,5 +1,6 @@
 # Fig. 3. Agreement of hourly and daily system means (scatter with 1:1 line and OLS fit; Bland-Altman), main dataset
-# (RH-screened, goFlux best model).
+# (RH-screened, goFlux best model), and the offset between disjoint chamber subsets from the spatial-null benchmark
+# (2_analysis/04_agreement_metrics.R).
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
@@ -52,4 +53,19 @@ p4b <- ggplot(ba, aes(m, df)) + geom_hline(yintercept = 0, colour = "grey75") +
   guides(colour = guide_legend(order = 1, override.aes = list(size = 2, alpha = 1)), linetype = guide_legend(order = 2)) +
   coord_equal(xlim = c(0.5, 5.3), ylim = c(-2.4, 2.4), expand = FALSE) + lgd +   # same scale on both axes
   labs(x = expression(Mean ~ of ~ the ~ two ~ systems ~ (mu * mol ~ m^-2 ~ s^-1)), y = expression(Fluxbot - autochamber ~ (mu * mol ~ m^-2 ~ s^-1)), tag = "b")
-save_fig((p4a | p4b), "Fig3_array_agreement", 190, 100)
+# (c) spatial null: absolute offset between disjoint three-chamber-per-stand subsets of the same or different systems
+null <- readRDS(file.path(out_dir, "spatial_null.rds")) %>%
+  mutate(pair = factor(pair, levels = rev(c("autochamber vs autochamber", "Fluxbot vs Fluxbot", "autochamber vs Fluxbot"))),
+         off = 100 * abs_bias)
+pf <- c("autochamber vs autochamber" = unname(pal["autochamber"]), "Fluxbot vs Fluxbot" = unname(pal["fluxbot"]),
+        "autochamber vs Fluxbot" = col_cross)
+set.seed(1)   # jitter only
+p4c <- ggplot(null, aes(off, pair, fill = pair)) + geom_violin(colour = NA, alpha = 0.3) +
+  geom_jitter(aes(colour = pair), height = 0.22, width = 0, size = pt_dense, alpha = 0.6, stroke = 0) +
+  geom_boxplot(width = 0.18, outliers = FALSE, fill = NA, linewidth = 0.35) +
+  scale_fill_manual(values = pf, guide = "none") + scale_colour_manual(values = pf, guide = "none") +
+  scale_y_discrete(labels = c("autochamber vs autochamber" = "Autochamber vs autochamber", "Fluxbot vs Fluxbot" = "Fluxbot vs Fluxbot",
+                              "autochamber vs Fluxbot" = "Autochamber vs Fluxbot")) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.02)), limits = c(0, NA)) +
+  labs(x = "Absolute offset between three-chamber subsets (% of mean flux)", y = NULL, tag = "c")
+save_fig((p4a | p4b) / p4c + plot_layout(heights = c(1, 0.42)), "Fig3_array_agreement", 190, 145)

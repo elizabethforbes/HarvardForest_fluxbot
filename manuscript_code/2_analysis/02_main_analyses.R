@@ -211,6 +211,14 @@ for (pct in c(10, 20, 30)) {
 record("tost_min_equiv_bound", abs(est) + 1.645 * se, "equivalence")
 record("tost_min_equiv_bound_pct", 100 * (abs(est) + 1.645 * se) / ac_mean, "equivalence")
 
+# mixed model without smooths (random intercepts for chamber and hour): checks that the GAM system effect
+# and its SE do not depend on the smooths
+mm <- lmer(flux_umolm2sec ~ stand + method + (1 | id) + (1 | hf), data = d %>% mutate(hf = factor(hour_of_obs)))
+record("lmm_method", fixef(mm)[["methodfluxbot"]], "equivalence", "chamber + hour random intercepts")
+record("lmm_method_se", sqrt(vcov(mm)["methodfluxbot", "methodfluxbot"]), "equivalence")
+record("lmm_method_pct", 100 * fixef(mm)[["methodfluxbot"]] / ac_mean, "equivalence")
+record("gam_method_pct_of_ac_mean", 100 * est / ac_mean, "equivalence")
+
 # chamber-cluster bootstrap of the difference in chamber-mean fluxes (resample chambers within
 # system x stand). A check on the GAM SE that makes no distributional assumptions; its point estimate
 # differs from the GAM effect because chamber means are not adjusted for hour, temperature or the

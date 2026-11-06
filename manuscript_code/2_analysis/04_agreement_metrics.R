@@ -97,11 +97,13 @@ subset_series <- function(sel) {  # sel: data.frame(stand, id)
     group_by(stand, hour_of_obs) %>% filter(n() >= 2) %>% summarise(f = mean(f), .groups = "drop") %>%
     group_by(hour_of_obs) %>% filter(n() == 2) %>% summarise(f = mean(f), .groups = "drop")
 }
-draw <- function(sys_a, sys_b) {
-  pick <- function(sys, exclude = NULL) bind_rows(lapply(c("healthy", "unhealthy"), function(st) {
-    pool <- ids %>% filter(method == sys, stand == st, !(id %in% exclude))
-    pool[sample(nrow(pool), m), c("stand", "id")] }))
-  a <- pick(sys_a); b <- pick(sys_b, exclude = if (sys_a == sys_b) a$id else NULL)
+# Draws are distinct pairings of chamber sets (a pairing is never repeated). Pairings share chambers, so
+# they describe the spread of possible collar groupings, not independent replicates.
+pick <- function(sys, exclude = NULL) bind_rows(lapply(c("healthy", "unhealthy"), function(st) {
+  pool <- ids %>% filter(method == sys, stand == st, !(id %in% exclude))
+  pool[sample(nrow(pool), m), c("stand", "id")] }))
+set_key <- function(s) paste(sort(s$id), collapse = ",")
+draw <- function(sys_a, sys_b, a, b) {
   s <- inner_join(subset_series(a), subset_series(b), by = "hour_of_obs", suffix = c("_a", "_b"))
   if (nrow(s) < 50) return(NULL)
   sd_ <- s %>% mutate(day = as.Date(hour_of_obs, tz = "America/New_York")) %>% group_by(day) %>% filter(n() >= 12) %>%
@@ -110,11 +112,22 @@ draw <- function(sys_a, sys_b) {
   data.frame(abs_bias = abs(h$bias) / mean(c(h$mean_ref, h$mean_fb)), r_hourly = h$r, ccc_hourly = h$ccc,
              nrmse_hourly = h$nrmse_pct, r_daily = dd$r, ccc_daily = dd$ccc, nrmse_daily = dd$nrmse_pct)
 }
-N <- 400
+N <- 200   # = all distinct autochamber pairings (C(6,3)^2 / 2); a random 200 of the far more numerous others
+distinct_draws <- function(sys_a, sys_b) {
+  keys <- character(0); out <- list()
+  while (length(keys) < N) {
+    a <- pick(sys_a); b <- pick(sys_b, exclude = if (sys_a == sys_b) a$id else NULL)
+    k <- if (sys_a == sys_b) paste(sort(c(set_key(a), set_key(b))), collapse = "|") else paste(set_key(a), set_key(b), sep = "|")
+    if (k %in% keys) next
+    keys <- c(keys, k); out[[length(out) + 1]] <- draw(sys_a, sys_b, a, b)
+  }
+  bind_rows(out)
+}
 null <- bind_rows(
-  bind_rows(replicate(N, draw("autochamber", "autochamber"), simplify = FALSE)) %>% mutate(pair = "autochamber vs autochamber"),
-  bind_rows(replicate(N, draw("fluxbot", "fluxbot"), simplify = FALSE)) %>% mutate(pair = "Fluxbot vs Fluxbot"),
-  bind_rows(replicate(N, draw("autochamber", "fluxbot"), simplify = FALSE)) %>% mutate(pair = "autochamber vs Fluxbot"))
+  distinct_draws("autochamber", "autochamber") %>% mutate(pair = "autochamber vs autochamber"),
+  distinct_draws("fluxbot", "fluxbot") %>% mutate(pair = "Fluxbot vs Fluxbot"),
+  distinct_draws("autochamber", "fluxbot") %>% mutate(pair = "autochamber vs Fluxbot"))
+record("null_n_pairings", N, "spatial_null", "distinct pairings per comparison")
 saveRDS(null, file.path(out_dir, "spatial_null.rds"))
 null_sum <- null %>% group_by(pair) %>% summarise(across(everything(), list(med = median,
   lo = ~ quantile(., 0.1), hi = ~ quantile(., 0.9))), n = n())

@@ -1,5 +1,6 @@
 # Fig. S5. Agreement between systems (r, nRMSE) as a function of averaging block, with the within- and
-# cross-system subset benchmark (2_analysis/08_scales_budget.R).
+# cross-system subset benchmark (2_analysis/08_scales_budget.R), and the offset between disjoint
+# three-chamber subsets from the spatial-null benchmark (2_analysis/04_agreement_metrics.R).
 source("R/setup.R")
 source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
@@ -14,5 +15,19 @@ pp <- function(v, lab) ggplot(bs, aes(L, .data[[paste0(v, "_med")]], colour = pa
   geom_point(data = cr, aes(L, .data[[v]]), size = 1.5) +
   scale_x_log10(breaks = blocks) + scale_colour_manual(values = pal, name = NULL) + scale_fill_manual(values = pal, name = NULL) +
   labs(x = "Averaging block (h)", y = lab) + theme_afm()
-pscale <- pp("r", "Correlation (r)") + pp("nrmse", "nRMSE (% of mean)") + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+# (c) offset between subsets: same-system pairs vs cross-system pairs; dashed line = full arrays
+null <- readRDS(file.path(out_dir, "spatial_null.rds")) %>%
+  mutate(pair = factor(recode(pair, "autochamber vs autochamber" = "autochamber subsets", "Fluxbot vs Fluxbot" = "Fluxbot subsets",
+                              "autochamber vs Fluxbot" = "autochamber vs Fluxbot subsets"),
+                       levels = c("autochamber subsets", "Fluxbot subsets", "autochamber vs Fluxbot subsets")),
+         offset_pct = 100 * abs_bias)
+full_offset <- abs(cr$offset_pct[cr$L == 1])
+pc <- ggplot(null, aes(pair, offset_pct, fill = pair)) +
+  geom_violin(colour = NA, alpha = 0.5) + geom_boxplot(width = 0.15, outliers = FALSE, fill = "white", linewidth = 0.3) +
+  geom_hline(yintercept = full_offset, linetype = "dashed", linewidth = 0.4) +
+  scale_fill_manual(values = pal, guide = "none") +
+  scale_x_discrete(labels = c("Autochamber\nsubsets", "Fluxbot\nsubsets", "Across\nsystems")) +
+  labs(x = NULL, y = "Offset between subsets (% of mean)") + theme_afm()
+pscale <- (pp("r", "Correlation (r)") + pp("nrmse", "nRMSE (% of mean)") + pc + plot_layout(guides = "collect", widths = c(1, 1, 0.8)) +
+  plot_annotation(tag_levels = "a")) & theme(legend.position = "bottom")
 save_afm(pscale, "FigS05_scale_agreement", 190, 80, tif = FALSE)

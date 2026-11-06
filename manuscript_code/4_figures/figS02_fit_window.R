@@ -47,7 +47,7 @@ pb <- ggplot(seg, aes(t0)) + geom_histogram(binwidth = 6, boundary = 0, fill = "
 # (c) closure-level bias of the earlier window, by delay
 pc <- ggplot(both, aes(factor(cut(t0, c(-1, 30, 60, 120, 180), labels = c("0-30", "31-60", "61-120", "121-180"))), ratio)) +
   geom_hline(yintercept = 1, colour = "grey50", linetype = "22") + geom_boxplot(outliers = FALSE, fill = "grey90", width = 0.6) +
-  labs(x = "Delay (s)", y = "Flux ratio, 56:00 / 57:00 window") + theme_afm()
+  labs(x = "Delay from lid closure to CO2 rise (s)", y = "Flux ratio, 56:00 / 57:00 window") + theme_afm()
 # (d) comparison with the autochambers under each window (main dataset)
 wsr <- read.csv(file.path(out_dir, "window_sensitivity.csv"))
 tab <- data.frame(row.names = c("Offset vs autochamber", "r, hourly means", "r, daily means"),

@@ -147,7 +147,7 @@ for (sys in c("ac", "fb")) {
   record(paste0("flux_p72_p_", sys), summary(mm)$coefficients["log1p(p72)", 4], "moisture")
 }
 
-# ---- figure for co-authors: chamber temperature diagnostics -------------------------------------------
+# ---- diagnostic figure: chamber temperature -------------------------------------------
 pA <- ggplot(dielT, aes(hod)) + geom_line(aes(y = t_open, colour = "Fluxbot chamber (lid open)")) +
   geom_line(aes(y = airt, colour = "HF001 air")) + geom_line(aes(y = s10t, colour = "HF001 soil 10 cm")) +
   labs(x = "Hour of day", y = "Temperature (°C)", colour = NULL) + theme_classic(base_size = 8) + theme(legend.position = c(0.25, 0.85))

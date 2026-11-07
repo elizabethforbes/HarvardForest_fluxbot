@@ -197,11 +197,12 @@ for (m in c("autochamber", "fluxbot")) {
          sqrt(sum(tapply(x$mean, x$stand, function(v) sum((v - mean(v))^2))) / (nrow(x) - 2)), "gam")
 }
 
-# TOST on the GAM method effect, bounds = +/-10% and +/-20% of the autochamber mean
+# TOST on the GAM method effect; the paper reports the smallest equivalence bound (below), with +/-10% and +/-20%
+# of the autochamber mean for reference
 ac_mean <- mean(d$flux_umolm2sec[d$method == "autochamber"])
 record("autochamber_mean_flux", ac_mean, "equivalence")
 record("fluxbot_mean_flux", mean(d$flux_umolm2sec[d$method == "fluxbot"]), "equivalence")
-for (pct in c(10, 20, 30)) {
+for (pct in c(10, 20)) {
   bnd <- pct / 100 * ac_mean
   p_tost <- max(pnorm((est + bnd) / se, lower.tail = FALSE), pnorm((est - bnd) / se))
   record(paste0("tost_bound_", pct, "pct"), bnd, "equivalence")

@@ -71,8 +71,6 @@
 "tost_p_10pct",0.21596,"equivalence","equivalence if < 0.05","2_analysis/02_main_analyses.R"
 "tost_bound_20pct",0.58212,"equivalence","","2_analysis/02_main_analyses.R"
 "tost_p_20pct",0.042744,"equivalence","equivalence if < 0.05","2_analysis/02_main_analyses.R"
-"tost_bound_30pct",0.87319,"equivalence","","2_analysis/02_main_analyses.R"
-"tost_p_30pct",0.0039833,"equivalence","equivalence if < 0.05","2_analysis/02_main_analyses.R"
 "tost_min_equiv_bound",0.55884,"equivalence","","2_analysis/02_main_analyses.R"
 "tost_min_equiv_bound_pct",19.2,"equivalence","","2_analysis/02_main_analyses.R"
 "lmm_method",-0.051438,"equivalence","chamber + hour random intercepts","2_analysis/02_main_analyses.R"

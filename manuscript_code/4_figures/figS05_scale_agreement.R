@@ -5,7 +5,8 @@ source("R/fig_style.R")
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
 blocks <- c(1, 3, 6, 12, 24, 72)
 cr <- read.csv(file.path(out_dir, "scale_agreement_main.csv")) %>% mutate(pair = "full arrays (autochamber vs Fluxbot)")
-bs <- read.csv(file.path(out_dir, "scale_benchmark_main.csv")) %>%
+# cross-system subsets at 72 h: only one draw had enough blocks, so no summary is drawn
+bs <- read.csv(file.path(out_dir, "scale_benchmark_main.csv")) %>% filter(!(pair == "cross" & L == 72)) %>%
   mutate(pair = recode(pair, autochamber = "autochamber subsets", fluxbot = "Fluxbot subsets", cross = "autochamber vs Fluxbot subsets"))
 pal <- c("autochamber subsets" = unname(pal_sys["autochamber"]), "Fluxbot subsets" = unname(pal_sys["fluxbot"]), "autochamber vs Fluxbot subsets" = col_cross, "full arrays (autochamber vs Fluxbot)" = "black")
 pp <- function(v, lab) ggplot(bs, aes(L, .data[[paste0(v, "_med")]], colour = pair, fill = pair)) +

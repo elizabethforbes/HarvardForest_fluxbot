@@ -1,6 +1,6 @@
 # Analysis code
 
-This code reproduces every flux, dataset, number, figure and table in the paper from the raw data in `../data_package/`. Run it from this folder:
+This code recomputes every flux from the raw data in `../data_package/` and regenerates the cleaned datasets, the analytical results and every number quoted in the paper, the analysis figures (Figs. 2–6 and S1–S8; Fig. 1 is a field photograph) and the SI tables. Run it from this folder:
 
 ```
 Rscript run_all.R                  # everything (~11 min on a laptop, ~2 min of it flux calculation; parallel, macOS/Linux)
@@ -20,10 +20,10 @@ SKIP_FLUXES=1 Rscript run_all.R    # reuse ../data_clean/fluxes/
 ../data_package/          raw records, metadata, ancillary (HF001, HF293), lab-test raw data
       |  1_clean/01-02    flux calculation (goFlux), both systems, one procedure
       v
-../data_clean/fluxes/     one row per closure, every closure (25 Sep - 5 Nov 2023), before QC
-      |  1_clean/03       data hygiene: QC flags, status of every closure, analysis datasets
+../data_clean/fluxes/     one row per closure that reached the flux-output stage (25 Sep - 5 Nov 2023), before QC
+      |  1_clean/03       data hygiene: QC flags, status of each computed closure, analysis datasets
       v
-../data_clean/            closures_{fluxbot,autochamber}.csv   every closure in 2-31 Oct + QC flags + qc_status
+../data_clean/            closures_{fluxbot,autochamber}.csv   computed closures in 2-31 Oct + QC flags + qc_status
                           chamber_hours_deployed.csv           as-deployed dataset (wet sensors kept)
                           chamber_hours_screened.csv           MAIN dataset (RH-screened)
                           qc_log.csv, data_dictionary.csv
@@ -99,7 +99,7 @@ The same goFlux procedure is used for both systems.
 | **1_clean** | | |
 | `01_fluxes.R` | Per-closure fluxes for both systems from the raw records; wet-sensor and stuck-lid flags | Methods |
 | `02_fluxes_window56.R` | Fluxbot fluxes with the 56:00 window (sensitivity) | Fig. S2 |
-| `03_clean_datasets.R` | QC status of every closure; as-deployed and RH-screened chamber-hour datasets; QC log; data dictionary | Methods 2.7 |
+| `03_clean_datasets.R` | QC status of each computed closure; as-deployed and RH-screened chamber-hour datasets; QC log; data dictionary | Methods 2.7 |
 | **2_analysis** | | |
 | `01_station_pressure.R` | Station pressure vs HF001 sea-level pressure | Methods |
 | `02_main_analyses.R` | GAM stand and system effects, TOST, variance components, array agreement, diel cycle, Q10, sampling effort, sensitivity table | Results, Table S2 |

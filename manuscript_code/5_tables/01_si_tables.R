@@ -33,15 +33,15 @@ w(dc %>% transmute(Dataset = dataset, `Fluxbot closures` = fluxbot_closures, `% 
 pm <- bind_rows(rd("agreement_metric_panel.csv") %>% mutate(Dataset = "RH-screened (main)"),
                 rd("agreement_metric_panel_deployed.csv") %>% mutate(Dataset = "As deployed")) %>%
   transmute(Dataset, Scale = scale, n, `Mean, autochamber` = r2(mean_ref), `Mean, Fluxbot` = r2(mean_fb), r = r2(r),
-            `OLS slope` = r2(ols_slope), `Bias` = r2(bias), `Bias (%)` = r2(bias_pct, 1), RMSE = r2(rmse), `nRMSE (%)` = r2(nrmse_pct, 1),
+            `OLS slope` = r2(ols_slope), `Offset` = r2(bias), `Offset (%)` = r2(bias_pct, 1), RMSE = r2(rmse), `nRMSE (%)` = r2(nrmse_pct, 1),
             `Limits of agreement` = sprintf("%.2f to %.2f", loa_lo, loa_hi), CCC = r2(ccc), `Cb` = r2(cb))
 w(pm, "TableS_agreement_metrics.csv")
 
 # S-sensitivity: processing and QC choices
 sens <- rd("sensitivity_table.csv") %>% filter(!grepl("HF293", scenario)) %>%
   transmute(Scenario = scenario, `Fluxbot closures` = n_fluxbot, `Method effect (GAM, umol m-2 s-1; 95% CI)` = sprintf("%.2f (%.2f to %.2f)", gam_method, gam_method_lo, gam_method_hi),
-            `Paired bias, 3-h array means (umol m-2 s-1; block-bootstrap 95% CI)` = sprintf("%.2f (%.2f to %.2f)", paired_bias, paired_bias_lo, paired_bias_hi),
-            `r (3-h array means)` = r2(r), `CCC (3-h array means)` = r2(ccc), `Q10 autochamber` = r2(q10_ac), `Q10 Fluxbot` = r2(q10_fb))
+            `Offset, 3-h system means (umol m-2 s-1; block-bootstrap 95% CI)` = sprintf("%.2f (%.2f to %.2f)", paired_bias, paired_bias_lo, paired_bias_hi),
+            `r (3-h system means)` = r2(r), `CCC (3-h system means)` = r2(ccc), `Q10 autochamber` = r2(q10_ac), `Q10 Fluxbot` = r2(q10_fb))
 w(sens, "TableS_sensitivity.csv")
 
 # S-fluxmodel: flux-model pairings (as deployed)

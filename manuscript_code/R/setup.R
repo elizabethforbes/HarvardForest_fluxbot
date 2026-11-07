@@ -45,8 +45,8 @@ round_hour <- function(ts) {
 
 # ---- flux estimates -------------------------------------------------------------
 # Fluxes recomputed for both systems from the raw records in data_package/ by
-# 1_clean/01_fluxes.R (goFlux). flux_col: "LM.flux" (linear fit; main analysis),
-# "best.flux" (goFlux LM/HM model selection; SI), "HM.flux".
+# 1_clean/01_fluxes.R (goFlux). flux_col: "best.flux" (goFlux LM/HM model selection; main analysis),
+# "LM.flux" (linear fit; sensitivity analysis), "HM.flux".
 lab_sys <- c(autochamber = "Autochamber", fluxbot = "Fluxbot 2.0")   # system labels used in tables and figures
 # ---- main analysis choices --------------------------------------------------------
 # Flux model: goFlux best-model selection (linear or Hutchinson-Mosier, per closure). The smaller

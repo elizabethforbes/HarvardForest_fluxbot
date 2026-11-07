@@ -19,12 +19,13 @@ hours <- tibble(hour_of_obs = seq(p0, p1 - 3600, by = "hour"))
 d <- build_dataset(qc = "deployed") %>% filter(hour_of_obs >= p0, hour_of_obs < p1)
 ac <- stand_hour(d %>% filter(method == "autochamber"), 3) %>% left_join(met, by = "hour_of_obs") %>% mutate(hr = hour(hour_of_obs))
 fb <- stand_hour(d %>% filter(method == "fluxbot"), 3) %>% select(stand, hour_of_obs, n_fb = n)
-# share of each stand's recording Fluxbots flagged wet in each hour (stuck lids are not counted as wet)
+# share of each stand's recording Fluxbots flagged wet in each hour (stuck-lid closures excluded); exactly half
+# wet falls in the lower class
 wet <- load_fluxbot() %>% filter(hour_of_obs >= p0, hour_of_obs < p1, !lid_fail) %>% mutate(stand = as.character(stand)) %>%
   group_by(stand, hour_of_obs) %>% summarise(wet_share = mean(wet), n_rec = n(), .groups = "drop")
 ac <- ac %>% left_join(wet, by = c("stand", "hour_of_obs")) %>% left_join(fb, by = c("stand", "hour_of_obs")) %>%
   mutate(fb_used = !is.na(n_fb),
-         wet_class = cut(wet_share, c(-Inf, 0, 0.5, Inf), labels = c("no Fluxbot wet", "< half wet", ">= half wet")))
+         wet_class = cut(wet_share, c(-Inf, 0, 0.5, Inf), labels = c("no Fluxbot wet", "half or fewer wet", "more than half wet")))
 g <- gam(f ~ stand + s(s10t, k = 6) + s(hr, bs = "cc", k = 8), data = ac, knots = list(hr = c(-0.5, 23.5)))
 ac$rel <- ac$f / predict(g, newdata = ac)
 
@@ -32,7 +33,7 @@ ac$rel <- ac$f / predict(g, newdata = ac)
 a <- ac %>% filter(!is.na(wet_class)) %>% group_by(wet_class) %>%
   summarise(n_hours = n(), ac_mean = mean(f), ac_rel_to_model = mean(rel), s10t = mean(s10t), .groups = "drop")
 print(a); write.csv(a, file.path(out_dir, "selection_bias_by_wet_share.csv"), row.names = FALSE)
-for (i in seq_len(nrow(a))) { tg <- c("none_wet", "lt_half_wet", "ge_half_wet")[as.integer(a$wet_class[i])]
+for (i in seq_len(nrow(a))) { tg <- c("none_wet", "le_half_wet", "gt_half_wet")[as.integer(a$wet_class[i])]
   record(paste0("selbias_ac_rel_", tg), a$ac_rel_to_model[i], "selection_bias", "autochamber flux / temperature+hour model")
   record(paste0("selbias_ac_mean_", tg), a$ac_mean[i], "selection_bias"); record(paste0("selbias_n_", tg), a$n_hours[i], "selection_bias") }
 mw <- lm(log(rel) ~ wet_share + stand, data = ac %>% filter(!is.na(wet_share), rel > 0))

@@ -1,4 +1,4 @@
-"Dataset","Scale","n","Mean, autochamber","Mean, Fluxbot","r","OLS slope","Bias","Bias (%)","RMSE","nRMSE (%)","Limits of agreement","CCC","Cb"
+"Dataset","Scale","n","Mean, autochamber","Mean, Fluxbot","r","OLS slope","Offset","Offset (%)","RMSE","nRMSE (%)","Limits of agreement","CCC","Cb"
 "RH-screened (main)","hourly",305,2.88,2.87,0.72,1.04,-0.01,-0.3,0.68,23.5,"-1.33 to 1.32",0.67,0.94
 "RH-screened (main)","3-h rolling",278,2.86,2.86,0.74,1.14,0,-0.1,0.61,21.5,"-1.21 to 1.20",0.68,0.92
 "RH-screened (main)","daily",15,2.85,2.84,0.85,1.46,-0.01,-0.3,0.47,16.6,"-0.97 to 0.95",0.74,0.87

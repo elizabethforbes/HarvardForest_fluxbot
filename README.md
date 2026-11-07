@@ -7,7 +7,7 @@ Data and code for the manuscript "Low-cost autonomous chambers enable high spati
 | Folder | Contents |
 |---|---|
 | `data_package/` | Raw data: every Fluxbot sensor record, 1 Hz autochamber CO2, unit and chamber metadata, HF001 met and HF293 extracts, and raw data from two laboratory tests of the Fluxbot CO2 sensor. See its README and `data_dictionary.csv`. |
-| `data_clean/` | Cleaned datasets generated from the raw data: per-closure fluxes, the QC status of every closure, and the chamber-hour datasets used by all analyses. See its README. |
+| `data_clean/` | Cleaned datasets generated from the raw data: per-closure fluxes, the QC status of each computed closure, and the chamber-hour datasets used by all analyses. See its README. |
 | `manuscript_code/` | Analysis code. `run_all.R` runs, in order: `1_clean/` (fluxes and data hygiene), `2_analysis/`, `3_lab_tests/`, `4_figures/` (one script per figure), `5_tables/`. Outputs, including every number quoted in the paper, are in `manuscript_code/outputs/`. See its README. |
 | `legacy/` | Repository only (not in the Zenodo archive): earlier scripts and the raw spreadsheet exports from which `data_package/` was assembled by `data_package/build_data_package.R`. Not used by the analysis. |
 
